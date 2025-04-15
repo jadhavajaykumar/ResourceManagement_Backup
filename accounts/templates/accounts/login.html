@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    body {
+        font-family: 'Segoe UI', sans-serif;
+        background-color: #1e1e2f;
+        color: #ffffff;
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    .login-container {
+        max-width: 420px;
+        margin: 80px auto;
+        padding: 30px;
+        background-color: #2c2c3e;
+        border-radius: 12px;
+        box-shadow: 0 0 30px rgba(0, 0, 0, 0.4);
+        animation: fadeIn 1s ease;
+        position: relative;
+    }
+
+    .login-container h2 {
+        text-align: center;
+        color: #61dafb;
+        margin-bottom: 10px;
+        font-weight: 600;
+    }
+
+    .role-text {
+        text-align: center;
+        margin-bottom: 15px;
+        color: #aaa;
+        font-size: 15px;
+    }
+
+    .logo {
+        display: block;
+        margin: 0 auto 15px;
+        width: 70px;
+        height: 70px;
+        animation: pop 1s ease;
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    label {
+        display: block;
+        margin-bottom: 5px;
+        color: #c2c2c2;
+    }
+
+    input[type="text"],
+    input[type="password"] {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #444;
+        background-color: #1e1e2f;
+        color: #ffffff;
+        border-radius: 5px;
+    }
+
+    .btn-login {
+        width: 100%;
+        padding: 12px;
+        border: none;
+        background-color: #61dafb;
+        color: #1e1e2f;
+        font-weight: bold;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    .btn-login:hover {
+        background-color: #3ca9dd;
+    }
+
+    .role-buttons {
+        display: flex;
+        justify-content: space-between;
+        margin: 15px 0 25px;
+    }
+
+    .role-buttons a {
+        flex: 1;
+        margin: 3px;
+        text-align: center;
+        background-color: #343a40;
+        color: #fff;
+        padding: 8px;
+        border-radius: 5px;
+        text-decoration: none;
+        font-size: 13px;
+    }
+
+    .role-buttons a.active-role {
+        background-color: #61dafb;
+        color: #1e1e2f;
+        font-weight: bold;
+    }
+
+    .error-message {
+        color: #ff6b6b;
+        text-align: center;
+        margin-top: 10px;
+    }
+
+    .theme-toggle {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background-color: #444;
+        color: #fff;
+        border: none;
+        padding: 5px 10px;
+        font-size: 13px;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pop {
+        0% { transform: scale(0.5); opacity: 0; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+
+    /* Light mode */
+    body.light-mode {
+        background-color: #f5f5f5;
+        color: #111;
+    }
+
+    body.light-mode .login-container {
+        background-color: #fff;
+        color: #111;
+    }
+
+    body.light-mode input {
+        background-color: #f0f0f0;
+        color: #000;
+    }
+
+    body.light-mode label {
+        color: #333;
+    }
+
+    body.light-mode .theme-toggle {
+        background-color: #ddd;
+        color: #000;
+    }
+</style>
+
+<div class="login-container">
+    <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+    <img src="{% static 'images/logo.png' %}" alt="Logo" class="logo">
+    <h2>Login Portal</h2>
+
+    {% if request.GET.role %}
+        <div class="role-text">Welcome {{ request.GET.role|title }} Login</div>
+    {% endif %}
+
+    <div class="role-buttons">
+        {% with request.GET.role as role %}
+            <a href="{% url 'accounts:login' %}?role=Employee" class="{% if role == 'Employee' %}active-role{% endif %}">Employee</a>
+            <a href="{% url 'accounts:login' %}?role=Manager" class="{% if role == 'Manager' %}active-role{% endif %}">Manager</a>
+            <a href="{% url 'accounts:login' %}?role=HR" class="{% if role == 'HR' %}active-role{% endif %}">HR</a>
+            <a href="{% url 'accounts:login' %}?role=Accountant" class="{% if role == 'Accountant' %}active-role{% endif %}">Accountant</a>
+        {% endwith %}
+    </div>
+
+    <form method="post" action="{% url 'accounts:login' %}">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="id_username">Username</label>
+            <input type="text" name="username" id="id_username" required placeholder="Enter username">
+        </div>
+        <div class="form-group">
+            <label for="id_password">Password</label>
+            <input type="password" name="password" id="id_password" required placeholder="Enter password">
+        </div>
+        <button type="submit" class="btn-login">Login</button>
+    </form>
+
+    {% if form.errors %}
+        <div class="error-message">Invalid username or password. Please try again.</div>
+    {% endif %}
+</div>
+
+<script>
+    function toggleTheme() {
+        const body = document.body;
+        const isLight = body.classList.toggle("light-mode");
+        localStorage.setItem("theme", isLight ? "light" : "dark");
+    }
+
+    // Apply saved theme from localStorage
+    window.onload = function () {
+        const savedTheme = localStorage.getItem("theme");
+        if (savedTheme === "light") {
+            document.body.classList.add("light-mode");
+        }
+    };
+</script>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<h2>Project Detail: {{ project.project_name }}</h2>
+
+<ul>
+    <li><strong>Customer:</strong> {{ project.customer_name }}</li>
+    <li><strong>Status:</strong> {{ project.status }}</li>
+    <li><strong>Start Date:</strong> {{ project.start_date }}</li>
+    <li><strong>End Date:</strong> {{ project.end_date }}</li>
+    <li><strong>Progress:</strong> {{ project.progress }}%</li>
+</ul>
+
+<h3>Tasks</h3>
+{% if project.tasks.exists %}
+    <ul>
+        {% for task in project.tasks.all %}
+            <li>{{ task.task_name }} - {{ task.status }}</li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p>No tasks assigned.</p>
+{% endif %}
+
+<a href="{% url 'project:project-list' %}" class="btn">← Back to Projects</a>
+{% endblock %}

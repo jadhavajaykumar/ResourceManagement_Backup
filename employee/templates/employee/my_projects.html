@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<h2>My Projects</h2>
+
+	{% if projects %}
+	  <ul style="list-style: none; padding: 0;">
+		{% for project in projects %}
+		  <li style="margin-bottom: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+			<strong>{{ project.project_name }}</strong> <br>
+			<span>Customer: {{ project.customer_name }}</span><br>
+			<span>Status: {{ project.status }}</span> | 
+			<span>Progress: {{ project.progress }}%</span>
+		  </li>
+		{% endfor %}
+	  </ul>
+	{% else %}
+		<p>No projects assigned yet.</p>
+	{% endif %}
+
+				{% if request.user.role == 'Manager' %}
+					<a href="{% url 'manager:manager-dashboard' %}" class="btn btn-secondary btn-lg shadow-sm"><i class="bi bi-house me-2"></i>Dashboard</a>
+				{% else %}
+					<form method="post" action="{% url 'accounts:profile' %}">
+							{% csrf_token %}
+							<button type="submit" class="btn btn-secondary btn-lg shadow-sm">
+								<i class="bi bi-house me-2"></i>Dashboard
+							</button>
+						</form>
+				{% endif %}
+{% endblock %}

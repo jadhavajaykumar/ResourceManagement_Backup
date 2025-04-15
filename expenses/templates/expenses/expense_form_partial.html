@@ -1,0 +1,119 @@
+<form method="post" enctype="multipart/form-data" id="expenseForm">
+    {% csrf_token %}
+    <div class="row g-3">
+        <div class="col-md-4">
+            {{ form.project.label_tag }} {{ form.project }}
+            {{ form.project.errors }}
+        </div>
+        <div class="col-md-4">
+            {{ form.expense_type.label_tag }}
+            <select name="{{ form.expense_type.name }}" 
+                    id="id_expense_type" 
+                    class="form-select"
+                    required>
+                {% for type in form.expense_type.field.queryset %}
+                <option value="{{ type.id }}"
+                        data-requires-km="{{ type.requires_kilometers|yesno:'true,false' }}"
+                        data-requires-receipt="{{ type.requires_receipt|yesno:'true,false' }}"
+                        data-rate="{{ type.rate_per_km|default:0 }}">
+                    {{ type.name }}
+                </option>
+                {% endfor %}
+            </select>
+            {{ form.expense_type.errors }}
+        </div>
+
+
+<form method="post" enctype="multipart/form-data" id="expenseForm">
+    {% csrf_token %}
+    <div class="row g-3">
+        <div class="col-md-4">
+            {{ form.project.label_tag }} {{ form.project }}
+            {{ form.project.errors }}
+        </div>
+        <div class="col-md-4">
+            {{ form.expense_type.label_tag }} {{ form.expense_type }}
+            {{ form.expense_type.errors }}
+        </div>
+        <div class="col-md-4">
+            {{ form.date.label_tag }} {{ form.date }}
+            {{ form.date.errors }}
+        </div>
+
+        <div class="col-md-4" id="kilometersField" style="display:none;">
+            <label for="id_kilometers">Kilometers</label>
+            {{ form.kilometers }}
+            {% if form.instance.kilometers %}
+            <small class="text-muted">Previously entered: {{ form.instance.kilometers }} km</small>
+            {% endif %}
+        </div>
+
+        <div class="col-md-4" id="amountField">
+            <label for="id_amount" id="amountLabel">Amount (₹)</label>
+            {{ form.amount }}
+            {{ form.amount.errors }}
+        </div>
+
+        <div class="col-md-4">
+            {{ form.receipt.label_tag }} {{ form.receipt }}
+            {{ form.receipt.errors }}
+            {% if form.instance.receipt %}
+                <div class="mt-2">
+                    <a href="{{ form.instance.receipt.url }}" target="_blank">Current Receipt</a>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-12">
+            {{ form.comments.label_tag }} {{ form.comments }}
+            {{ form.comments.errors }}
+        </div>
+    </div>
+    
+    <div class="mt-3">
+        <button type="submit" class="btn {% if editing %}btn-primary{% else %}btn-success{% endif %}">
+            {% if editing %}Update{% else %}Submit{% endif %} Expense
+        </button>
+        {% if editing %}
+        <a href="{% url 'expenses:employee-expenses' %}" class="btn btn-secondary">Cancel</a>
+        {% endif %}
+        <a href="{% url 'accounts:profile' %}" class="btn btn-secondary btn-lg shadow-sm">
+            <i class="bi bi-house me-2"></i>Dashboard
+        </a>
+    </div>
+</form>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const expenseType = document.getElementById('id_expense_type');
+        const kilometersField = document.getElementById('kilometersField');
+        const amountField = document.getElementById('amountField');
+        const amountInput = document.getElementById('id_amount');
+        const kilometersInput = document.getElementById('id_kilometers');
+        const receiptInput = document.getElementById('id_receipt');
+        const amountLabel = document.getElementById('amountLabel');
+
+        function updateFormFields() {
+            const selectedOption = expenseType.options[expenseType.selectedIndex];
+            const requiresKm = selectedOption.dataset.requiresKm === 'true';
+            const requiresReceipt = selectedOption.dataset.requiresReceipt === 'true';
+            const rate = parseFloat(selectedOption.dataset.rate) || 0;
+
+            // Update fields visibility
+            kilometersField.style.display = requiresKm ? 'block' : 'none';
+            amountField.style.display = requiresKm ? 'none' : 'block';
+            receiptInput.required = requiresReceipt;
+
+            // Auto-calculate amount if kilometers exist
+            if (requiresKm && kilometersInput.value) {
+                amountInput.value = (kilometersInput.value * rate).toFixed(2);
+            }
+        }
+
+        // Initial update
+        updateFormFields();
+        
+        // Event listeners
+        expenseType.addEventListener('change', updateFormFields);
+        kilometersInput.addEventListener('input', updateFormFields);
+    });
+    </script>

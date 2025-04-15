@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<h2>Edit My Profile</h2>
+
+<form method="post">
+    {% csrf_token %}
+    {% for field in form %}
+        <div class="form-group" style="margin-bottom: 15px;">
+            <label for="{{ field.id_for_label }}">{{ field.label }}:</label><br>
+            {{ field }}
+            {% if field.errors %}
+                <div style="color: red;">{{ field.errors }}</div>
+            {% endif %}
+        </div>
+    {% endfor %}
+
+    <button type="submit" class="btn">Save Changes</button>
+</form>
+
+						<form method="post" action="{% url 'accounts:profile' %}">
+							{% csrf_token %}
+							<button type="submit" class="btn btn-secondary btn-lg shadow-sm">
+								<i class="bi bi-house me-2"></i>Dashboard
+							</button>
+						</form>
+{% endblock %}

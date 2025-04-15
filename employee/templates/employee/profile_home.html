@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Employee Profile - {{ profile.user.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4" style="background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); min-height: 100vh;">
+    {% if messages %}
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="row justify-content-center mb-5">
+        <div class="col-lg-10">
+            <div class="card shadow-lg border-0" style="border-radius: 15px; overflow: hidden;">
+                <div class="card-body p-0">
+                    <div class="row align-items-center">
+                        <div class="col-md-4 text-center p-4" style="background: linear-gradient(to bottom, #007bff, #0056b3); color: white;">
+                            <img src="{% static 'images/default-avatar.png' %}" class="rounded-circle img-fluid shadow" alt="Profile Avatar" style="max-width: 150px; border: 4px solid white;">
+                            <h2 class="mt-3 fw-bold">{{ profile.user.get_full_name }}</h2>
+                            <p class="mb-0">Employee ID: <span class="badge bg-light text-dark">{{ profile.employee_id }}</span></p>
+                            <p class="mt-2">Role: <span class="badge bg-success">{{ profile.role|default:"Not specified" }}</span></p>
+                            <p>Dept: <span class="badge bg-info">{{ profile.department|default:"Not specified" }}</span></p>
+                        </div>
+                        <div class="col-md-8 p-4">
+                            <h4 class="fw-semibold text-primary">Quick Overview</h4>
+                            <div class="row g-3">
+                                <div class="col-6">
+                                    <div class="bg-light p-3 rounded shadow-sm">
+                                        <i class="bi bi-calendar-event text-primary me-2"></i>
+                                        <small>Joining Date</small>
+                                        <p class="mb-0 fw-bold">{{ profile.probotix_joining_date }}</p>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="bg-light p-3 rounded shadow-sm">
+                                        <i class="bi bi-briefcase text-primary me-2"></i>
+                                        <small>Experience</small>
+                                        <p class="mb-0 fw-bold">{{ profile.total_experience|default:"N/A" }} years</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="card shadow-sm border-0" style="border-radius: 10px;">
+                        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center" style="border-radius: 10px 10px 0 0;">
+                            <h5 class="mb-0"><i class="bi bi-person me-2"></i>Personal Information</h5>
+                            <i class="bi bi-chevron-down"></i>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span><strong>Full Name:</strong></span>
+                                    <span>{{ profile.user.get_full_name }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span><strong>Date of Birth:</strong></span>
+                                    <span>{{ profile.date_of_birth|default:"Not provided" }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span><strong>Contact:</strong></span>
+                                    <span>{{ profile.contact_number|default:"Not provided" }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span><strong>Address:</strong></span>
+                                    <span>{{ profile.address|default:"Not provided" }}</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm border-0 mt-4" style="border-radius: 10px;">
+                        <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center" style="border-radius: 10px 10px 0 0;">
+                            <h5 class="mb-0"><i class="bi bi-telephone me-2"></i>Emergency Contact</h5>
+                            <i class="bi bi-chevron-down"></i>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span><strong>Name:</strong></span>
+                                    <span>{{ profile.emergency_contact_name|default:"Not provided" }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span><strong>Relation:</strong></span>
+                                    <span>{{ profile.emergency_contact_relation|default:"Not provided" }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span><strong>Contact:</strong></span>
+                                    <span>{{ profile.emergency_contact_number|default:"Not provided" }}</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card shadow-sm border-0" style="border-radius: 10px;">
+                        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center" style="border-radius: 10px 10px 0 0;">
+                            <h5 class="mb-0"><i class="bi bi-briefcase me-2"></i>Employment Details</h5>
+                            <i class="bi bi-chevron-down"></i>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span><strong>Role:</strong></span>
+                                    <span>{{ profile.role|default:"Not specified" }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span><strong>Department:</strong></span>
+                                    <span>{{ profile.department|default:"Not specified" }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span><strong>Type:</strong></span>
+                                    <span>{{ profile.employment_type }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span><strong>Career Start:</strong></span>
+                                    <span>{{ profile.career_start_date|default:"Not provided" }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span><strong>Joining Date:</strong></span>
+                                    <span>{{ profile.probotix_joining_date }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span><strong>Confirmation:</strong></span>
+                                    <span>{{ profile.confirmation_date|default:"Pending" }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span><strong>Experience:</strong></span>
+                                    <span>{{ profile.total_experience|default:"N/A" }} years</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span><strong>Manager:</strong></span>
+                                    <span>{{ profile.reporting_manager.get_full_name|default:"Not assigned" }}</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm border-0 mt-4" style="border-radius: 10px;">
+                        <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center" style="border-radius: 10px 10px 0 0;">
+                            <h5 class="mb-0"><i class="bi bi-wallet me-2"></i>Financial Information</h5>
+                            <i class="bi bi-chevron-down"></i>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span><strong>PAN/Aadhar/SSN:</strong></span>
+                                    <span>{{ profile.pan_aadhar_ssn|default:"Not provided" }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span><strong>Bank Account:</strong></span>
+                                    <span>{{ profile.bank_account_number|default:"Not provided" }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span><strong>IFSC Code:</strong></span>
+                                    <span>{{ profile.bank_ifsc_code|default:"Not provided" }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span><strong>EPF Number:</strong></span>
+                                    <span>{{ profile.epf_number|default:"Not provided" }}</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm border-0 mt-4" style="border-radius: 10px;">
+                        <div class="card-header bg-info text-white d-flex justify-content-between align-items-center" style="border-radius: 10px 10px 0 0;">
+                            <h5 class="mb-0"><i class="bi bi-star me-2"></i>Skills</h5>
+                            <i class="bi bi-chevron-down"></i>
+                        </div>
+                        <div class="card-body">
+                            {% if employee_skills %}
+                                {% for skill in employee_skills %}
+                                    <div class="mb-3">
+                                        <div class="d-flex justify-content-between">
+                                            <span><strong>{{ skill.main_skill.name }}</strong> - {{ skill.subskill.name }}</span>
+                                            <span>{{ skill.rating }}/100</span>
+                                        </div>
+                                        <div class="progress mt-1" style="height: 10px;">
+                                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ skill.rating|floatformat:0 }}%;" aria-valuenow="{{ skill.rating }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted">No skills assigned yet.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center mt-5">
+        <div class="col-lg-10 text-center">
+            <p>Debug Role from Template: {{ request.user.role }}</p>
+            <p>Debug Role from View: {{ debug_role }}</p>
+            <div class="d-flex flex-wrap justify-content-center gap-3">
+                <a href="{% url 'employee:edit-profile' %}" class="btn btn-primary btn-lg shadow-sm"><i class="bi bi-pencil me-2"></i>Edit Profile</a>
+                {% if request.user.role in 'Admin,Manager,Director' %}
+                    <a href="{% url 'accounts:change-user-role' %}" class="btn btn-danger btn-lg shadow-sm"><i class="bi bi-person-gear me-2"></i>Manage Roles</a>
+                {% endif %}
+						<form method="post" action="{% url 'accounts:profile' %}">
+							{% csrf_token %}
+							<button type="submit" class="btn btn-secondary btn-lg shadow-sm">
+								<i class="bi bi-house me-2"></i>Dashboard
+							</button>
+						</form>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+    .card:hover { transform: translateY(-5px); transition: transform 0.3s ease; }
+    .list-group-item:hover { background-color: #f8f9fa; }
+</style>
+{% endblock %}

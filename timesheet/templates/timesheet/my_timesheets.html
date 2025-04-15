@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load widget_tweaks %}
+
+{% block content %}
+<div class="container py-4">
+  <h2 class="mb-4 text-primary">My Timesheets</h2>
+
+  <form method="post" action="{% url 'accounts:profile' %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-secondary mb-3">
+      <i class="bi bi-house me-2"></i> Dashboard
+    </button>
+  </form>
+
+  <form method="post" class="card p-4 shadow-sm mb-4">
+    {% csrf_token %}
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label>Project:</label>
+        {{ form.project|add_class:"form-select" }}
+      </div>
+      <div class="col-md-4">
+        <label>Task:</label>
+        {{ form.task|add_class:"form-select" }}
+      </div>
+      <div class="col-md-4">
+        <label>Date:</label>
+        {{ form.date|add_class:"form-control" }}
+      </div>
+      <div class="col-md-3">
+        <label>Time from:</label>
+        {{ form.time_from|add_class:"form-control" }}
+      </div>
+      <div class="col-md-3">
+        <label>Time to:</label>
+        {{ form.time_to|add_class:"form-control" }}
+      </div>
+      <div class="col-md-12">
+        <label>Task description:</label>
+        {{ form.task_description|add_class:"form-control" }}
+      </div>
+    </div>
+    <div class="mt-3">
+      <button type="submit" class="btn btn-success">Submit Timesheet</button>
+    </div>
+  </form>
+
+  {% if grouped_timesheets %}
+  <div class="card shadow-sm">
+    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+      <h5 class="mb-0">Submitted Timesheets</h5>
+      <div class="d-flex gap-2">
+        <select id="viewToggle" class="form-select form-select-sm">
+          <option value="">View All</option>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+        </select>
+        <input type="date" id="startDate" class="form-control form-control-sm" />
+        <input type="date" id="endDate" class="form-control form-control-sm" />
+        <input type="text" id="projectSearch" class="form-control form-control-sm" placeholder="Search Project" />
+        <input type="text" id="taskSearch" class="form-control form-control-sm" placeholder="Search Task" />
+        <a href="{% url 'timesheet:export-timesheets-csv' %}" class="btn btn-outline-light btn-sm">
+          <i class="bi bi-download"></i> Export CSV
+        </a>
+      </div>
+    </div>
+
+    <div class="card-body table-responsive">
+      <table id="timesheetTable" class="table table-striped table-bordered text-center">
+        <thead class="table-light">
+          <tr>
+            <th>Date</th>
+            <th>Project</th>
+            <th>Time Slots</th>
+            <th>Task Descriptions</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for date, entries in grouped_timesheets.items %}
+          <tr>
+            <td>{{ date }}</td>
+            <td class="project-cell">{{ entries.0.project.name }}</td>
+            <td>
+              {% for entry in entries %}
+                <div>{{ entry.time_from }} - {{ entry.time_to }}</div>
+              {% endfor %}
+            </td>
+            <td class="task-cell">
+              {% for entry in entries %}
+                <div>{{ entry.task_description }}</div>
+              {% endfor %}
+            </td>
+            <td>
+              {% for entry in entries %}
+                <div>{{ entry.status }}</div>
+              {% endfor %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.dataTables.min.css">
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+<script>
+  $(document).ready(function () {
+    const table = $('#timesheetTable').DataTable({
+      dom: 'Bfrtip',
+      buttons: ['csvHtml5', 'excelHtml5'],
+      order: [[0, 'desc']],
+    });
+
+    const filterByDate = () => {
+      const view = $('#viewToggle').val();
+      const startDate = new Date($('#startDate').val());
+      const endDate = new Date($('#endDate').val());
+      const today = new Date();
+
+      table.rows().every(function () {
+        const rowDate = new Date(this.data()[0]);
+        let show = true;
+
+        if (view === 'daily') {
+          show = rowDate.toDateString() === today.toDateString();
+        } else if (view === 'weekly') {
+          const startOfWeek = new Date(today);
+          startOfWeek.setDate(today.getDate() - today.getDay());
+          const endOfWeek = new Date(startOfWeek);
+          endOfWeek.setDate(startOfWeek.getDate() + 6);
+          show = rowDate >= startOfWeek && rowDate <= endOfWeek;
+        } else if (view === 'monthly') {
+          show = rowDate.getMonth() === today.getMonth() &&
+                 rowDate.getFullYear() === today.getFullYear();
+        }
+
+        if ($('#startDate').val() && $('#endDate').val()) {
+          show = rowDate >= startDate && rowDate <= endDate;
+        }
+
+        $(this.node()).toggle(show);
+      });
+    };
+
+    $('#viewToggle, #startDate, #endDate').on('change', filterByDate);
+    $('#projectSearch').on('keyup', () => table.column(1).search($('#projectSearch').val()).draw());
+    $('#taskSearch').on('keyup', () => table.column(3).search($('#taskSearch').val()).draw());
+  });
+</script>
+{% endblock %}

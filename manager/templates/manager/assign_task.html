@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load widget_tweaks %}
+
+{% block content %}
+<div class="container py-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-primary">Assign Project/Task to Employee</h2>
+    <a href="{% url 'manager:manager-dashboard' %}" class="btn btn-secondary">
+      <i class="fa fa-arrow-left"></i> Back to Dashboard
+    </a>
+  </div>
+
+  <div class="card shadow mb-4">
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0">Assignment Form</h5>
+    </div>
+    <div class="card-body">
+      <form method="post" id="assignment-form">
+        {% csrf_token %}
+        <div class="row mb-3">
+          <div class="col-md-4">
+            <label class="form-label">Employee</label>
+            {{ form.employee|add_class:"form-select" }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Project</label>
+            {{ form.project|add_class:"form-select" }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Task</label>
+            {{ form.task|add_class:"form-select" }}
+          </div>
+        </div>
+        <button type="submit" class="btn btn-success">
+          <i class="fa fa-plus"></i> Assign Task
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card shadow">
+    <div class="card-header bg-dark text-white">
+      <h5 class="mb-0">Assigned Tasks</h5>
+    </div>
+    <div class="card-body table-responsive">
+      <table class="table table-bordered align-middle text-center">
+        <thead class="table-light">
+          <tr>
+            <th>#</th>
+            <th>Employee</th>
+            <th>Project</th>
+            <th>Task</th>
+            <th>Assigned On</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="assignment-table">
+          {% for assign in assignments %}
+          <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ assign.employee.user.get_full_name|default:"-" }}</td>
+            <td>{{ assign.project.name|default:"-" }}</td>
+            <td>{{ assign.task.name|default:"-" }}</td>
+            <td>{{ assign.assigned_date }}</td>
+            <td>
+              <form method="POST" class="unassign-form">
+                {% csrf_token %}
+                <input type="hidden" name="assignment_id" value="{{ assign.id }}">
+                <input type="hidden" name="unassign_task" value="1">
+                <button type="submit" class="btn btn-danger btn-sm">Unassign</button>
+              </form>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6">No assignments found.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const projectSelect = document.getElementById("id_project");
+  const taskSelect = document.getElementById("id_task");
+  const assignmentForm = document.getElementById("assignment-form");
+  const tableBody = document.getElementById("assignment-table");
+
+  function loadAssignments() {
+    fetch("{% url 'manager:load-assignments-ajax' %}")
+      .then(res => res.json())
+      .then(data => {
+        tableBody.innerHTML = '';
+        data.assignments.forEach((row, i) => {
+          tableBody.innerHTML += `
+            <tr>
+              <td>${i + 1}</td>
+              <td>${row.employee}</td>
+              <td>${row.project}</td>
+              <td>${row.task}</td>
+              <td>${row.date}</td>
+              <td>
+                <form method="POST" class="unassign-form">
+                  <input type="hidden" name="assignment_id" value="${row.id}">
+                  <input type="hidden" name="unassign_task" value="1">
+                  <button type="submit" class="btn btn-danger btn-sm">Unassign</button>
+                </form>
+              </td>
+            </tr>`;
+        });
+      });
+  }
+
+  projectSelect.addEventListener("change", function () {
+    const projectId = this.value;
+    const url = "{% url 'manager:ajax-load-tasks' %}?project=" + projectId;
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        taskSelect.innerHTML = '<option value="">---------</option>';
+        data.forEach(task => {
+          const opt = document.createElement("option");
+          opt.value = task.id;
+          opt.textContent = task.name;
+          taskSelect.appendChild(opt);
+        });
+      });
+  });
+
+  assignmentForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+
+    const formData = new FormData(assignmentForm);
+
+    fetch("{% url 'manager:assign-task' %}", {
+      method: "POST",
+      headers: {'X-CSRFToken': '{{ csrf_token }}'},
+      body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        assignmentForm.reset();
+        loadAssignments();
+      } else {
+        alert(data.error || "Failed to assign task");
+      }
+    })
+    .catch(() => alert("Network or server error occurred"));
+  });
+
+  document.body.addEventListener("submit", function (e) {
+    if (e.target.classList.contains("unassign-form")) {
+      e.preventDefault();
+
+      const formData = new FormData(e.target);
+
+      fetch("{% url 'manager:assign-task' %}", {
+        method: "POST",
+        headers: {'X-CSRFToken': '{{ csrf_token }}'},
+        body: formData
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          loadAssignments();
+        } else {
+          alert(data.error || "Failed to unassign");
+        }
+      })
+      .catch(() => alert("Network or server error occurred"));
+    }
+  });
+
+  loadAssignments();
+});
+</script>
+{% endblock %}

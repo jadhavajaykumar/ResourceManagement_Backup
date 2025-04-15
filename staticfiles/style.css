@@ -1,0 +1,43 @@
+/* Dashboard Cards */
+.card {
+    transition: 0.3s;
+    border-radius: 10px;
+    text-align: center;
+    padding: 20px;
+}
+
+.card:hover {
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.card img {
+    max-width: 80px;
+    margin: auto;
+    display: block;
+}
+
+.card-title {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    border: none;
+    padding: 10px 15px;
+    transition: 0.3s;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .container {
+        width: 95%;
+    }
+    .card {
+        margin-bottom: 20px;
+    }
+}

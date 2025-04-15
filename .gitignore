@@ -1,0 +1,32 @@
+# Python bytecode and cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment folder (replace 'venv' with your actual folder name if different, e.g., env, .venv)
+venv/
+env/
+.venv/
+
+# Django specific
+db.sqlite3      # If using SQLite for development (don't commit the dev DB)
+*.log           # Log files
+# media/        # Usually don't commit user-uploaded media files (depends on strategy)
+# staticfiles/  # Usually don't commit files collected by collectstatic
+
+# Secrets (IMPORTANT - Never commit these!)
+.env            # Files holding environment variables/secrets
+*.env
+secrets.py      # Any custom files holding secrets
+# Consider adding specific lines from settings.py if SECRET_KEY or passwords are hardcoded (better: use environment variables!)
+
+# IDE / Editor specific folders
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS specific
+
+Thumbs.db       # Windows

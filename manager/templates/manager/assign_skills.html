@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load skill_filters %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2>Manage & Assign Skills</h2>
+
+  <!-- Add Skills Section -->
+  <div class="row mb-4">
+    <div class="col-md-6">
+      <div class="card p-3 shadow-sm">
+        <h5>Add Main Skill</h5>
+        <form method="post">
+          {% csrf_token %}
+          {{ main_form.as_p }}
+          <button type="submit" name="add_main" class="btn btn-primary">Add Main Skill</button>
+        </form>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card p-3 shadow-sm">
+        <h5>Add Subskill</h5>
+        <form method="post">
+          {% csrf_token %}
+          {{ sub_form.as_p }}
+          <button type="submit" name="add_sub" class="btn btn-success">Add Subskill</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Assign Skill Form -->
+  <div class="card p-4 mb-4">
+    <h4>Assign Skill to Employee</h4>
+    <form method="POST" id="assign-skill-form">
+      {% csrf_token %}
+      <div class="mb-3">
+        {{ form.employee.label_tag }}
+        {{ form.employee }}
+      </div>
+      <div class="mb-3">
+        <label for="id_assign_main_skill">Main Skill:</label>
+        <select id="id_assign_main_skill" name="main_skill" class="form-control">
+          <option value="">Select Main Skill</option>
+          {% for skill in form.fields.main_skill.queryset %}
+            <option value="{{ skill.id }}">{{ skill.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="mb-3">
+        <label for="id_assign_subskill">Subskill:</label>
+        <select id="id_assign_subskill" name="subskill" class="form-control">
+          <option value="">Select Subskill</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        {{ form.rating.label_tag }}
+        {{ form.rating }}
+      </div>
+      <button type="submit" name="assign" class="btn btn-success">Assign</button>
+    </form>
+  </div>
+
+  <!-- Skill Matrix Table -->
+  <div class="card p-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h4>Skill Matrix</h4>
+      <a href="{% url 'manager:export-skill-matrix' %}" class="btn btn-outline-primary">Export to Excel</a>
+    </div>
+
+    {% if skill_matrix %}
+      <div class="table-responsive">
+        <table class="table table-bordered align-middle text-center">
+          <thead>
+            <tr>
+              <th rowspan="2">#</th>
+              <th rowspan="2">Employee ID</th>
+              <th rowspan="2">Name</th>
+              {% for main in main_skills %}
+                <th colspan="{{ main.subskills.count }}">{{ main.name }}</th>
+              {% endfor %}
+              <th rowspan="2">Actions</th>
+            </tr>
+            <tr>
+              {% for main in main_skills %}
+                {% for sub in main.subskills.all %}
+                  <th>{{ sub.name }}</th>
+                {% endfor %}
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in skill_matrix %}
+              <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ row.employee.employee_id }}</td>
+                <td>{{ row.employee.user.get_full_name }}</td>
+                {% for main in main_skills %}
+                  {% for sub in main.subskills.all %}
+                    {% with key=main.name|add:'|'|add:sub.name %}
+                      <td>{{ row.skill_dict|get_item:key|default:'-' }}</td>
+                    {% endwith %}
+                  {% endfor %}
+                {% endfor %}
+                <td>
+                  <button class="btn btn-sm btn-warning edit-btn"
+                          data-employee-id="{{ row.employee.id }}"
+                          data-employee-name="{{ row.employee.user.get_full_name }}"
+                          onclick="openEditModal('{{ row.employee.id }}', '{{ row.employee.user.get_full_name }}')">
+                    Edit
+                  </button>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p>No skill assignments available.</p>
+    {% endif %}
+  </div>
+
+  <a href="{% url 'manager:manager-dashboard' %}" class="btn btn-secondary mt-3">Back to Dashboard</a>
+</div>
+
+<!-- Edit Modal HTML (Unchanged) -->
+<div class="modal fade" id="editSkillModal" tabindex="-1" aria-labelledby="editSkillModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editSkillModalLabel">Edit Skill Ratings</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="edit-skill-form">
+        <div class="modal-body">
+          <input type="hidden" id="modal-employee-id" name="employee_id">
+          <div id="skill-inputs"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+  // Load subskills dynamically when main skill is selected in assign form
+  $('#id_assign_main_skill').change(function () {
+    const mainSkillId = $(this).val();
+    $.ajax({
+      url: "{% url 'manager:load-subskills' %}",
+      data: { main_skill: mainSkillId },
+      success: function (data) {
+        const subskillDropdown = $('#id_assign_subskill');
+        subskillDropdown.empty().append('<option value="">Select Subskill</option>');
+        data.forEach(item => {
+          subskillDropdown.append(new Option(item.name, item.id));
+        });
+      }
+    });
+  });
+
+  function openEditModal(employeeId, employeeName) {
+    $('#editSkillModalLabel').text("Edit Skills for " + employeeName);
+    $('#modal-employee-id').val(employeeId);
+    $('#skill-inputs').html('<p>Loading...</p>');
+
+    $.ajax({
+      url: "{% url 'manager:get-employee-skill-data' %}",
+      data: { employee_id: employeeId },
+      success: function(data) {
+        let content = '';
+        for (const entry of data) {
+          const label = `${entry.main_skill} - ${entry.subskill}`;
+          const inputId = `${entry.subskill_id}`;
+          content += `
+            <div class="mb-3">
+              <label for="${inputId}" class="form-label">${label}</label>
+              <select class="form-select" name="ratings[${entry.subskill_id}]" id="${inputId}">
+                <option value="0" ${entry.rating == 0 ? 'selected' : ''}>0 - Not Known</option>
+                <option value="1" ${entry.rating == 1 ? 'selected' : ''}>1 - Poor</option>
+                <option value="2" ${entry.rating == 2 ? 'selected' : ''}>2 - Average</option>
+                <option value="3" ${entry.rating == 3 ? 'selected' : ''}>3 - Good</option>
+                <option value="4" ${entry.rating == 4 ? 'selected' : ''}>4 - Very Good</option>
+              </select>
+            </div>`;
+        }
+        $('#skill-inputs').html(content);
+      }
+    });
+
+    const modal = new bootstrap.Modal(document.getElementById('editSkillModal'));
+    modal.show();
+  }
+
+  $('#edit-skill-form').on('submit', function(e) {
+    e.preventDefault();
+    const formData = $(this).serialize();
+    $.post("{% url 'manager:edit-skill-assignment' %}", formData, function(response) {
+      if (response.success) {
+        location.reload();
+      } else {
+        alert("Failed to update skills.");
+      }
+    });
+  });
+</script>
+{% endblock %}

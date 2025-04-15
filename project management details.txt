@@ -1,0 +1,127 @@
+# Project Management Functional Specification
+
+## Overview
+This module supports two types of projects:
+1. **Turnkey Projects** – Fixed scope, budget, and timeline agreed upon with the client.
+2. **Service Projects** – Task-based assignments charged on a daily/hourly basis.
+
+This system manages:
+- Project creation, budgeting, and resource assignment
+- Task and subtask tracking with status and progress updates
+- Employee timesheet submissions
+- Expense tracking based on project location and type
+- Budget utilization vs. actuals (DA + expenses)
+
+---
+
+## Models & Relationships
+
+### Project
+- `name`, `description`, `customer_name`
+- `location`: Local / Domestic / International
+- `country`, `currency` (if international)
+- `type`: Turnkey / Service
+- `billing_unit`: Hourly / Daily
+- `start_date`, `end_date`, `status`, `progress`
+- `project_manager`: FK to User
+- `assigned_employees`: M2M to EmployeeProfile
+- `budget`: Total allocated budget (Turnkey only)
+- `da_rate_local`, `da_rate_domestic`, `da_rate_international`
+- `extra_hour_rate`
+
+### Task
+- FK to `Project`
+- `name`, `description`, `daily_charge`, `target_date`, `assigned_to`
+- `status`, `progress` (calculated based on subtasks)
+
+### Subtask
+- FK to `Task`
+- `title`, `target_date`, `is_completed`
+
+### TaskAssignment
+- FK to `Task` + `Employee`
+- `assigned_on`
+
+### Timesheet
+- FK to `EmployeeProfile`, `Project`, `Task`
+- `date`, `hours_logged`, `extra_hours`, `description`
+- `submitted_on`
+
+### Expense
+- FK to `EmployeeProfile`, `Project`
+- `date`, `expense_type`, `amount`, `description`, `receipt`
+- `location_category`: Local / Domestic / International
+- Auto-validate based on project location and rules
+
+---
+
+## Location-Based Rules
+
+| Location        | DA Rate     | Allowable Expenses                                     |
+|----------------|-------------|--------------------------------------------------------|
+| Local          | ₹300/day    | Transport only                                         |
+| Domestic (>150 km) | ₹600/day    | Transport, Accommodation, Safety Shoes (year rule)     |
+| International  | Country-based rate | SIM, Recharge, Accommodation, Transport (with limits) |
+
+---
+
+## Core Functionalities
+
+### Project Management (Manager/Admin)
+- Create/edit project with type, billing unit, location
+- Upload documents (contract, requirements)
+- Assign employees
+- Configure:
+  - DA by location
+  - Extra hour rate
+  - International limits (SIM, transport, recharge)
+- Track:
+  - Budget vs. actual (Turnkey)
+  - Man-days/hours used (Service)
+  - Task/subtask progress
+
+### Task & Subtask Handling
+- Add tasks with daily charge and deadline
+- Add subtasks under task
+- Assign tasks to employees
+- Track task completion based on subtasks closed
+
+### Timesheet (Employee)
+- Submit time against project/task
+- Daily/Hourly entry
+- Flag extra hours
+- Link to task progress
+
+### Expense Submission (Employee)
+- Submit with category + receipt
+- Auto-check against location policy
+- View past expenses and status
+
+### Finance Dashboard (Accountant)
+- Track expenses across projects
+- Generate invoices:
+  - Turnkey: milestone-based
+  - Service: daily/hourly + expenses
+- Currency conversion
+- Generate reports (PDF/Excel)
+
+---
+
+## Access Levels
+- **Manager**: Full project/task config, approvals
+- **Employee**: View assigned projects, log time/expenses
+- **Accountant**: View project costs, export data, manage invoices
+
+---
+
+## Advanced Features (Planned)
+- Alerts for:
+  - Milestone delays
+  - Budget overshoots
+- Safety shoe validation (last purchase > 1 year)
+- Graphical Gantt and Kanban view
+- Role-based dashboard
+
+---
+
+Let me know if you want to split this into smaller features/modules.
