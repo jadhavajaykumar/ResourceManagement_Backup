@@ -15,8 +15,18 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+#def is_manager(user):
+    #return user.is_authenticated and (user.is_superuser or user.role == 'Manager')
+from django.core.exceptions import PermissionDenied
+
 def is_manager(user):
-    return user.is_authenticated and user.role == 'Manager'
+    if not user.is_authenticated:
+        return False
+    if user.role == 'Manager' or user.is_superuser:
+        return True
+    raise PermissionDenied
+    
+
 
 @login_required
 @user_passes_test(is_manager)

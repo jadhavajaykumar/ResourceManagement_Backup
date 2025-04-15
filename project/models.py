@@ -35,10 +35,12 @@ class Project(models.Model):
     budget = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)  # Turnkey projects
     daily_hourly_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)  # Service projects
     location = models.CharField(max_length=20, choices=LOCATIONS)
-    country = models.CharField(max_length=50, blank=True, null=True)  # for international
-    currency = models.CharField(max_length=10, blank=True, null=True)  # international projects
-    da_rate_per_hour = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)  # international
-    extra_hour_rate = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    
+    country_rate = models.ForeignKey(CountryRate, on_delete=models.SET_NULL, null=True, blank=True)
+    location = models.CharField(max_length=20, choices=LOCATIONS)
+    
+    
+    
     start_date = models.DateField()
     end_date = models.DateField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Not Started')
@@ -78,4 +80,12 @@ class ProjectExpensePolicy(models.Model):
     def __str__(self):
         return f"Expense Policy ({self.project.name})"
 
+class CountryDASettings(models.Model):
+    country_name = models.CharField(max_length=100, unique=True)
+    currency_code = models.CharField(max_length=10)
+    da_rate_per_hour = models.DecimalField(max_digits=10, decimal_places=2)
+    extra_hour_rate = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def __str__(self):
+        return f"{self.country_name} ({self.currency_code})"
 

@@ -1,20 +1,20 @@
 
 # Register your models here.
 from django.contrib import admin
+from .models import Project, Task, Subtask, ProjectExpensePolicy, CountryDASettings
 from django.contrib.auth.admin import UserAdmin
 from accounts.models import CustomUser
 from django.utils.translation import gettext_lazy as _
-from .models import Project, Task
 
 
 
-from django.contrib import admin
-from .models import Project, Task, Subtask  # Updated models only
-
-admin.site.register(Project)
-admin.site.register(Task)
-admin.site.register(Subtask)
+#admin.site.register(Project)
+#admin.site.register(Task)
+#admin.site.register(Subtask)
 #admin.site.register(TaskAssignment)  # Add clearly
+
+#admin.site.register(ProjectExpensePolicy)
+#admin.site.register(CountryDASettings)
 
 
 
@@ -37,3 +37,27 @@ class CustomUserAdmin(UserAdmin):
     list_display = ("username", "email", "first_name", "middle_name", "last_name", "is_staff")
     search_fields = ("username", "email", "first_name", "last_name")
     ordering = ("username",)
+    
+from django.contrib import admin
+from .models import Project, Task, Subtask, ProjectExpensePolicy, CountryDASettings
+
+@admin.register(Project)
+class ProjectAdmin(admin.ModelAdmin):
+    list_display = ['name', 'customer_name', 'project_type', 'location', 'status']
+    list_filter = ['project_type', 'location', 'status']
+
+@admin.register(Task)
+class TaskAdmin(admin.ModelAdmin):
+    list_display = ['name', 'project', 'due_date', 'progress']
+
+@admin.register(Subtask)
+class SubtaskAdmin(admin.ModelAdmin):
+    list_display = ['name', 'task', 'completed']
+
+@admin.register(ProjectExpensePolicy)
+class ProjectExpensePolicyAdmin(admin.ModelAdmin):
+    list_display = ['project', 'allow_transport', 'allow_safety_shoes']
+
+@admin.register(CountryDASettings)
+class CountryDASettingsAdmin(admin.ModelAdmin):
+    list_display = ['country_name', 'currency_code', 'da_rate_per_hour', 'extra_hour_rate']

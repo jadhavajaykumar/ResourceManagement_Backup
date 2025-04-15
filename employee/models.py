@@ -4,6 +4,7 @@ from django.utils import timezone
 from datetime import timedelta
 import uuid
 from project.models import Project, Task  # ✅ Add this line
+from accounts.models import CustomUser
 
 def generate_employee_id():
     """Generate a unique employee ID in the format EMP-XXXXXX."""
@@ -25,7 +26,11 @@ class EmployeeProfile(models.Model):
         ('Contract', 'Contract'),
         ('Intern', 'Intern'),
     ]
-    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    user = models.OneToOneField(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name='employeeprofile'  # Ensure this matches your reference
+    )
     role = models.CharField(max_length=20, choices=ROLES, default='Employee')
     career_start_date = models.DateField(null=True, blank=True)
     probotix_joining_date = models.DateField(default=timezone.now)

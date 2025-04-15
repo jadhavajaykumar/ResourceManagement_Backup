@@ -4,18 +4,22 @@ import pycountry
 from django import forms
 from .models import Project, Task, Subtask
 
+from .models import CountryDASettings
+
 class ProjectForm(forms.ModelForm):
     class Meta:
         model = Project
         fields = [
             'name', 'customer_name', 'description', 'project_type', 'billing_method',
-            'budget', 'daily_hourly_rate', 'location', 'country', 'currency', 
-            'da_rate_per_hour', 'extra_hour_rate', 'start_date', 'end_date', 'status', 'documents'
+            'budget', 'daily_hourly_rate', 'location', 'country_rate',
+            'start_date', 'end_date', 'status', 'documents'
         ]
         widgets = {
             'start_date': forms.DateInput(attrs={'type': 'date'}),
             'end_date': forms.DateInput(attrs={'type': 'date'}),
         }
+
+
 
 class TaskForm(forms.ModelForm):
     class Meta:
@@ -36,10 +40,12 @@ class SubtaskForm(forms.ModelForm):
 # Currency dropdown options
 CURRENCY_CHOICES = [(c.alpha_3, f"{c.name} ({c.alpha_3})") for c in pycountry.currencies]
 
-class ProjectForm(forms.ModelForm):
-    currency = forms.ChoiceField(choices=CURRENCY_CHOICES, required=False)
+# project/forms.py
 
+from .models import CountryDASettings
+
+class CountryRateForm(forms.ModelForm):
     class Meta:
-        model = Project
-        fields = '__all__'
+        model = CountryDASettings
+        fields = ['country_name', 'currency', 'da_rate_per_hour', 'extra_hour_rate']
 

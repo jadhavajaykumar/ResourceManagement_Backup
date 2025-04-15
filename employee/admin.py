@@ -23,7 +23,8 @@ class CustomUserAdmin(UserAdmin):
     list_display = ('username', 'email', 'get_role', 'is_staff', 'is_active')
     list_select_related = ('employee_profile',)
     search_fields = ('username', 'email', 'employee_profile__role')
-    list_filter = ('is_staff', 'is_active', 'employee_profile__role')
+    #list_filter = ('is_staff', 'is_active', 'employee_profile__role')
+    list_filter = ('is_staff', 'is_active', 'employeeprofile__role')
     
     def get_role(self, instance):
         return instance.employee_profile.role if hasattr(instance, 'employee_profile') else '-'
