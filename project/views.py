@@ -4,10 +4,12 @@
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
-from .models import Project, Task, Subtask
-from .forms import ProjectForm, TaskForm, SubtaskForm
+from .models import Project, Task, Subtask, CountryDARate
+from .forms import ProjectForm, TaskForm, SubtaskForm, CountryRateForm
 import logging
 
+
+from django.contrib.admin.views.decorators import staff_member_required
 
 
 
@@ -83,3 +85,18 @@ def delete_task(request, task_id):
     task.delete()
     return redirect('project:project-dashboard')
 
+
+
+@login_required
+@staff_member_required
+def manage_country_rates(request):
+    if request.method == 'POST':
+        form = CountryRateForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('project:manage-country-rates')
+    else:
+        form = CountryRateForm()
+
+    rates = CountryDARate.objects.all()
+    return render(request, 'project/manage_country_rates.html', {'form': form, 'rates': rates})

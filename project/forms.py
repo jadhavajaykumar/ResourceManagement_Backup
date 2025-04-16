@@ -2,9 +2,9 @@
 
 import pycountry
 from django import forms
-from .models import Project, Task, Subtask
+from .models import Project, Task, Subtask, CountryDARate
 
-from .models import CountryDASettings
+#from .models import CountryDASettings
 
 class ProjectForm(forms.ModelForm):
     class Meta:
@@ -42,10 +42,10 @@ CURRENCY_CHOICES = [(c.alpha_3, f"{c.name} ({c.alpha_3})") for c in pycountry.cu
 
 # project/forms.py
 
-from .models import CountryDASettings
+
 
 class CountryRateForm(forms.ModelForm):
     class Meta:
-        model = CountryDASettings
-        fields = ['country_name', 'currency', 'da_rate_per_hour', 'extra_hour_rate']
+        model = CountryDARate
+        fields = ['country', 'currency', 'da_rate_per_hour', 'extra_hour_rate']
 

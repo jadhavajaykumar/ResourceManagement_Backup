@@ -2,6 +2,8 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 
+
+
 PROJECT_TYPES = (
     ('Turnkey', 'Turnkey'),
     ('Service', 'Service'),
@@ -26,21 +28,27 @@ STATUS_CHOICES = (
     ('Cancelled', 'Cancelled'),
 )
 
+
+class CountryDARate(models.Model):
+    country = models.CharField(max_length=100, unique=True)
+    currency = models.CharField(max_length=10)
+    da_rate_per_hour = models.DecimalField(max_digits=10, decimal_places=2)
+    extra_hour_rate = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def __str__(self):
+        return f"{self.country} - {self.currency}"
+
+
 class Project(models.Model):
     name = models.CharField(max_length=100)
     customer_name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     project_type = models.CharField(max_length=20, choices=PROJECT_TYPES)
     billing_method = models.CharField(max_length=20, choices=BILLING_METHODS)
-    budget = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)  # Turnkey projects
-    daily_hourly_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)  # Service projects
+    budget = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    daily_hourly_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     location = models.CharField(max_length=20, choices=LOCATIONS)
-    
-    country_rate = models.ForeignKey(CountryRate, on_delete=models.SET_NULL, null=True, blank=True)
-    location = models.CharField(max_length=20, choices=LOCATIONS)
-    
-    
-    
+    country_rate = models.ForeignKey(CountryDARate, on_delete=models.SET_NULL, null=True, blank=True)
     start_date = models.DateField()
     end_date = models.DateField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Not Started')
@@ -48,6 +56,7 @@ class Project(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.customer_name})"
+
 
 class Task(models.Model):
     project = models.ForeignKey(Project, related_name='tasks', on_delete=models.CASCADE)
@@ -59,6 +68,7 @@ class Task(models.Model):
     def __str__(self):
         return f"{self.name} ({self.project.name})"
 
+
 class Subtask(models.Model):
     task = models.ForeignKey(Task, related_name='subtasks', on_delete=models.CASCADE)
     name = models.CharField(max_length=200)
@@ -66,6 +76,7 @@ class Subtask(models.Model):
 
     def __str__(self):
         return self.name
+
 
 class ProjectExpensePolicy(models.Model):
     project = models.OneToOneField(Project, on_delete=models.CASCADE)
@@ -79,13 +90,3 @@ class ProjectExpensePolicy(models.Model):
 
     def __str__(self):
         return f"Expense Policy ({self.project.name})"
-
-class CountryDASettings(models.Model):
-    country_name = models.CharField(max_length=100, unique=True)
-    currency_code = models.CharField(max_length=10)
-    da_rate_per_hour = models.DecimalField(max_digits=10, decimal_places=2)
-    extra_hour_rate = models.DecimalField(max_digits=10, decimal_places=2)
-
-    def __str__(self):
-        return f"{self.country_name} ({self.currency_code})"
-

@@ -130,12 +130,12 @@
         </div>
         <div class="modal-body">
           <div id="project-form-fields">
-			  {% for field in project_form %}
-				<div class="mb-3" id="div_{{ field.name }}">
-				  <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-				  {{ field }}
-				</div>
-			  {% endfor %}
+				{% for field in project_form %}
+				  <div class="mb-3" id="div_{{ field.name }}">
+					<label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+					{{ field }}
+				  </div>
+				{% endfor %}
 		</div>
 
         </div>
@@ -174,51 +174,29 @@
 {% block scripts %}
 
 <script>
+<script>
 document.addEventListener("DOMContentLoaded", function () {
-    function toggleFields() {
-        const location = document.getElementById("id_location")?.value;
-        const projectType = document.getElementById("id_project_type")?.value;
+  function toggleFields() {
+    const location = document.getElementById("id_location")?.value;
 
-        // Toggle international fields
-        const intlFields = ["div_id_country", "div_id_currency", "div_id_da_rate_per_hour", "div_id_extra_hour_rate"];
-        intlFields.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.style.display = (location === "International") ? "block" : "none";
-        });
-
-        // Hide budget for Service project type
-        const budgetDiv = document.getElementById("div_id_budget");
-        if (budgetDiv) {
-            budgetDiv.style.display = (projectType === "Service") ? "none" : "block";
-        }
+    const countryDARateDiv = document.getElementById("div_country_rate");
+    if (countryDARateDiv) {
+      countryDARateDiv.style.display = (location === "International") ? "block" : "none";
     }
 
-    function updateDAFields() {
-        const countrySelect = document.getElementById("id_country");
-        const daRateField = document.getElementById("id_da_rate_per_hour");
-        const extraHourRateField = document.getElementById("id_extra_hour_rate");
-
-        const selectedOption = countrySelect.options[countrySelect.selectedIndex];
-        const selectedText = selectedOption.text;
-
-        if (selectedText.includes("USA")) {
-            daRateField.value = "10.00";
-            extraHourRateField.value = "12.00";
-        } else if (selectedText.includes("Mexico")) {
-            daRateField.value = "7.00";
-            extraHourRateField.value = "10.00";
-        } else if (selectedText.includes("UK")) {
-            daRateField.value = "6.00";
-            extraHourRateField.value = "9.00";
-        }
+    const budgetDiv = document.getElementById("div_budget");
+    const projectType = document.getElementById("id_project_type")?.value;
+    if (budgetDiv) {
+      budgetDiv.style.display = (projectType === "Service") ? "none" : "block";
     }
+  }
 
-    document.getElementById("id_location")?.addEventListener("change", toggleFields);
-    document.getElementById("id_project_type")?.addEventListener("change", toggleFields);
-    document.getElementById("id_country")?.addEventListener("change", updateDAFields);
-
-    toggleFields(); // Initial state
+  document.getElementById("id_location")?.addEventListener("change", toggleFields);
+  document.getElementById("id_project_type")?.addEventListener("change", toggleFields);
+  toggleFields();
 });
+</script>
+
 </script>
 
 </script>

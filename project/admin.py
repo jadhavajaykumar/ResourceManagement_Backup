@@ -1,10 +1,14 @@
 
 # Register your models here.
 from django.contrib import admin
-from .models import Project, Task, Subtask, ProjectExpensePolicy, CountryDASettings
+
+# ✅ Correct (new)
+from .models import Project, Task, Subtask, ProjectExpensePolicy, CountryDARate
+
 from django.contrib.auth.admin import UserAdmin
 from accounts.models import CustomUser
 from django.utils.translation import gettext_lazy as _
+
 
 
 
@@ -38,8 +42,7 @@ class CustomUserAdmin(UserAdmin):
     search_fields = ("username", "email", "first_name", "last_name")
     ordering = ("username",)
     
-from django.contrib import admin
-from .models import Project, Task, Subtask, ProjectExpensePolicy, CountryDASettings
+
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
@@ -58,6 +61,7 @@ class SubtaskAdmin(admin.ModelAdmin):
 class ProjectExpensePolicyAdmin(admin.ModelAdmin):
     list_display = ['project', 'allow_transport', 'allow_safety_shoes']
 
-@admin.register(CountryDASettings)
-class CountryDASettingsAdmin(admin.ModelAdmin):
-    list_display = ['country_name', 'currency_code', 'da_rate_per_hour', 'extra_hour_rate']
+@admin.register(CountryDARate)
+class CountryDARateAdmin(admin.ModelAdmin):
+    list_display = ['country', 'currency', 'da_rate_per_hour', 'extra_hour_rate']
+    search_fields = ['country', 'currency']
