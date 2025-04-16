@@ -16,18 +16,17 @@
   <button class="btn btn-info mb-3 ms-2" data-bs-toggle="modal" data-bs-target="#addTaskModal">
     <i class="fa fa-tasks"></i> Add Task
   </button>
-  
-						<form method="post" action="{% url 'accounts:profile' %}">
-							{% csrf_token %}
-							<button type="submit" class="btn btn-secondary btn-lg shadow-sm">
-								<i class="bi bi-house me-2"></i>Dashboard
-							</button>
-						</form>
+
+  <form method="post" action="{% url 'accounts:profile' %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-secondary btn-lg shadow-sm">
+      <i class="bi bi-house me-2"></i>Dashboard
+    </button>
+  </form>
 
   <!-- Projects Overview -->
   {% for project in projects %}
   <div class="card mb-4 shadow-sm">
-    <!-- Card Header -->
     <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
       <h5 class="mb-0">Project: {{ project.name }} | Customer: {{ project.customer_name }}</h5>
       {% if project.id %}
@@ -37,7 +36,6 @@
       </form>
       {% endif %}
     </div>
-
     <div class="card-body">
       <p><strong>Customer:</strong> {{ project.customer_name }}</p>
       <p><strong>Description:</strong> {{ project.description }}</p>
@@ -45,16 +43,13 @@
       <p><strong>Duration:</strong> {{ project.start_date }} - {{ project.end_date }}</p>
       <p><strong>Status:</strong> {{ project.status }}</p>
       <p><strong>Budget:</strong> {{ project.currency }} {{ project.budget|default:"-" }}</p>
-
-		{% if project.billing_method == 'daily' %}
-		  <p><strong>Daily Rate:</strong> {{ project.currency }} {{ project.daily_hourly_rate|default:"-" }}</p>
-		{% elif project.billing_method == 'hourly' %}
-		  <p><strong>Hourly Rate:</strong> {{ project.currency }} {{ project.daily_hourly_rate|default:"-" }}</p>
-		{% else %}
-		  <p><strong>Rate:</strong> {{ project.currency }} {{ project.daily_hourly_rate|default:"-" }}</p>
-		{% endif %}
-
-
+      {% if project.billing_method == 'daily' %}
+      <p><strong>Daily Rate:</strong> {{ project.currency }} {{ project.daily_hourly_rate|default:"-" }}</p>
+      {% elif project.billing_method == 'hourly' %}
+      <p><strong>Hourly Rate:</strong> {{ project.currency }} {{ project.daily_hourly_rate|default:"-" }}</p>
+      {% else %}
+      <p><strong>Rate:</strong> {{ project.currency }} {{ project.daily_hourly_rate|default:"-" }}</p>
+      {% endif %}
       <!-- Tasks Table -->
       <table class="table table-bordered table-hover mt-3">
         <thead class="table-secondary">
@@ -83,21 +78,21 @@
             <td>
               <ul>
                 {% for subtask in task.subtasks.all %}
-                  <li>{{ subtask.name }} {% if subtask.completed %}<span class="badge bg-success">Done</span>{% else %}<span class="badge bg-warning">Pending</span>{% endif %}</li>
+                <li>{{ subtask.name }} {% if subtask.completed %}<span class="badge bg-success">Done</span>{% else %}<span class="badge bg-warning">Pending</span>{% endif %}</li>
                 {% empty %}
-                  <small>No Subtasks</small>
+                <small>No Subtasks</small>
                 {% endfor %}
               </ul>
             </td>
             <td>
               {% if task.id %}
-                <a href="{% url 'project:edit-task' task.id %}" class="btn btn-sm btn-warning">Edit</a>
-                <form method="POST" action="{% url 'project:delete-task' task.id %}" style="display: inline;">
-                  {% csrf_token %}
-                  <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this task?')">Delete</button>
-                </form>
+              <a href="{% url 'project:edit-task' task.id %}" class="btn btn-sm btn-warning">Edit</a>
+              <form method="POST" action="{% url 'project:delete-task' task.id %}" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this task?')">Delete</button>
+              </form>
               {% else %}
-                <span class="text-muted">Not editable</span>
+              <span class="text-muted">Not editable</span>
               {% endif %}
             </td>
           </tr>
@@ -111,13 +106,11 @@
     </div>
   </div>
   {% empty %}
-    <p>No projects available. Please add a new project.</p>
+  <p>No projects available. Please add a new project.</p>
   {% endfor %}
 </div>
 
 <!-- Modals Section -->
-
-<!-- Add Project Modal -->
 <div class="modal fade" id="addProjectModal" tabindex="-1">
   <div class="modal-dialog modal-lg">
     <form method="post" enctype="multipart/form-data">
@@ -130,14 +123,13 @@
         </div>
         <div class="modal-body">
           <div id="project-form-fields">
-				{% for field in project_form %}
-				  <div class="mb-3" id="div_{{ field.name }}">
-					<label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-					{{ field }}
-				  </div>
-				{% endfor %}
-		</div>
-
+            {% for field in project_form %}
+            <div class="mb-3" id="div_{{ field.name }}">
+              <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+              {{ field }}
+            </div>
+            {% endfor %}
+          </div>
         </div>
         <div class="modal-footer">
           <button type="submit" class="btn btn-success">Add Project</button>
@@ -168,36 +160,70 @@
     </form>
   </div>
 </div>
-
 {% endblock %}
 
 {% block scripts %}
-
-<script>
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-  function toggleFields() {
-    const location = document.getElementById("id_location")?.value;
+  const projectTypeField = document.getElementById("id_project_type");
+  const locationField = document.getElementById("id_location");
+  const countryRateField = document.getElementById("id_country_rate");
 
-    const countryDARateDiv = document.getElementById("div_country_rate");
-    if (countryDARateDiv) {
-      countryDARateDiv.style.display = (location === "International") ? "block" : "none";
-    }
+  const toggleFields = () => {
+    const projectType = projectTypeField?.value;
+    const location = locationField?.value;
 
+    // Handle project type: Turnkey vs Service
     const budgetDiv = document.getElementById("div_budget");
-    const projectType = document.getElementById("id_project_type")?.value;
-    if (budgetDiv) {
-      budgetDiv.style.display = (projectType === "Service") ? "none" : "block";
+    const billingMethodDiv = document.getElementById("div_billing_method");
+    const dailyRateDiv = document.getElementById("div_daily_hourly_rate");
+
+    if (projectType === "Turnkey") {
+      budgetDiv?.classList.remove("d-none");
+      billingMethodDiv?.classList.add("d-none");
+      dailyRateDiv?.classList.add("d-none");
+    } else if (projectType === "Service") {
+      budgetDiv?.classList.add("d-none");
+      billingMethodDiv?.classList.remove("d-none");
+      dailyRateDiv?.classList.remove("d-none");
     }
+
+    // Handle International Location
+    const intlFields = ["div_country_rate", "div_da_rate_per_hour", "div_extra_hour_rate", "div_currency"];
+    intlFields.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        if (location === "International") {
+          el.classList.remove("d-none");
+        } else {
+          el.classList.add("d-none");
+        }
+      }
+    });
+  };
+
+  // Auto fill DA/currency/extra rate from AJAX
+  if (countryRateField) {
+    countryRateField.addEventListener("change", function () {
+      const countryId = this.value;
+      if (!countryId) return;
+
+      fetch(`/project/ajax/get-country-rates/?country_id=${countryId}`)
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById("id_da_rate_per_hour").value = data.da_rate_per_hour || '';
+          document.getElementById("id_extra_hour_rate").value = data.extra_hour_rate || '';
+          document.getElementById("id_currency").value = data.currency_code || '';
+        });
+    });
   }
 
-  document.getElementById("id_location")?.addEventListener("change", toggleFields);
-  document.getElementById("id_project_type")?.addEventListener("change", toggleFields);
+  projectTypeField?.addEventListener("change", toggleFields);
+  locationField?.addEventListener("change", toggleFields);
+
+  // Initial call on load
   toggleFields();
 });
 </script>
 
-</script>
-
-</script>
 {% endblock %}

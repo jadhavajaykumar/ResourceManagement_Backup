@@ -15,6 +15,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 
 
 
+
 logger = logging.getLogger(__name__)
 
 #def is_manager(user):
@@ -34,21 +35,23 @@ def is_manager(user):
 @user_passes_test(is_manager)
 def project_dashboard(request):
     projects = Project.objects.prefetch_related('tasks', 'tasks__subtasks').all()
-    project_form = ProjectForm()
-    task_form = TaskForm()
 
     if request.method == 'POST':
         if 'add_project' in request.POST:
             project_form = ProjectForm(request.POST, request.FILES)
+            task_form = TaskForm()
             if project_form.is_valid():
                 project_form.save()
                 return redirect('project:project-dashboard')
-
         elif 'add_task' in request.POST:
             task_form = TaskForm(request.POST)
+            project_form = ProjectForm()
             if task_form.is_valid():
                 task_form.save()
                 return redirect('project:project-dashboard')
+    else:
+        project_form = ProjectForm()
+        task_form = TaskForm()
 
     return render(request, 'project/project_dashboard.html', {
         'projects': projects,
@@ -100,3 +103,39 @@ def manage_country_rates(request):
 
     rates = CountryDARate.objects.all()
     return render(request, 'project/manage_country_rates.html', {'form': form, 'rates': rates})
+
+from django.http import JsonResponse
+from .models import CountryDARate
+
+def get_country_rates(request):
+    country_id = request.GET.get('country_id')
+    try:
+        country = CountryDARate.objects.get(id=country_id)
+        return JsonResponse({
+            'da_rate_per_hour': str(country.da_rate_per_hour),
+            'extra_hour_rate': str(country.extra_hour_rate),
+            'currency_code': country.currency_code,
+        })
+    except CountryDARate.DoesNotExist:
+        return JsonResponse({'error': 'Country not found'}, status=404)
+
+
+
+
+#def is_manager(user):
+  # return user.groups.filter(name="Manager").exists()
+
+@login_required
+@user_passes_test(is_manager)
+def manage_country_rates(request):
+    rates = CountryDARate.objects.all()
+    form = CountryRateForm(request.POST or None)
+
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        return redirect('project:manage-country-rates')
+
+    return render(request, 'project/manage_country_rates.html', {
+        'form': form,
+        'rates': rates,
+    })

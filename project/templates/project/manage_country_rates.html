@@ -1,20 +1,21 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 {% block content %}
-<div class="container py-4">
-  <h2 class="text-primary">Manage Country-wise DA Rates</h2>
-
-  <form method="post" class="mb-4">
+<div class="container mt-4">
+  <h3 class="text-primary">Manage Country DA Rates</h3>
+  <form method="post">
     {% csrf_token %}
     {{ form.as_p }}
-    <button type="submit" class="btn btn-success">Add Country Rate</button>
+    <button type="submit" class="btn btn-success">Add/Update</button>
   </form>
 
-  <table class="table table-bordered">
-    <thead>
+  <hr>
+  <h5>Existing Rates</h5>
+  <table class="table table-bordered mt-3">
+    <thead class="table-light">
       <tr>
         <th>Country</th>
         <th>Currency</th>
-        <th>DA Rate</th>
+        <th>DA Rate/hr</th>
         <th>Extra Hour Rate</th>
       </tr>
     </thead>
@@ -22,7 +23,7 @@
       {% for rate in rates %}
       <tr>
         <td>{{ rate.country }}</td>
-        <td>{{ rate.currency }}</td>
+        <td>{{ rate.currency_code }}</td>
         <td>{{ rate.da_rate_per_hour }}</td>
         <td>{{ rate.extra_hour_rate }}</td>
       </tr>
