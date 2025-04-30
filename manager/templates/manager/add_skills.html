@@ -15,7 +15,7 @@
                 <form method="post">
                     {% csrf_token %}
                     {{ main_form.as_p }}
-                    <button type="submit" name="add_main" class="btn btn-primary mt-2">Add Main Skill</button>
+                    <button type="submit" name="add_main" class="btn btn-primary mt-2">Add Main Skill(PLC, Robot, CNC etc.)</button>
                 </form>
             </div>
         </div>
@@ -27,7 +27,7 @@
                 <form method="post">
                     {% csrf_token %}
                     {{ sub_form.as_p }}
-                    <button type="submit" name="add_sub" class="btn btn-success mt-2">Add Subskill</button>
+                    <button type="submit" name="add_sub" class="btn btn-success mt-2">Add Subskill(Siemens, Rockwell, Fanuc ets.)</button>
                 </form>
             </div>
         </div>

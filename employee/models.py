@@ -3,7 +3,7 @@ from django.conf import settings
 from django.utils import timezone
 from datetime import timedelta
 import uuid
-from project.models import Project, Task  # ✅ Add this line
+#from project.models import Project, Task  # ✅ Add this line
 from accounts.models import CustomUser
 
 def generate_employee_id():
@@ -92,8 +92,8 @@ class AuditLog(models.Model):
         
 class TimesheetEntry(models.Model):
     employee = models.ForeignKey(EmployeeProfile, on_delete=models.CASCADE)
-    project = models.ForeignKey(Project, on_delete=models.CASCADE)
-    task = models.ForeignKey(Task, on_delete=models.SET_NULL, null=True, blank=True)
+    project = models.ForeignKey('project.Project', on_delete=models.CASCADE, null=True, blank=True)
+    task = models.ForeignKey('project.Task', on_delete=models.CASCADE, null=True, blank=True)
     date = models.DateField()
     hours = models.DecimalField(max_digits=4, decimal_places=2)
     details = models.TextField()

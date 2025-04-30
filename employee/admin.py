@@ -21,7 +21,7 @@ class EmployeeProfileInline(admin.StackedInline):
 class CustomUserAdmin(UserAdmin):
     inlines = (EmployeeProfileInline,)
     list_display = ('username', 'email', 'get_role', 'is_staff', 'is_active')
-    list_select_related = ('employee_profile',)
+    list_select_related = ('employeeprofile',)
     search_fields = ('username', 'email', 'employee_profile__role')
     #list_filter = ('is_staff', 'is_active', 'employee_profile__role')
     list_filter = ('is_staff', 'is_active', 'employeeprofile__role')

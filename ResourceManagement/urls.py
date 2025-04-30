@@ -17,6 +17,10 @@ urlpatterns = [
     path('timesheet/', include('timesheet.urls')),
     path('expenses/', include('expenses.urls')),
     path('manager/', include('manager.urls')),
+    path('docgen/', include('docgen.urls')),
+    path('accountant/', include('accountant.urls')),
+
+
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 

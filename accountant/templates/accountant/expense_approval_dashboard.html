@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <h3 class="mb-4 text-primary">Expense Approval Dashboard</h3>
+
+  <!-- Filter Form -->
+  <form method="get" class="row g-3 mb-4">
+    <div class="col-md-3">
+      <label>Project</label>
+      <select name="project" class="form-select">
+        <option value="">All Projects</option>
+        {% for proj in projects %}
+          <option value="{{ proj.project__id }}" {% if request.GET.project == proj.project__id|stringformat:"s" %}selected{% endif %}>
+            {{ proj.project__name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label>Status</label>
+      <select name="status" class="form-select">
+        <option value="">All</option>
+        <option value="Pending" {% if request.GET.status == "Pending" %}selected{% endif %}>Pending</option>
+        <option value="Approved" {% if request.GET.status == "Approved" %}selected{% endif %}>Approved</option>
+        <option value="Rejected" {% if request.GET.status == "Rejected" %}selected{% endif %}>Rejected</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label>Start Date</label>
+      <input type="date" name="start_date" value="{{ request.GET.start_date }}" class="form-control">
+    </div>
+    <div class="col-md-2">
+      <label>End Date</label>
+      <input type="date" name="end_date" value="{{ request.GET.end_date }}" class="form-control">
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+      <button class="btn btn-primary me-2">Apply</button>
+      <button class="btn btn-success" name="export" value="1">Export to Excel</button>
+    </div>
+  </form>
+
+  <!-- Expense Table -->
+  <table class="table table-striped table-hover">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Employee</th>
+        <th>Project</th>
+        <th>Type</th>
+        <th>KMs</th>
+        <th>Amount (₹)</th>
+        <th>Status</th>
+        <th>Receipt</th>
+        <th>Comments</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for expense in expenses %}
+      <tr>
+        <td>{{ expense.date }}</td>
+        <td>{{ expense.employee.user.get_full_name }}</td>
+        <td>{{ expense.project.name }}</td>
+        <td>{{ expense.new_expense_type.name }}</td>
+        <td>{{ expense.kilometers|default:"-" }}</td>
+        <td>{{ expense.amount }}</td>
+        <td>{{ expense.status }}</td>
+        <td>
+          {% if expense.receipt %}
+            <a href="{{ expense.receipt.url }}" target="_blank">View</a>
+          {% else %} - {% endif %}
+        </td>
+        <td>{{ expense.comments|default:"-" }}</td>
+        <td>
+          {% if expense.status == 'Pending' %}
+            
+			<a href="{% url 'accountant:expense-action' expense.id 'approve' %}" class="btn btn-sm btn-success">✓</a>
+			<a href="{% url 'accountant:expense-action' expense.id 'reject' %}" class="btn btn-sm btn-danger">✗</a>
+
+          {% else %}
+            <span class="text-muted">{{ expense.status }}</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="10" class="text-center text-muted">No expenses found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+	<form method="post" action="{% url 'accounts:profile' %}">
+		{% csrf_token %}
+			<button type="submit" class="btn btn-secondary btn-lg shadow-sm">
+				<i class="bi bi-house me-2"></i>Dashboard
+			</button>
+	</form>
+</div>
+{% endblock %}

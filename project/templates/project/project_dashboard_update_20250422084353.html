@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container py-4">
+
+  <h2 class="mb-4 text-primary">Project Management Dashboard</h2>
+
+  <!-- Add Project and Task Buttons -->
+  <div class="d-flex justify-content-start mb-3">
+    <button class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#addProjectModal">
+      <i class="fa fa-plus-circle"></i> Add Project
+    </button>
+    <button class="btn btn-info me-2" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+      <i class="fa fa-tasks"></i> Add Task
+    </button>
+    <form method="post" action="{% url 'accounts:profile' %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-secondary">
+        <i class="bi bi-house me-2"></i>Dashboard
+      </button>
+    </form>
+  </div>
+
+  <!-- Filter Placeholder -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <form method="get" class="row">
+        <div class="col-md-3">
+          <label class="form-label">Filter by Project Type</label>
+          <select class="form-select" name="project_type">
+            <option value="">All</option>
+            <option value="Turnkey">Turnkey</option>
+            <option value="Service">Service</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Filter by Status</label>
+          <select class="form-select" name="status">
+            <option value="">All</option>
+            <option value="Not Started">Not Started</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Completed">Completed</option>
+            <option value="On Hold">On Hold</option>
+          </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+          <button class="btn btn-outline-primary">Apply Filter</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Project Cards -->
+  {% for project in projects %}
+  <div class="card mb-4 shadow">
+    <div class="card-header bg-primary text-white d-flex justify-content-between">
+      <h5 class="mb-0">Project: {{ project.name }} | Customer: {{ project.customer_name }}</h5>
+      <div>
+        <a href="{% url 'project:edit-task' project.id %}" class="btn btn-warning btn-sm">Edit</a>
+        <form method="POST" action="{% url 'project:delete-project' project.id %}" class="d-inline">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete this project?')">Delete</button>
+        </form>
+      </div>
+    </div>
+    <div class="card-body">
+      <p><strong>Description:</strong> {{ project.description }}</p>
+      <p><strong>Location:</strong> {{ project.location }}{% if project.location == 'International' %} - {{ project.country_rate.country }}{% endif %}</p>
+      <p><strong>Duration:</strong> {{ project.start_date }} to {{ project.end_date }}</p>
+      <p><strong>Status:</strong> {{ project.status }}</p>
+      <p><strong>Budget:</strong> {{ project.currency }} {{ project.budget|default:"-" }}</p>
+      <p><strong>Billing Type:</strong> {{ project.billing_method|default:"N/A" }}</p>
+
+      <!-- Tasks Table -->
+      <table class="table table-bordered table-sm mt-4">
+        <thead class="table-light">
+          <tr>
+            <th>#</th>
+            <th>Task</th>
+            <th>Due Date</th>
+            <th>Progress</th>
+            <th>Subtasks</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for task in project.tasks.all %}
+          <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ task.name }}</td>
+            <td>{{ task.due_date }}</td>
+            <td>
+              <div class="progress">
+                <div class="progress-bar {% if task.due_date < today %}bg-danger{% else %}bg-success{% endif %}" style="width: {{ task.progress }}%;">
+                  {{ task.progress }}%
+                </div>
+              </div>
+            </td>
+            <td>
+              <ul>
+                {% for subtask in task.subtasks.all %}
+                  <li>{{ subtask.name }} - 
+                    {% if subtask.completed %}
+                      <span class="badge bg-success">Done</span>
+                    {% else %}
+                      <span class="badge bg-warning">Pending</span>
+                    {% endif %}
+                  </li>
+                {% empty %}
+                  <li><em>No Subtasks</em></li>
+                {% endfor %}
+              </ul>
+            </td>
+            <td>
+              <a href="{% url 'project:edit-task' task.id %}" class="btn btn-sm btn-warning">Edit</a>
+              <form method="POST" action="{% url 'project:delete-task' task.id %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete task?')">Delete</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% empty %}
+  <div class="alert alert-info">No projects available.</div>
+  {% endfor %}
+
+</div>
+
+<!-- Include Modals -->
+{% include 'project/includes/add_project_modal.html' %}
+{% include 'project/includes/add_task_modal.html' %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  function toggleFields() {
+    const location = document.getElementById("id_location")?.value;
+    const projectType = document.getElementById("id_project_type")?.value;
+
+    const intlFields = ["country_rate", "currency", "da_rate_per_hour", "extra_hour_rate"];
+    const billingDiv = document.getElementById("div_billing_method");
+    const budgetDiv = document.getElementById("div_budget");
+    const statusDiv = document.getElementById("div_status");
+
+    intlFields.forEach(field => {
+      const div = document.getElementById("div_" + field);
+      if (div) div.style.display = (location === "International") ? "block" : "none";
+    });
+
+    billingDiv.style.display = projectType === "Service" ? "block" : "none";
+    budgetDiv.style.display = projectType === "Turnkey" ? "block" : "none";
+    statusDiv.style.display = projectType === "Turnkey" || location === "International" ? "block" : "none";
+  }
+
+  document.getElementById("id_location")?.addEventListener("change", toggleFields);
+  document.getElementById("id_project_type")?.addEventListener("change", toggleFields);
+
+  document.getElementById("id_country_rate")?.addEventListener("change", function () {
+    const countryId = this.value;
+    if (!countryId) return;
+
+    fetch(`/project/ajax/get-country-rates/?country_id=${countryId}`)
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("id_da_rate_per_hour").value = data.da_rate_per_hour || '';
+        document.getElementById("id_extra_hour_rate").value = data.extra_hour_rate || '';
+        document.getElementById("id_currency").value = data.currency || '';
+      });
+  });
+
+  toggleFields();
+});
+</script>
+{% endblock %}

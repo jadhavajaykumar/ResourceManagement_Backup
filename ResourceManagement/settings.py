@@ -15,6 +15,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'accounts',
+    'accountant',
     #'employee',
     'project',
     'expenses',
@@ -24,7 +25,8 @@ INSTALLED_APPS = [
     'widget_tweaks',
     'crispy_forms',
     'crispy_bootstrap5',
-    'employee.apps.EmployeeConfig',  # Use the AppConfig class
+    'employee.apps.EmployeeConfig',    # Use the AppConfig class
+    'docgen',
 ]
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"

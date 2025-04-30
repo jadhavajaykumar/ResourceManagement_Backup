@@ -1,15 +1,9 @@
 # manager/models.py
-
-from project.models import Project, Task
-
 from django.db import models
 from accounts.models import CustomUser
 from employee.models import EmployeeProfile
-
-
 from django.utils import timezone
-
-
+#from manager.models import SubSkill  # adjust path if needed
 
 
 class SkillCategory(models.Model):
@@ -55,20 +49,33 @@ class EmployeeSkill(models.Model):
 
 
 
+
+
+# (No direct imports from project.models)
+
 class TaskAssignment(models.Model):
     employee = models.ForeignKey(EmployeeProfile, on_delete=models.CASCADE)
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, null=True, blank=True)
-    task = models.ForeignKey(Task, on_delete=models.SET_NULL, null=True, blank=True)
+    project = models.ForeignKey('project.Project', on_delete=models.CASCADE, null=True, blank=True)  # ✅ Add null=True, blank=True here
+    task = models.ForeignKey('project.Task', on_delete=models.SET_NULL, null=True, blank=True)
     assigned_date = models.DateField(default=timezone.now)
     manager_notes = models.TextField(blank=True, null=True)
 
     def save(self, *args, **kwargs):
-        # Auto-assign project from task if task is selected but project is not
         if self.task and not self.project:
             self.project = self.task.project
         super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.employee} - {self.project.name if self.project else 'No Project'} - {self.task.name if self.task else 'No Task'}"
+
+
+
+class SkillAssignment(models.Model):
+    employee = models.ForeignKey('accounts.CustomUser', on_delete=models.CASCADE)
+    subskill = models.ForeignKey('manager.SubSkill', on_delete=models.CASCADE)
+    rating = models.IntegerField(choices=[(i, str(i)) for i in range(5)])
+
+    def __str__(self):
+        return f"{self.employee} - {self.subskill} ({self.rating})"
 
         

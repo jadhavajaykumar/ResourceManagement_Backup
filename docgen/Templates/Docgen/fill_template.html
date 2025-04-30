@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load docgen_filters %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Fill Template: {{ template.name }}</h2>
+
+    <form method="POST">
+        {% csrf_token %}
+        <div class="row">
+            {% for placeholder in placeholders %}
+                <div class="mb-3 col-md-6">
+                    <label class="form-label" for="{{ placeholder }}">{{ placeholder|cut:"field_"|title }}</label>
+                    <input type="text" class="form-control" name="{{ placeholder }}" id="{{ placeholder }}" required>
+                </div>
+            {% endfor %}
+        </div>
+        <button type="submit" class="btn btn-primary">Fill & Generate</button>
+        <a href="{% url 'docgen:list-templates' %}" class="btn btn-secondary ms-2">Back</a>
+    </form>
+</div>
+<a href="{% url 'manager:manager-dashboard' %}" class="btn btn-secondary mt-3">Back to Dashboard</a>
+
+{% endblock %}

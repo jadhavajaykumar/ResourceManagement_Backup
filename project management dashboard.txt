@@ -1,0 +1,20 @@
+i will paste the code here, please go through the code and fix it . i have project management dash board on which i am adding new projects and tasks. while adding new projects i have input fields like, 
+Name(change it to Project Name), Cusomer name, Description,  then I want the field 'Location' (Local, Domestic, International), based on location selection of next input fields shall change. If location is Local then,  
+I want Project type(Turnkey, Service), if I select Serivce under the Project type, then I want these inputs fields- billing Method(Change it to Billing Type, Man Day Basis or Man Hours Basis), Project start date, 
+Project end date (can be entered or optional), Skills set required, Status(Not Started, Inprogress, Onhold, Completed, Cancelled) and you may suggest any required inputs which I can use. 
+if Project type is Turnkey then I want the Field Budget(where I shall be able to put the total budget of the project(against it I shall be able  to book the all expenses, so that I shall be able to track the project budget, 
+we shall link the expenses with this budget in future scope), then I want the Project start date, Project End Date, Project Status, Documents (Attachments).  If location is Domestic then,  
+I want Project type(Turnkey, Service), if I select Serivce under the Project type, then I want these inputs fields- billing Method(Change it to Billing Type, Man Day Basis or Man Hours Basis), Project start date, 
+Project end date (can be entered or optional), Skills set required, Status(Not Started, Inprogress, Onhold, Completed, Cancelled) and you may suggest any required inputs which I can use. if Project type is Turnkey then 
+I want the Field Budget(where I shall be able to put the total budget of the project(against it I shall be able  to book the all expenses, so that I shall be able to track the project budget, we shall link the expenses with 
+this budget in future scope), then I want the Project start date, Project End Date, Project Status, Documents (Attachments) If location is International then,  I want Project type(Turnkey, Service), if I select Serivce under 
+the Project type, then I want these inputs fields- billing Method(Change it to Billing Type, Man Day Basis or Man Hours Basis), Input Field 'Country Name', 'Currency Selection', 'DA rate', Extra Hour DA Rate,   
+Project start date, Project end date (can be entered or optional), Skills set required, Status(Not Started, Inprogress, Onhold, Completed, Cancelled), Documents(Attachments) and you may suggest any required inputs 
+which I can use. if Project type is Turnkey then I want the Field Budget(where I shall be able to put the total budget of the project(against it I shall be able  to book the all expenses, so that I shall be able to 
+track the project budget, we shall link the expenses with this budget in future scope), then I want the Project start date, Project End Date, Project Status, Documents(Attachments)
+
+once the managers put the all requirements inputs for project creations, then backend shall save the project created and show on the project table while showing in the project management dashboard, tool shall search available employee
+with matching skills and show the name of employee as suggestion so that manager can assign(next menu) the project to the suitable employee. all filled details will be visible to Managers. 
+all above is for project management dashboard and accessible for manager, Director only. once manager creates the project using above dashboard. with next menu 'Project/Task Assignent'. manager shall assign the created project
+ to the employee who is suitable based on skills. after assignment the project to the employee, manager shall be able to create the different tasks under the project. these tasks will get stored under the project in which its created. 
+ project progress can be tracked based on tasks completion. in future if tasks get added or changed then manager shall be able to add/edit the tasks and completeion status in %.

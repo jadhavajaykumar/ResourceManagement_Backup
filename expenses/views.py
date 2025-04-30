@@ -20,29 +20,32 @@ def delete_expense(request, expense_id):
     
     return redirect('expenses:employee-expenses')
 
+@login_required
 def employee_expenses(request):
     profile = EmployeeProfile.objects.get(user=request.user)
-    expenses = Expense.objects.filter(employee=profile).order_by('-date')
-    
+
+    # Prefetch project while fetching expenses to avoid N+1 queries
+    expenses = Expense.objects.filter(employee=profile).select_related('project').order_by('-date')
+
     # Filter handling
     if request.method == 'GET':
         start_date = request.GET.get('start_date')
         end_date = request.GET.get('end_date')
         project_id = request.GET.get('project')
-        
+
         if start_date and end_date:
-            start = datetime.strptime(start_date, '%Y-%m-%d')
-            end = datetime.strptime(end_date, '%Y-%m-%d')
-            expenses = expenses.filter(date__range=[start, end])
-            
+            from django.utils.dateparse import parse_date
+            start = parse_date(start_date)
+            end = parse_date(end_date)
+            if start and end:
+                expenses = expenses.filter(date__range=[start, end])
+
         if project_id:
             expenses = expenses.filter(project_id=project_id)
-    
-    # Get unique projects for filter dropdown
-    projects = Expense.objects.filter(employee=profile)\
-                   .values('project__id', 'project__name')\
-                   .distinct()
-    
+
+    # Fetch available projects for dropdown (optimized)
+    projects = profile.expense_set.select_related('project').values('project__id', 'project__name').distinct()
+
     if request.method == 'POST':
         form = ExpenseForm(request.POST, request.FILES)
         if form.is_valid():
@@ -53,13 +56,13 @@ def employee_expenses(request):
             return redirect('expenses:employee-expenses')
     else:
         form = ExpenseForm()
-    
+
     return render(request, 'expenses/my_expenses.html', {
         'form': form,
-        'expenses': expenses.select_related('project'),
+        'expenses': expenses,
         'projects': projects,
     })
-    
+
 @login_required
 def edit_expense(request, expense_id):
     profile = EmployeeProfile.objects.get(user=request.user)

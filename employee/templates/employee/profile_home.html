@@ -192,10 +192,10 @@
                                     <div class="mb-3">
                                         <div class="d-flex justify-content-between">
                                             <span><strong>{{ skill.main_skill.name }}</strong> - {{ skill.subskill.name }}</span>
-                                            <span>{{ skill.rating }}/100</span>
+                                            <span>{{ skill.rating }}/4</span>
                                         </div>
                                         <div class="progress mt-1" style="height: 10px;">
-                                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ skill.rating|floatformat:0 }}%;" aria-valuenow="{{ skill.rating }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ skill.rating|floatformat:0 }}%;" aria-valuenow="{{ skill.rating }}" aria-valuemin="0" aria-valuemax="4"></div>
                                         </div>
                                     </div>
                                 {% endfor %}

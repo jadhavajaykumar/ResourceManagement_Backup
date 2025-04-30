@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container py-4">
+  <h2 class="text-primary mb-4">Upload Document Template</h2>
+  <form method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="mb-3">
+      <label for="id_name" class="form-label">Template Name</label>
+      {{ form.name }}
+    </div>
+    <div class="mb-3">
+      <label for="id_description" class="form-label">Description</label>
+      {{ form.description }}
+    </div>
+    <div class="mb-3">
+      <label for="id_template_file" class="form-label">Upload .docx Template</label>
+      {{ form.template_file }}
+    </div>
+    <button type="submit" class="btn btn-success">Upload Template</button>
+    <a href="{% url 'docgen:list-templates' %}" class="btn btn-secondary">Back to List</a>
+  </form>
+</div>
+{% endblock %}

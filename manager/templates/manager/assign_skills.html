@@ -10,7 +10,7 @@
   <div class="row mb-4">
     <div class="col-md-6">
       <div class="card p-3 shadow-sm">
-        <h5>Add Main Skill</h5>
+        <h5>Add Main Skill(PLC, Robot, CNC etc.)</h5>
         <form method="post">
           {% csrf_token %}
           {{ main_form.as_p }}
@@ -20,7 +20,7 @@
     </div>
     <div class="col-md-6">
       <div class="card p-3 shadow-sm">
-        <h5>Add Subskill</h5>
+        <h5>Add Subskill(Siemens, Rockwell, Fanuc ets.)</h5>
         <form method="post">
           {% csrf_token %}
           {{ sub_form.as_p }}

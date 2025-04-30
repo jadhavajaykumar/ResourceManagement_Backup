@@ -9,5 +9,7 @@ urlpatterns = [
     path('delete-project/<int:project_id>/', views.delete_project, name='delete-project'),
     path('delete-task/<int:task_id>/', views.delete_task, name='delete-task'),
     path('ajax/get-country-rates/', views.get_country_rates, name='get-country-rates'),
+    path('edit-project/<int:project_id>/', views.edit_project, name='edit-project'),
+
 
 ]
