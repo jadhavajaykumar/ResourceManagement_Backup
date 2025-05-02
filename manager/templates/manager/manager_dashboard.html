@@ -126,12 +126,26 @@
       <a href="#">Coming Soon</a>
     </div>
 
-    <!-- Expense Approval -->
+    <!-- Expense Type Add -->
     <div class="dashboard-card">
       <i class="fa-solid fa-file-invoice-dollar"></i>
-      <h3>Expense Approval</h3>
+      <h3>Expense Type Addition</h3>
       <a href="{% url 'manager:manage-expense-types' %}">Go</a>
 	</div>
+	<!-- Expense Approval -->
+	<div class="dashboard-card">
+	  <i class="fa-solid fa-check-circle"></i>
+	  <h3>Expense Approvals</h3>
+	  <a href="{% url 'manager:expense-approval' %}">Go</a>
+	</div>
+	
+	<div class="dashboard-card">
+		<i class="fas fa-file-word"></i>
+		<h3>PDF to Word</h3>
+		<a href="{% url 'manager:pdf-to-word' %}">Go</a>
+	</div>
+
+
 	  
 	 <!-- Documents Generation --> 
     <div class="dashboard-card">

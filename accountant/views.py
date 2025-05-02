@@ -75,18 +75,28 @@ def export_expenses_to_excel(expenses_queryset):
     return response
 
 
+from django.views.decorators.http import require_POST
+
+@require_POST
 @login_required
 @user_passes_test(is_accountant)
 def approve_or_reject_expense(request, expense_id, action):
     expense = get_object_or_404(Expense, id=expense_id)
+
+    remark = request.POST.get("remark", "").strip()
+
+    if not remark:
+        messages.error(request, "Remark is required for both approval and rejection.")
+        return redirect('accountant:expense-approval')
+
     if expense.status == 'Pending':
+        expense.accountant_remark = remark
         if action == 'approve':
-            expense.status = 'Approved'
-            messages.success(request, f"Expense #{expense.id} approved.")
+            expense.status = 'Forwarded to Manager'
+            messages.success(request, f"Expense #{expense.id} forwarded to Manager.")
         elif action == 'reject':
             expense.status = 'Rejected'
             messages.warning(request, f"Expense #{expense.id} rejected.")
         expense.save()
-    else:
-        messages.info(request, f"Expense #{expense.id} already {expense.status.lower()}.")
+
     return redirect('accountant:expense-approval')

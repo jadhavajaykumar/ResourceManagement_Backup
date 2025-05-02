@@ -72,21 +72,42 @@
         </td>
         <td>{{ expense.comments|default:"-" }}</td>
         <td>
-          {% if expense.status == 'Pending' %}
-            
-			<a href="{% url 'accountant:expense-action' expense.id 'approve' %}" class="btn btn-sm btn-success">✓</a>
-			<a href="{% url 'accountant:expense-action' expense.id 'reject' %}" class="btn btn-sm btn-danger">✗</a>
+		  {% if expense.status == 'Pending' %}
+			<button type="button" class="btn btn-sm btn-success me-1" onclick="openRemarkModal('{{ expense.id }}', 'approve')">✓</button>
+			<button type="button" class="btn btn-sm btn-danger" onclick="openRemarkModal('{{ expense.id }}', 'reject')">✗</button>
+		  {% else %}
+			<span class="text-muted">{{ expense.status }}</span>
+		  {% endif %}
+		</td>
 
-          {% else %}
-            <span class="text-muted">{{ expense.status }}</span>
-          {% endif %}
-        </td>
       </tr>
       {% empty %}
       <tr><td colspan="10" class="text-center text-muted">No expenses found.</td></tr>
       {% endfor %}
     </tbody>
   </table>
+  <!-- Modal -->
+	<div class="modal fade" id="remarkModal" tabindex="-1" aria-labelledby="remarkModalLabel" aria-hidden="true">
+	  <div class="modal-dialog">
+		<form method="post" id="remarkForm">
+		  {% csrf_token %}
+		  <div class="modal-content">
+			<div class="modal-header">
+			  <h5 class="modal-title" id="remarkModalLabel">Add Remark</h5>
+			  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+			</div>
+			<div class="modal-body">
+			  <textarea name="remark" class="form-control" required placeholder="Enter reason or remark..."></textarea>
+			</div>
+			<div class="modal-footer">
+			  <button type="submit" class="btn btn-primary">Submit</button>
+			  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+			</div>
+		  </div>
+		</form>
+	  </div>
+	</div>
+
 	<form method="post" action="{% url 'accounts:profile' %}">
 		{% csrf_token %}
 			<button type="submit" class="btn btn-secondary btn-lg shadow-sm">
@@ -94,4 +115,14 @@
 			</button>
 	</form>
 </div>
+<script>
+function openRemarkModal(expenseId, action) {
+    const form = document.getElementById('remarkForm');
+    form.action = `/accountant/expenses/${expenseId}/${action}/`;  // Ensure this URL pattern exists
+    const textarea = form.querySelector('textarea[name="remark"]');
+    textarea.value = "";
+    new bootstrap.Modal(document.getElementById('remarkModal')).show();
+}
+</script>
+
 {% endblock %}

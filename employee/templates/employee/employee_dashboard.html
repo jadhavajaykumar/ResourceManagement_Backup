@@ -81,18 +81,22 @@
     <div class="dashboard-card">
       <i class="fa-solid fa-folder"></i>
       <h3>My Projects</h3>
+	  <p class="text-muted" style="font-size: 14px;">Track your Assigned Projects</p>
       <a href="{% url 'employee:my-projects' %}">Go</a>
     </div>
     <div class="dashboard-card">
       <i class="fa-solid fa-clock"></i>
       <h3>My Timesheets</h3>
+	  <p class="text-muted" style="font-size: 14px;">Track your Timesheet & view feedback Manager</p>
       <a href="{% url 'timesheet:my-timesheets' %}">Go</a>
     </div>
     <div class="dashboard-card">
-      <i class="fa-solid fa-receipt"></i>
-      <h3>My Expenses</h3>
-      <a href="{% url 'expenses:employee-expenses' %}">Go</a>
-    </div>
+	  <i class="fa-solid fa-receipt"></i>
+	  <h3>My Expenses</h3>
+	  <p class="text-muted" style="font-size: 14px;">Track your claims & view feedback from Accountant/Manager</p>
+	  <a href="{% url 'expenses:employee-expenses' %}">Go</a>
+	</div>
+
   </div>
   <!-- {% if recent_projects %}
     <h3>Recent Projects</h3>

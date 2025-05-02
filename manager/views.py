@@ -16,8 +16,31 @@ from expenses.models import ExpenseType
 from django.db import transaction
 # manager/views.py
 
+from django.contrib.auth.decorators import login_required
+from expenses.models import Expense
+from django.core.mail import send_mail
 
 
+from .forms import PDFUploadForm
+from pdf2docx import Converter
+import os
+from django.conf import settings
+from django.http import FileResponse
+from django.core.files.storage import FileSystemStorage
+
+import urllib.parse
+
+from django.core.files.storage import default_storage
+from django.utils.text import slugify
+
+#from .utils import is_manager  # Assuming you already use this
+
+
+
+
+#def is_manager(user):
+   # return user.is_authenticated and (user.is_superuser or (
+    #    hasattr(user, 'employee_profile') and user.employee_profile.role == 'Manager'))
 
 logger = logging.getLogger(__name__)
 
@@ -339,3 +362,101 @@ def manage_expense_types(request):
     
     types = ExpenseType.objects.all()
     return render(request, 'manager/expense_types.html', {'types': types})
+    
+    
+
+
+@login_required
+def expense_approval_dashboard(request):
+    expenses = Expense.objects.select_related('employee__user', 'project', 'new_expense_type').filter(status='Forwarded to Manager')
+    return render(request, 'manager/expense_approval_dashboard.html', {'expenses': expenses})
+
+@login_required
+def handle_expense_action(request, expense_id, action):
+    expense = get_object_or_404(Expense, id=expense_id)
+
+    if request.method == 'POST':
+        remark = request.POST.get('manager_remark', '').strip()
+
+        if not remark:
+            messages.error(request, "Remark is required.")
+            return redirect('manager:expense-approval')
+
+        if action == 'approve':
+            expense.status = 'Approved'
+            expense.manager_remark = remark
+            messages.success(request, "Expense approved.")
+            notify_employee(expense, 'Approved', remark)
+
+        elif action == 'reject':
+            expense.status = 'Rejected'
+            expense.manager_remark = remark
+            messages.success(request, "Expense rejected.")
+            notify_employee(expense, 'Rejected', remark)
+
+        else:
+            messages.error(request, "Invalid action.")
+            return redirect('manager:expense-approval')
+
+        expense.save()
+        return redirect('manager:expense-approval')
+    else:
+        return redirect('manager:expense-approval')
+
+
+
+
+def notify_employee(expense, action, remark):
+    subject = f"Your expense has been {action}"
+    message = f"""
+Dear {expense.employee.user.get_full_name()},
+
+Your expense submitted on {expense.date} for project '{expense.project.name}' has been {action.lower()} by your manager.
+
+Manager Remark:
+{remark or 'No remarks provided.'}
+
+Regards,
+Accounts Team
+"""
+    send_mail(
+        subject,
+        message,
+        'noreply@yourcompany.com',  # Update this with your valid sender email
+        [expense.employee.user.email],
+        fail_silently=True,
+    )
+
+
+
+
+
+
+
+@login_required
+@user_passes_test(is_manager)
+def pdf_to_word_converter(request):
+    converted_file_url = None
+    if request.method == "POST" and request.FILES.get("pdf_file"):
+        pdf_file = request.FILES["pdf_file"]
+        original_name = os.path.splitext(pdf_file.name)[0]
+        slug_name = slugify(original_name)  # Clean name without &, spaces, etc.
+
+        input_path = os.path.join(settings.MEDIA_ROOT, 'converted_docs', f"{slug_name}.pdf")
+        output_path = os.path.join(settings.MEDIA_ROOT, 'converted_docs', f"{slug_name}.docx")
+
+        os.makedirs(os.path.dirname(input_path), exist_ok=True)
+        with default_storage.open(input_path, 'wb+') as destination:
+            for chunk in pdf_file.chunks():
+                destination.write(chunk)
+
+        cv = Converter(input_path)
+        cv.convert(output_path, start=0, end=None)
+        cv.close()
+
+        # URL to access the file from browser
+        converted_file_url = os.path.join(settings.MEDIA_URL, 'converted_docs', f"{slug_name}.docx")
+
+    return render(request, 'manager/pdf_to_word_converter.html', {
+        'converted_file_url': converted_file_url
+    })

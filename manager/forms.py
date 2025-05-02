@@ -61,4 +61,8 @@ class TaskAssignmentForm(forms.ModelForm):
         elif self.instance.pk:
             self.fields['task'].queryset = self.instance.project.task_set
 
+from django import forms
+
+class PDFUploadForm(forms.Form):
+    pdf_file = forms.FileField(label="Upload PDF", help_text="Only PDF files are supported.")
 
