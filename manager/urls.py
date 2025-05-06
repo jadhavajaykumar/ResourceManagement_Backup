@@ -13,10 +13,8 @@ urlpatterns = [
     path('assign-task/', views.assign_task, name='assign-task'),
     path('ajax/load-tasks/', views.load_tasks, name='ajax-load-tasks'),
     path('ajax/load-assignments/', views.load_assignments_ajax, name='load-assignments-ajax'),
-    path('expense-types/', views.manage_expense_types, name='manage-expense-types'),
     path('expenses/', views.expense_approval_dashboard, name='expense-approval'),
     path('expenses/<int:expense_id>/<str:action>/', views.handle_expense_action, name='expense-action'),
     path('pdf-to-word/', views.pdf_to_word_converter, name='pdf-to-word'),
   
-
 ]

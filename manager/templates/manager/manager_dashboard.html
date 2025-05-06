@@ -91,13 +91,7 @@
       <a href="{% url 'expenses:employee-expenses' %}">Go</a>
     </div>
 
-    <!-- Add Skill Set 
-    <div class="dashboard-card">
-      <i class="fa-solid fa-layer-group"></i>
-      <h3>Add Skill Set</h3>
-      <a href="{% url 'manager:assign-skills' %}">Go</a>
-    </div>-->
-
+   
     <!-- Assign Skills -->
     <div class="dashboard-card">
       <i class="fa-solid fa-people-arrows"></i>
@@ -129,8 +123,9 @@
     <!-- Expense Type Add -->
     <div class="dashboard-card">
       <i class="fa-solid fa-file-invoice-dollar"></i>
-      <h3>Expense Type Addition</h3>
-      <a href="{% url 'manager:manage-expense-types' %}">Go</a>
+      <h3>Expense Related Settings</h3>
+	  <a href="{% url 'expenses:expense-settings' %}">Go</a>
+
 	</div>
 	<!-- Expense Approval -->
 	<div class="dashboard-card">

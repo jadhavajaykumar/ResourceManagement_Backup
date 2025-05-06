@@ -70,37 +70,40 @@
     <div class="card-body table-responsive">
       <table id="timesheetTable" class="table table-striped table-bordered text-center">
         <thead class="table-light">
-          <tr>
-            <th>Date</th>
-            <th>Project</th>
-            <th>Time Slots</th>
-            <th>Task Descriptions</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for date, entries in grouped_timesheets.items %}
-          <tr>
-            <td>{{ date }}</td>
-            <td class="project-cell">{{ entries.0.project.name }}</td>
-            <td>
-              {% for entry in entries %}
-                <div>{{ entry.time_from }} - {{ entry.time_to }}</div>
-              {% endfor %}
-            </td>
-            <td class="task-cell">
-              {% for entry in entries %}
-                <div>{{ entry.task_description }}</div>
-              {% endfor %}
-            </td>
-            <td>
-              {% for entry in entries %}
-                <div>{{ entry.status }}</div>
-              {% endfor %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
+		  <tr>
+			<th>Date</th>
+			<th>Project</th>
+			<th>Time Slot</th>
+			<th>Task Description</th>
+			<th>Status</th>
+			<th>Action</th>
+		  </tr>
+		</thead>
+
+			<tbody>
+			  {% for date, entries in grouped_timesheets.items %}
+				{% for entry in entries %}
+				  <tr>
+					{% if forloop.first %}
+					  <td rowspan="{{ entries|length }}">{{ date }}</td>
+					{% endif %}
+					<td>{{ entry.project.name }}</td>
+					<td>{{ entry.time_from }} - {{ entry.time_to }}</td>
+					<td>{{ entry.task_description }}</td>
+					<td>{{ entry.status }}</td>
+					<td>
+					  {% if entry.status != 'Approved' %}
+						<a href="{% url 'timesheet:edit-timesheet' entry.id %}" class="btn btn-sm btn-primary">Edit</a>
+						<a href="{% url 'timesheet:delete-timesheet' entry.id %}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?');">Delete</a>
+					  {% else %}
+						-
+					  {% endif %}
+					</td>
+				  </tr>
+				{% endfor %}
+			  {% endfor %}
+			</tbody>
+
       </table>
     </div>
   </div>

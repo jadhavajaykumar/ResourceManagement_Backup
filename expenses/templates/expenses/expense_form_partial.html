@@ -1,39 +1,37 @@
-
 {% load widget_tweaks %}
-
 
 <form method="post" enctype="multipart/form-data" id="expenseForm">
     {% csrf_token %}
     <div class="row g-4">
-        <!-- Section: Basic Info -->
+        <!-- Header -->
         <div class="col-12">
             <h5 class="text-primary">
-                <i class="fas fa-info-circle me-2"></i>Expense Details
+                <i class="fas fa-wallet me-2"></i>{% if editing %}Edit Expense{% else %}New Expense Entry{% endif %}
             </h5>
             <hr>
         </div>
 
-        <!-- Project Dropdown -->
+        <!-- Project -->
         <div class="col-md-6">
             <label for="{{ form.project.id_for_label }}" class="form-label">Project</label>
             {{ form.project|add_class:"form-select" }}
             {{ form.project.errors }}
         </div>
 
-        <!-- Expense Type Dropdown (customized for dynamic fields) -->
+        <!-- Expense Type -->
         <div class="col-md-6">
             <label for="id_expense_type" class="form-label">Expense Type</label>
-            <select name="{{ form.expense_type.name }}" 
-                    id="id_expense_type" 
+            <select name="{{ form.expense_type.name }}"
+                    id="id_expense_type"
                     class="form-select"
                     required>
                 <option value="">-- Select Expense Type --</option>
                 {% for type in form.expense_type.field.queryset %}
                     <option value="{{ type.id }}"
-                            data-requires-km="{{ type.requires_kilometers|yesno:'true,false' }}"
-                            data-requires-receipt="{{ type.requires_receipt|yesno:'true,false' }}"
-                            data-rate="{{ type.rate_per_km|default:0 }}"
-                            {% if form.expense_type.value|stringformat:'s' == type.id|stringformat:'s' %}selected{% endif %}>
+                        data-requires-km="{{ type.requires_kilometers|yesno:'true,false' }}"
+                        data-requires-receipt="{{ type.requires_receipt|yesno:'true,false' }}"
+                        data-rate="{{ type.rate_per_km|default:0 }}"
+                        {% if form.expense_type.value|stringformat:'s' == type.id|stringformat:'s' %}selected{% endif %}>
                         {{ type.name }}
                     </option>
                 {% endfor %}
@@ -48,7 +46,7 @@
             {{ form.date.errors }}
         </div>
 
-        <!-- Kilometers (Hidden unless required) -->
+        <!-- Distance -->
         <div class="col-md-6" id="kilometersField" style="display: none;">
             <label for="id_kilometers" class="form-label">Distance (km)</label>
             {{ form.kilometers|add_class:"form-control" }}
@@ -62,14 +60,14 @@
             {{ form.amount.errors }}
         </div>
 
-        <!-- Receipt Upload -->
+        <!-- Receipt -->
         <div class="col-md-6">
-            <label for="{{ form.receipt.id_for_label }}" class="form-label">Receipt</label>
+            <label for="{{ form.receipt.id_for_label }}" class="form-label">Receipt Upload</label>
             {{ form.receipt|add_class:"form-control" }}
             {{ form.receipt.errors }}
             {% if form.instance.receipt %}
                 <div class="mt-2">
-                    <a href="{{ form.instance.receipt.url }}" target="_blank">View Current Receipt</a>
+                    <a href="{{ form.instance.receipt.url }}" target="_blank">View Existing Receipt</a>
                 </div>
             {% endif %}
         </div>
@@ -82,7 +80,7 @@
         </div>
     </div>
 
-    <!-- Buttons -->
+    <!-- Submit Buttons -->
     <div class="mt-4 d-flex justify-content-between">
         <button type="submit" class="btn {% if editing %}btn-primary{% else %}btn-success{% endif %}">
             <i class="bi bi-save me-1"></i>{% if editing %}Update{% else %}Submit{% endif %} Expense
@@ -98,7 +96,7 @@
     </div>
 </form>
 
-<!-- JavaScript for Dynamic Behavior -->
+<!-- JavaScript Logic -->
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const expenseType = document.getElementById('id_expense_type');
@@ -109,10 +107,10 @@
         const receiptInput = document.getElementById('id_receipt');
 
         function updateFormFields() {
-            const selectedOption = expenseType.options[expenseType.selectedIndex];
-            const requiresKm = selectedOption.dataset.requiresKm === 'true';
-            const requiresReceipt = selectedOption.dataset.requiresReceipt === 'true';
-            const rate = parseFloat(selectedOption.dataset.rate) || 0;
+            const selected = expenseType.options[expenseType.selectedIndex];
+            const requiresKm = selected.dataset.requiresKm === 'true';
+            const requiresReceipt = selected.dataset.requiresReceipt === 'true';
+            const rate = parseFloat(selected.dataset.rate || 0);
 
             kilometersField.style.display = requiresKm ? 'block' : 'none';
             amountField.style.display = requiresKm ? 'none' : 'block';

@@ -35,6 +35,7 @@ def my_timesheets(request):
         'grouped_timesheets': grouped,
     })
 
+
 @login_required
 def approve_timesheet(request, timesheet_id):
     timesheet = get_object_or_404(Timesheet, id=timesheet_id)
@@ -67,3 +68,31 @@ def export_timesheets_csv(request):
             entry.status
         ])
     return response
+
+@login_required
+def edit_timesheet(request, pk):
+    timesheet = get_object_or_404(Timesheet, id=pk, employee=request.user.employeeprofile)
+    if timesheet.status == 'Approved':
+        messages.error(request, "You cannot edit an approved timesheet.")
+        return redirect('timesheet:my-timesheets')
+
+    if request.method == 'POST':
+        form = TimesheetForm(request.POST, instance=timesheet)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Timesheet updated.")
+            return redirect('timesheet:my-timesheets')
+    else:
+        form = TimesheetForm(instance=timesheet)
+
+    return render(request, 'timesheet/edit_timesheet.html', {'form': form, 'timesheet': timesheet})
+
+@login_required
+def delete_timesheet(request, pk):
+    timesheet = get_object_or_404(Timesheet, id=pk, employee=request.user.employeeprofile)
+    if timesheet.status == 'Approved':
+        messages.error(request, "You cannot delete an approved timesheet.")
+    else:
+        timesheet.delete()
+        messages.success(request, "Timesheet deleted.")
+    return redirect('timesheet:my-timesheets')

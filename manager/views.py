@@ -334,35 +334,6 @@ def load_assignments_ajax(request):
     return JsonResponse({'assignments': data})
 
 
-
-
-
-# Update the manage_expense_types view
-@login_required
-@user_passes_test(is_manager)
-def manage_expense_types(request):
-    if request.method == 'POST':
-        name = request.POST.get('name')
-        requires_km = 'requires_kilometers' in request.POST
-        requires_receipt = 'requires_receipt' in request.POST
-        rate = request.POST.get('rate')
-        
-        try:
-            ExpenseType.objects.create(
-                name=name,
-                requires_kilometers=requires_km,
-                requires_receipt=requires_receipt,
-                rate_per_km=rate if rate else None,
-                created_by=request.user
-            )
-            messages.success(request, "Expense type created successfully!")
-            return redirect('manager:manage-expense-types')
-        except Exception as e:
-            messages.error(request, f"Error creating expense type: {str(e)}")
-    
-    types = ExpenseType.objects.all()
-    return render(request, 'manager/expense_types.html', {'types': types})
-    
     
 
 

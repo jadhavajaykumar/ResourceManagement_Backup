@@ -4,6 +4,7 @@ from employee.models import EmployeeProfile
 from project.models import Project
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.conf import settings
 
 User = get_user_model()
 
@@ -45,7 +46,7 @@ class Expense(models.Model):
     ]
 
     # Legacy + new expense type support
-    expense_type = models.CharField(max_length=50)  # Old field
+    #expense_type = models.CharField(max_length=50)  # Old field
     new_expense_type = models.ForeignKey(
         ExpenseType,
         on_delete=models.PROTECT,
@@ -95,3 +96,32 @@ class Expense(models.Model):
 
     def __str__(self):
         return f"{self.employee.user.get_full_name()} | {self.get_expense_type_display()} | {self.amount} on {self.date}"
+        
+class SystemSettings(models.Model):
+    expense_grace_days = models.PositiveIntegerField(
+        default=10,
+        help_text="Allowed days to submit backdated expenses."
+    )
+    updated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Expense grace: {self.expense_grace_days} days"
+
+
+#EmployeeExpenses related Settings like updating the grace period for expense submission
+class EmployeeExpenseSetting(models.Model):
+    employee = models.OneToOneField(EmployeeProfile, on_delete=models.CASCADE)
+    grace_period_days = models.PositiveIntegerField(default=10)
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+
+    #updated_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.employee.user.get_full_name()} - {self.grace_period_days} days"

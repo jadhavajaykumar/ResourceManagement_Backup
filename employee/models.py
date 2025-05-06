@@ -52,6 +52,8 @@ class EmployeeProfile(models.Model):
     bank_account_number = models.CharField(max_length=30, blank=True)
     bank_ifsc_code = models.CharField(max_length=20, blank=True)
     epf_number = models.CharField(max_length=20, blank=True)
+    # employee/models.py
+    grace_period_days = models.IntegerField(default=0)
 
     def __str__(self):
         return f"{self.user.get_full_name()} ({self.employee_id})"

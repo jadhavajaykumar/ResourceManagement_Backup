@@ -11,10 +11,6 @@ from employee.models import EmployeeProfile
 from accounts.utils import get_dashboard_redirect_url
 # employee/views.py
 
-
-
-
-
 @login_required
 def profile_home(request):
 	profile, created = EmployeeProfile.objects.get_or_create(user=request.user)
@@ -89,11 +85,13 @@ def employee_dashboard(request):
 
 
 
+from project.models import Project, Task
+from django.db.models import Prefetch
+
 @login_required
 def my_projects(request):
     profile = EmployeeProfile.objects.get(user=request.user)
 
-    # Get project IDs assigned to this employee via TaskAssignment
     assigned_project_ids = (
         TaskAssignment.objects
         .filter(employee=profile)
@@ -101,9 +99,16 @@ def my_projects(request):
         .distinct()
     )
 
-    # Fetch actual Project instances using these IDs
-    projects = Project.objects.filter(id__in=assigned_project_ids)
+    # Prefetch related tasks
+    projects = (
+        Project.objects
+        .filter(id__in=assigned_project_ids)
+        .prefetch_related(
+            Prefetch('tasks', queryset=Task.objects.order_by('start_date'))
+        )
+    )
 
     return render(request, 'employee/my_projects.html', {
         'projects': projects,
     })
+

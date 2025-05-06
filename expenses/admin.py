@@ -8,5 +8,5 @@ class ExpenseTypeAdmin(admin.ModelAdmin):
 @admin.register(Expense)
 class ExpenseAdmin(admin.ModelAdmin):
     # Add your existing Expense admin configuration here
-    list_display = ('date', 'project', 'expense_type', 'amount', 'status')
+    list_display = ('date', 'project', 'new_expense_type', 'amount', 'status')
     # ... rest of your existing admin class fields/methods ...

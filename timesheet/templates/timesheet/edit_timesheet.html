@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load static %}
+{% load widget_tweaks %}
+
+{% block content %}
+<div class="container py-4">
+  <h2 class="mb-4 text-warning">Edit Timesheet Entry</h2>
+
+	<a href="{% url 'timesheet:my-timesheets' %}" class="btn btn-secondary mb-3">
+	<i class="bi bi-arrow-left me-2"></i> Back to Dashboard
+	</a>
+
+
+  <form method="post" class="card shadow-sm p-4">
+    {% csrf_token %}
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label for="id_project">Project:</label>
+        {{ form.project|add_class:"form-select" }}
+      </div>
+      <div class="col-md-4">
+        <label for="id_task">Task:</label>
+        {{ form.task|add_class:"form-select" }}
+      </div>
+      <div class="col-md-4">
+        <label for="id_date">Date:</label>
+        {{ form.date|add_class:"form-control" }}
+      </div>
+      <div class="col-md-3">
+        <label for="id_time_from">Time From:</label>
+        {{ form.time_from|add_class:"form-control" }}
+      </div>
+      <div class="col-md-3">
+        <label for="id_time_to">Time To:</label>
+        {{ form.time_to|add_class:"form-control" }}
+      </div>
+      <div class="col-md-12">
+        <label for="id_task_description">Task Description:</label>
+        {{ form.task_description|add_class:"form-control" }}
+      </div>
+    </div>
+    <div class="mt-4">
+      <button type="submit" class="btn btn-primary">
+        <i class="bi bi-save me-1"></i> Save Changes
+      </button>
+      <a href="{% url 'timesheet:my-timesheets' %}" class="btn btn-secondary ms-2">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

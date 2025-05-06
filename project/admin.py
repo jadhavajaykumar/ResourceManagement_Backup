@@ -12,16 +12,6 @@ from django.utils.translation import gettext_lazy as _
 
 
 
-#admin.site.register(Project)
-#admin.site.register(Task)
-#admin.site.register(Subtask)
-#admin.site.register(TaskAssignment)  # Add clearly
-
-#admin.site.register(ProjectExpensePolicy)
-#admin.site.register(CountryDASettings)
-
-
-
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
     # Fields shown in the admin form when adding/editing users

@@ -7,6 +7,12 @@ from employee.models import EmployeeProfile
 
 from django.db.models import Q
 from datetime import datetime
+from .models import SystemSettings
+from .forms import GracePeriodForm
+from django.contrib.auth.decorators import user_passes_test
+from django.views.decorators.http import require_http_methods
+from .models import ExpenseType
+
 
 def delete_expense(request, expense_id):
     profile = EmployeeProfile.objects.get(user=request.user)
@@ -23,6 +29,7 @@ def delete_expense(request, expense_id):
 @login_required
 def employee_expenses(request):
     profile = EmployeeProfile.objects.get(user=request.user)
+    new_expense_types = ExpenseType.objects.all()
 
     # Prefetch project while fetching expenses to avoid N+1 queries
     expenses = Expense.objects.filter(employee=profile).select_related('project').order_by('-date')
@@ -32,7 +39,7 @@ def employee_expenses(request):
         start_date = request.GET.get('start_date')
         end_date = request.GET.get('end_date')
         project_id = request.GET.get('project')
-
+        expense_type_id = request.GET.get('type')
         if start_date and end_date:
             from django.utils.dateparse import parse_date
             start = parse_date(start_date)
@@ -42,6 +49,9 @@ def employee_expenses(request):
 
         if project_id:
             expenses = expenses.filter(project_id=project_id)
+            
+        if expense_type_id:
+            expenses = expenses.filter(new_expense_type_id=expense_type_id)
 
     # Fetch available projects for dropdown (optimized)
     projects = profile.expense_set.select_related('project').values('project__id', 'project__name').distinct()
@@ -60,6 +70,7 @@ def employee_expenses(request):
     return render(request, 'expenses/my_expenses.html', {
         'form': form,
         'expenses': expenses,
+        'expense_types': new_expense_types,
         'projects': projects,
     })
 
@@ -113,3 +124,135 @@ def approve_expense(request, expense_id):
 
 # Update the views.py to handle form save and required validations
 
+
+
+def is_manager_or_admin(user):
+    return user.is_superuser or (hasattr(user, 'employee_profile') and user.employee_profile.role in ['Manager', 'Admin'])
+
+@login_required
+@user_passes_test(is_manager_or_admin)
+def manage_expense_settings(request):
+    settings_obj, _ = SystemSettings.objects.get_or_create(id=1)
+
+    if request.method == 'POST':
+        form = GracePeriodForm(request.POST, instance=settings_obj)
+        if form.is_valid():
+            updated = form.save(commit=False)
+            updated.updated_by = request.user
+            updated.save()
+            messages.success(request, "Grace period updated successfully.")
+            return redirect('expenses:manage-settings')
+    else:
+        form = GracePeriodForm(instance=settings_obj)
+
+    return render(request, 'expenses/manage_settings.html', {'form': form})
+
+
+
+
+@login_required 
+@user_passes_test(lambda u: u.is_superuser or (hasattr(u, 'employee_profile') and u.employee_profile.role == 'Manager'))
+def expense_settings_dashboard(request):
+    system_settings, created = SystemSettings.objects.get_or_create(id=1)
+    global_grace_period = system_settings.expense_grace_days
+
+    employees = EmployeeProfile.objects.select_related('user').all()
+    selected_employee = None
+    employee_grace_period = None
+
+    if request.method == 'POST':
+        # Handle Expense Type Form
+        if 'add_type' in request.POST:
+            name = request.POST.get('name')
+            requires_km = 'requires_kilometers' in request.POST
+            requires_receipt = 'requires_receipt' in request.POST
+            rate = request.POST.get('rate')
+
+            ExpenseType.objects.create(
+                name=name,
+                requires_kilometers=requires_km,
+                requires_receipt=requires_receipt,
+                rate_per_km=rate if rate else None,
+                created_by=request.user
+            )
+            messages.success(request, "Expense type added.")
+            return redirect('expenses:expense-settings')
+
+        # Handle Global Grace Period
+        elif 'update_grace' in request.POST:
+            new_days = request.POST.get('expense_grace_days')
+            try:
+                new_days = int(new_days)
+                system_settings.expense_grace_days = new_days
+                system_settings.updated_by = request.user
+                system_settings.save()
+                messages.success(request, "Global grace period updated.")
+            except ValueError:
+                messages.error(request, "Invalid input for grace period.")
+            return redirect('expenses:expense-settings')
+
+        # Handle Per-Employee Grace Period
+        elif 'update_employee_grace' in request.POST:
+            employee_id = request.POST.get('employee_id')
+            new_days = request.POST.get('employee_grace_days')
+            try:
+                selected_employee = EmployeeProfile.objects.get(id=employee_id)
+                new_days = int(new_days)
+                selected_employee.grace_period_days = new_days
+                selected_employee.save()
+                messages.success(request, f"Grace period updated for {selected_employee.user.get_full_name()}")
+            except Exception as e:
+                messages.error(request, f"Failed to update: {str(e)}")
+            return redirect('expenses:expense-settings')
+
+    # Preload grace period for selected employee (optional feature)
+    selected_id = request.GET.get('employee_id')
+    if selected_id:
+        try:
+            selected_employee = EmployeeProfile.objects.get(id=selected_id)
+            employee_grace_period = selected_employee.grace_period_days
+        except:
+            selected_employee = None
+            employee_grace_period = None
+
+    new_expense_types = ExpenseType.objects.all()
+    return render(request, 'expenses/expense_settings_dashboard.html', {
+        'types': new_expense_types,
+        'grace_period': global_grace_period,
+        'employees': employees,
+        'selected_employee': selected_employee,
+        'employee_grace_period': employee_grace_period,
+    })
+
+
+# expenses/views.py
+
+
+@login_required
+@user_passes_test(is_manager_or_admin)
+@require_http_methods(["POST"])
+def delete_expense_type(request, type_id):
+    new_expense_type = get_object_or_404(ExpenseType, id=type_id)
+    new_expense_type.delete()
+    messages.success(request, f"Expense type '{new_expense_type.name}' deleted successfully.")
+    return redirect('expenses:expense-settings')
+
+@login_required
+@user_passes_test(is_manager_or_admin)
+def edit_expense_type(request, type_id):
+    new_expense_type = get_object_or_404(ExpenseType, id=type_id)
+
+    if request.method == 'POST':
+        new_expense_type.name = request.POST.get('name', new_expense_type.name)
+        new_expense_type.requires_kilometers = 'requires_kilometers' in request.POST
+        new_expense_type.requires_receipt = 'requires_receipt' in request.POST
+        rate = request.POST.get('rate')
+        new_expense_type.rate_per_km = rate if rate else None
+        new_expense_type.save()
+
+        messages.success(request, f"Expense type '{new_expense_type.name}' updated successfully.")
+        return redirect('expenses:expense-settings')
+
+    return render(request, 'expenses/edit_expense_type.html', {
+        'type': new_expense_type
+    })

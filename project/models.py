@@ -92,15 +92,30 @@ class Project(models.Model):
 
         return employee_match_data
 
+#class Task(models.Model):
+   # project = models.ForeignKey(Project, related_name='tasks', on_delete=models.CASCADE)
+   # name = models.CharField(max_length=200)
+   # description = models.TextField(blank=True, null=True)
+   # due_date = models.DateField()
+  #  progress = models.PositiveIntegerField(default=0)
+
+  #  def __str__(self):
+   #     return f"{self.name} ({self.project.name})"
 class Task(models.Model):
-    project = models.ForeignKey(Project, related_name='tasks', on_delete=models.CASCADE)
+    project = models.ForeignKey('Project', on_delete=models.CASCADE, related_name='tasks')
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
-    due_date = models.DateField()
-    progress = models.PositiveIntegerField(default=0)
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    due_date = models.DateField(null=True, blank=True)  # ✅ add this
+    progress = models.PositiveIntegerField(default=0)    # ✅ add this
+    is_completed = models.BooleanField(default=False)
+
+    #def __str__(self):
+        #return f"{self.project.project_name} - {self.name}"
 
     def __str__(self):
-        return f"{self.name} ({self.project.name})"
+        return f"{self.project.name} - {self.name}"
 
 
 class Subtask(models.Model):
