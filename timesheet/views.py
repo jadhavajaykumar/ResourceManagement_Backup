@@ -8,16 +8,19 @@ from .forms import TimesheetForm
 from .models import Timesheet
 from employee.models import EmployeeProfile
 from manager.models import TaskAssignment
+from django.contrib import messages
 
 @login_required
 def my_timesheets(request):
     employee = request.user.employeeprofile
+    
 
     if request.method == 'POST':
-        form = TimesheetForm(request.POST)
+        form = TimesheetForm(request.POST or None, employee=request.user.employeeprofile)
         if form.is_valid():
             entry = form.save(commit=False)
             entry.employee = employee
+            entry.full_clean()  # safe now
             entry.save()
             return redirect('timesheet:my-timesheets')
     else:
@@ -87,12 +90,18 @@ def edit_timesheet(request, pk):
 
     return render(request, 'timesheet/edit_timesheet.html', {'form': form, 'timesheet': timesheet})
 
-@login_required
-def delete_timesheet(request, pk):
-    timesheet = get_object_or_404(Timesheet, id=pk, employee=request.user.employeeprofile)
-    if timesheet.status == 'Approved':
-        messages.error(request, "You cannot delete an approved timesheet.")
+# ✅ Correct view signature
+def delete_timesheet(request, timesheet_id):
+    from .models import Timesheet
+    from django.shortcuts import get_object_or_404, redirect
+    from django.contrib import messages
+
+    timesheet = get_object_or_404(Timesheet, id=timesheet_id)
+
+    if timesheet.is_locked:
+        messages.error(request, "Cannot delete a locked timesheet.")
     else:
         timesheet.delete()
-        messages.success(request, "Timesheet deleted.")
-    return redirect('timesheet:my-timesheets')
+        messages.success(request, "Timesheet deleted successfully.")
+
+    return redirect('timesheet:my-timesheets')  # Adjust if your URL namespace differs

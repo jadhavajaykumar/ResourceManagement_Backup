@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-4 text-primary">Manage Country DA Settings</h2>
+
+  <!-- Back Button -->
+  <a href="{% url 'expenses:expense-settings-dashboard' %}" class="btn btn-secondary mb-4">← Back to Expense Settings</a>
+
+  <!-- Add/Edit Country DA Form -->
+  <div class="card mb-4">
+    <div class="card-header bg-success text-white">
+      <h5 class="mb-0">{{ edit_mode|default:False|yesno:"Edit Country,Add New Country" }}</h5>
+    </div>
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        {% if edit_mode %}
+          <button type="submit" name="update_country" class="btn btn-warning">Update</button>
+          <a href="{% url 'expenses:manage-country-da' %}" class="btn btn-secondary">Cancel</a>
+        {% else %}
+          <button type="submit" name="add_country" class="btn btn-primary">Add Country</button>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+
+  <!-- Country DA Table -->
+  <div class="card">
+    <div class="card-header bg-info text-white">
+      <h5 class="mb-0">All Configured Countries</h5>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-bordered mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>Country</th>
+              <th>Currency</th>
+              <th>DA Rate/hr</th>
+              <th>Extra Hour Rate</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for rate in country_rates %}
+              <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ rate.country }}</td>
+                <td>{{ rate.currency }}</td>
+                <td>{{ rate.da_rate_per_hour }}</td>
+                <td>{{ rate.extra_hour_rate }}</td>
+                <td>
+                  <a href="{% url 'expenses:edit-country-da' rate.id %}" class="btn btn-sm btn-warning">Edit</a>
+                  <form method="post" action="{% url 'expenses:delete-country-da' rate.id %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure to delete this entry?')">Delete</button>
+                  </form>
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="6" class="text-center text-muted">No country data configured yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

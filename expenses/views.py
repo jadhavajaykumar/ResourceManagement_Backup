@@ -57,7 +57,7 @@ def employee_expenses(request):
     projects = profile.expense_set.select_related('project').values('project__id', 'project__name').distinct()
 
     if request.method == 'POST':
-        form = ExpenseForm(request.POST, request.FILES)
+        form = ExpenseForm(request.POST or None, employee=request.user.employeeprofile)
         if form.is_valid():
             expense = form.save(commit=False)
             expense.employee = profile
@@ -256,3 +256,63 @@ def edit_expense_type(request, type_id):
     return render(request, 'expenses/edit_expense_type.html', {
         'type': new_expense_type
     })
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib import messages
+from .forms import CountryDASettingForm
+from .models import CountryDARate
+
+# ✅ Access control: Only managers and admins
+def is_manager_or_admin(user):
+    return user.is_authenticated and (user.is_superuser or user.groups.filter(name__in=['Manager', 'Admin']).exists())
+
+# ✅ Manage all Country DA Rates (Add or View)
+@login_required
+@user_passes_test(is_manager_or_admin)
+def manage_country_da(request):
+    form = CountryDASettingForm()
+    country_rates = CountryDARate.objects.all().order_by('country')
+
+    if request.method == "POST" and 'add_country' in request.POST:
+        form = CountryDASettingForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Country DA settings added successfully.")
+            return redirect('expenses:manage-country-da')
+
+    return render(request, 'expenses/manage_country_da.html', {
+        'form': form,
+        'country_rates': country_rates,
+        'edit_mode': False,
+    })
+
+# ✅ Edit Country DA Rate
+@login_required
+@user_passes_test(is_manager_or_admin)
+def edit_country_da(request, rate_id):
+    instance = get_object_or_404(CountryDARate, id=rate_id)
+    form = CountryDASettingForm(request.POST or None, instance=instance)
+    country_rates = CountryDARate.objects.all().order_by('country')
+
+    if request.method == "POST" and 'update_country' in request.POST:
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Country DA settings updated.")
+            return redirect('expenses:manage-country-da')
+
+    return render(request, 'expenses/manage_country_da.html', {
+        'form': form,
+        'country_rates': country_rates,
+        'edit_mode': True,
+    })
+
+# ✅ Delete Country DA Rate
+@login_required
+@user_passes_test(is_manager_or_admin)
+def delete_country_da(request, rate_id):
+    if request.method == "POST":
+        rate = get_object_or_404(CountryDARate, id=rate_id)
+        rate.delete()
+        messages.success(request, f"{rate.country} removed successfully.")
+    return redirect('expenses:manage-country-da')

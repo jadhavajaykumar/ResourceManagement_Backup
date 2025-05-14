@@ -12,6 +12,11 @@ urlpatterns = [
     path('settings/', views.expense_settings_dashboard, name='expense-settings'),
     path('settings/edit-expense-type/<int:type_id>/', views.edit_expense_type, name='edit-expense-type'),
     path('settings/delete-expense-type/<int:type_id>/', views.delete_expense_type, name='delete-expense-type'),
+    
+     # ✅ Country DA Rate Management
+    path('manage-country-da/', views.manage_country_da, name='manage-country-da'),
+    path('edit-country-da/<int:rate_id>/', views.edit_country_da, name='edit-country-da'),
+    path('delete-country-da/<int:rate_id>/', views.delete_country_da, name='delete-country-da'),
 
 
 

@@ -4,14 +4,15 @@ from django import forms
 from .models import EmployeeExpenseSetting
 from employee.models import EmployeeProfile
 from datetime import date, timedelta
-
+from .models import ExpenseType
 
 #from core.models import SystemSettings
 
 class ExpenseForm(forms.ModelForm):
     new_expense_type = forms.ModelChoiceField(
-        queryset=ExpenseType.objects.all(),   # ✅ Dynamically pull Expense Types added by Manager
-        widget=forms.Select(attrs={'class': 'form-select'}),
+        queryset=ExpenseType.objects.all(),
+        label="Expense Type",
+        widget=forms.Select(attrs={'class': 'form-control'}),
         required=True
     )
 
@@ -57,6 +58,13 @@ class ExpenseForm(forms.ModelForm):
             raise forms.ValidationError(f"You can only submit expenses within the last {grace_period} days.")
         return submitted_date    
   # assume where grace period is stored
+  
+    def __init__(self, *args, **kwargs):
+        employee = kwargs.pop('employee', None)
+        super().__init__(*args, **kwargs)
+        if employee:
+            self.fields['project'].queryset = Project.objects.filter(assignments__employee=employee)
+  
 
 
 class GracePeriodForm(forms.ModelForm):
@@ -77,3 +85,17 @@ class EmployeeGracePeriodForm(forms.ModelForm):
     class Meta:
         model = EmployeeExpenseSetting
         fields = ['employee', 'grace_period_days']
+
+from django import forms
+from .models import CountryDASetting
+
+class CountryDASettingForm(forms.ModelForm):
+    class Meta:
+        model = CountryDASetting
+        fields = ['country', 'currency', 'da_rate_per_hour', 'extra_hour_rate']
+        widgets = {
+            'country': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Country Name'}),
+            'currency': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Currency Code (e.g., INR, USD)'}),
+            'da_rate_per_hour': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'extra_hour_rate': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+        }

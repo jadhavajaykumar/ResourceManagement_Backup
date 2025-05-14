@@ -109,3 +109,11 @@ class EmployeeProfileAdmin(admin.ModelAdmin):
 # Unregister and re-register User model
 admin.site.unregister(CustomUser)
 admin.site.register(CustomUser, CustomUserAdmin)
+
+from django.contrib import admin
+from .models import LeaveBalance
+
+@admin.register(LeaveBalance)
+class LeaveBalanceAdmin(admin.ModelAdmin):
+    list_display = ('employee', 'c_off', 'updated_at')
+    search_fields = ('employee__user__first_name', 'employee__user__email')

@@ -94,7 +94,7 @@
 					<td>
 					  {% if entry.status != 'Approved' %}
 						<a href="{% url 'timesheet:edit-timesheet' entry.id %}" class="btn btn-sm btn-primary">Edit</a>
-						<a href="{% url 'timesheet:delete-timesheet' entry.id %}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?');">Delete</a>
+						<a href="{% url 'timesheet:delete_timesheet' entry.id %}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?');">Delete</a>
 					  {% else %}
 						-
 					  {% endif %}

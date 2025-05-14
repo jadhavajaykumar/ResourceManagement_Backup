@@ -162,10 +162,12 @@ def assign_skills(request):
 @login_required
 @user_passes_test(is_manager)
 def load_subskills(request):
-    main_skill_id = request.GET.get('main_skill')
+    main_skill_id = request.GET.get('main_skill_id') or request.GET.get('main_skill')
     subskills = SubSkill.objects.filter(main_skill_id=main_skill_id).values('id', 'name')
-    return JsonResponse(list(subskills), safe=False)
-    
+    return JsonResponse(list(subskills), safe=False)  # ✅ This returns a pure array
+
+
+
 
 
 

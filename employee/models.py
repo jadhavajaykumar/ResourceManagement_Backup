@@ -5,6 +5,10 @@ from datetime import timedelta
 import uuid
 #from project.models import Project, Task  # ✅ Add this line
 from accounts.models import CustomUser
+# employee/models.py
+
+
+from django.contrib.auth.models import User
 
 def generate_employee_id():
     """Generate a unique employee ID in the format EMP-XXXXXX."""
@@ -104,4 +108,14 @@ class TimesheetEntry(models.Model):
         if not self.details:
             self.details = f"Timesheet for {self.project.name} on {self.date}"
         super().save(*args, **kwargs)
+
+
+
+class LeaveBalance(models.Model):
+    employee = models.OneToOneField('EmployeeProfile', on_delete=models.CASCADE, related_name='leave_balance')
+    c_off = models.DecimalField(max_digits=5, decimal_places=1, default=0.0)  # Compensatory off days
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.employee.user.get_full_name()} - C-Off: {self.c_off}"
         

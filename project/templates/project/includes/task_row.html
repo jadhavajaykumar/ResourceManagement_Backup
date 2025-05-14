@@ -1,0 +1,18 @@
+<tr id="task_row_{{ task.id }}">
+  <td>{{ counter }}</td>
+  <td>{{ task.name }}</td>
+  <td>{{ task.description|default:"-" }}</td>
+  <td>{{ task.due_date|date:"Y-m-d" }}</td>
+  <td>
+    <div class="progress" style="height: 20px;">
+      <div class="progress-bar" role="progressbar" style="width: {{ task.progress }}%;" aria-valuenow="{{ task.progress }}" aria-valuemin="0" aria-valuemax="100">
+        {{ task.progress }}%
+      </div>
+    </div>
+  </td>
+  <td>
+    <a href="{% url 'project:edit-task' task.id %}" class="btn btn-sm btn-warning">Edit</a>
+    <a href="{% url 'project:delete-task' task.id %}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this task?');">Delete</a>
+  </td>
+</tr>
+

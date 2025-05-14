@@ -125,3 +125,51 @@ class EmployeeExpenseSetting(models.Model):
 
     def __str__(self):
         return f"{self.employee.user.get_full_name()} - {self.grace_period_days} days"
+        
+        
+class DailyAllowance(models.Model):
+    timesheet = models.OneToOneField('timesheet.Timesheet', on_delete=models.CASCADE)
+    employee = models.ForeignKey('employee.EmployeeProfile', on_delete=models.CASCADE)
+    project = models.ForeignKey('project.Project', on_delete=models.CASCADE)
+    date = models.DateField()
+    da_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=10)
+    is_extended = models.BooleanField(default=False)  # for Domestic > 60 days
+    approved = models.BooleanField(default=False)  # after manager approval
+    forwarded_to_accountant = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class CountryDASetting(models.Model):
+    country = models.CharField(max_length=100, unique=True)
+    currency = models.CharField(max_length=10, help_text="Currency code like INR, USD, EUR etc.")
+    da_rate_per_hour = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        help_text="DA Rate for regular working hours per hour"
+    )
+    extra_hour_rate = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        help_text="DA Rate for extra working hours per hour"
+    )
+
+    class Meta:
+        verbose_name = "Country DA Rate Setting"
+        verbose_name_plural = "Country DA Rate Settings"
+        ordering = ['country']
+
+    def __str__(self):
+        return f"{self.country} ({self.currency}) - DA: {self.da_rate_per_hour}/hr, Extra: {self.extra_hour_rate}/hr"
+        # expenses/models.py
+
+from django.db import models
+
+class CountryDARate(models.Model):
+    country = models.CharField(max_length=100, unique=True)
+    currency = models.CharField(max_length=10)
+    da_rate_per_hour = models.DecimalField(max_digits=10, decimal_places=2)
+    extra_hour_rate = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def __str__(self):
+        return f"{self.country} ({self.currency})"
+

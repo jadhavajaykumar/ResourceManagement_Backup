@@ -31,6 +31,7 @@ class MainSkill(models.Model):
 class SubSkill(models.Model):
     main_skill = models.ForeignKey(MainSkill, on_delete=models.CASCADE, related_name='subskills')
     name = models.CharField(max_length=100)
+    
     class Meta:
         unique_together = ('main_skill', 'name')
     def __str__(self):

@@ -1,0 +1,172 @@
+<div class="modal fade" id="addProjectModal" tabindex="-1" aria-labelledby="addProjectModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <form method="post" enctype="multipart/form-data" id="projectForm">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title text-primary" id="addProjectModalLabel">Add New Project</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="row">
+            <!-- Left Side Fields -->
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="id_name" class="form-label">Project Name</label>
+                {{ project_form.name }}
+              </div>
+              <div class="mb-3">
+                <label for="id_customer_name" class="form-label">Customer Name</label>
+                {{ project_form.customer_name }}
+              </div>
+              <div class="mb-3">
+                <label for="id_description" class="form-label">Description</label>
+                {{ project_form.description }}
+              </div>
+              <div class="mb-3">
+                <label for="id_location" class="form-label">Location</label>
+                {{ project_form.location }}
+              </div>
+              <div class="mb-3">
+                <label for="id_project_type" class="form-label">Project Type</label>
+                {{ project_form.project_type }}
+              </div>
+
+              <div id="div_country_rate" class="mb-3">
+                <label for="id_country_rate" class="form-label">Country</label>
+                <select name="country_rate" class="form-select" id="id_country_rate">
+                  {% for rate in country_rates %}
+                    <option value="{{ rate.id }}">{{ rate.country }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div id="div_currency" class="mb-3">
+                <label for="id_currency" class="form-label">Currency</label>
+                {{ project_form.currency }}
+              </div>
+              <div id="div_da_rate_per_hour" class="mb-3">
+                <label class="form-label">DA Rate / Hour</label>
+                <input type="text" class="form-control" id="id_da_rate_per_hour" disabled>
+              </div>
+              <div id="div_extra_hour_rate" class="mb-3">
+                <label class="form-label">Extra Hour Rate</label>
+                <input type="text" class="form-control" id="id_extra_hour_rate" disabled>
+              </div>
+            </div>
+
+            <!-- Right Side Fields -->
+            <div class="col-md-6">
+              <div id="div_budget" class="mb-3">
+                <label for="id_budget" class="form-label">Budget</label>
+                {{ project_form.budget }}
+              </div>
+              <div id="div_billing_method" class="mb-3">
+                <label for="id_billing_method" class="form-label">Billing Method</label>
+                {{ project_form.billing_method }}
+              </div>
+              <div class="mb-3">
+                <label for="id_start_date" class="form-label">Start Date</label>
+                {{ project_form.start_date }}
+              </div>
+              <div class="mb-3">
+                <label for="id_end_date" class="form-label">End Date</label>
+                {{ project_form.end_date }}
+              </div>
+              <div id="div_status" class="mb-3">
+                <label for="id_status" class="form-label">Status</label>
+                {{ project_form.status }}
+              </div>
+              <div class="mb-3">
+                <label for="id_documents" class="form-label">Documents</label>
+                {{ project_form.documents }}
+              </div>
+
+              <!-- Skill Selection -->
+              <div class="mb-3">
+                <label class="form-label">Required Skills</label>
+                <div class="d-flex mb-2">
+                  <select id="mainSkillSelect" class="form-select me-2">
+                    <option value="">Select Main Skill</option>
+                    {% for skill in main_skills %}
+                      <option value="{{ skill.id }}">{{ skill.name }}</option>
+                    {% endfor %}
+                  </select>
+                  <select id="subSkillSelect" class="form-select me-2">
+                    <option value="">Select Sub Skill</option>
+                  </select>
+                  <button type="button" class="btn btn-outline-primary" id="addSkillBtn">Add</button>
+                </div>
+                <ul id="selectedSkillsList" class="list-group mt-2"></ul>
+                <input type="hidden" name="selected_skills" id="selected_skills_json">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="submit" name="add_project" class="btn btn-success">
+            <i class="fa fa-check-circle"></i> Save Project
+          </button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const mainSkillSelect = document.getElementById("mainSkillSelect");
+  const subSkillSelect = document.getElementById("subSkillSelect");
+  const selectedSkillsList = document.getElementById("selectedSkillsList");
+  const selectedSkillsInput = document.getElementById("selected_skills_json");
+
+  let selectedSkills = [];
+
+  mainSkillSelect.addEventListener("change", function () {
+    const mainSkillId = this.value;
+    if (!mainSkillId) return;
+
+    fetch(`/manager/load-subskills/?main_skill_id=${mainSkillId}`)
+      .then(response => response.json())
+      .then(data => {
+        subSkillSelect.innerHTML = '<option value="">Select Sub Skill</option>';
+        data.subskills.forEach(sub => {
+          const option = document.createElement("option");
+          option.value = sub.id;
+          option.textContent = sub.name;
+          subSkillSelect.appendChild(option);
+        });
+      });
+  });
+
+  document.getElementById("addSkillBtn").addEventListener("click", function () {
+    const mainSkillId = mainSkillSelect.value;
+    const subSkillId = subSkillSelect.value;
+    const mainSkillText = mainSkillSelect.options[mainSkillSelect.selectedIndex].text;
+    const subSkillText = subSkillSelect.options[subSkillSelect.selectedIndex]?.text;
+
+    if (!mainSkillId || !subSkillId) return;
+
+    selectedSkills.push({ main_skill_id: mainSkillId, subskill_id: subSkillId });
+
+    const li = document.createElement("li");
+    li.className = "list-group-item d-flex justify-content-between align-items-center";
+    li.innerHTML = `${mainSkillText} → ${subSkillText} <button class="btn btn-sm btn-danger remove-skill">Remove</button>`;
+    selectedSkillsList.appendChild(li);
+
+    selectedSkillsInput.value = JSON.stringify(selectedSkills);
+
+    li.querySelector(".remove-skill").addEventListener("click", function () {
+      selectedSkillsList.removeChild(li);
+      selectedSkills = selectedSkills.filter(s => !(s.main_skill_id === mainSkillId && s.subskill_id === subSkillId));
+      selectedSkillsInput.value = JSON.stringify(selectedSkills);
+    });
+
+    // Reset subskill dropdown
+    subSkillSelect.innerHTML = '<option value="">Select Sub Skill</option>';
+  });
+});
+</script>

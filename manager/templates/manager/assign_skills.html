@@ -5,7 +5,9 @@
 {% block content %}
 <div class="container mt-4">
   <h2>Manage & Assign Skills</h2>
-
+	<div class="text-end">
+		<a href="{% url 'manager:manager-dashboard' %}" class="btn btn-secondary mt-3">Back to Dashboard</a>
+	</div>
   <!-- Add Skills Section -->
   <div class="row mb-4">
     <div class="col-md-6">
@@ -121,7 +123,7 @@
     {% endif %}
   </div>
 
-  <a href="{% url 'manager:manager-dashboard' %}" class="btn btn-secondary mt-3">Back to Dashboard</a>
+  <!--<a href="{% url 'manager:manager-dashboard' %}" class="btn btn-secondary mt-3">Back to Dashboard</a>-->
 </div>
 
 <!-- Edit Modal HTML (Unchanged) -->

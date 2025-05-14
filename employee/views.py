@@ -5,6 +5,7 @@ from .models import EmployeeProfile
 from manager.models import EmployeeSkill, TaskAssignment
 from .forms import EmployeeProfileForm
 from project.models import Project
+from .models import LeaveBalance
 
 from employee.models import EmployeeProfile
 
@@ -63,7 +64,7 @@ def edit_profile(request):
 @login_required
 def employee_dashboard(request):
     profile = EmployeeProfile.objects.get(user=request.user)
-
+    leave_balance = LeaveBalance.objects.filter(employee=profile).first()
     # Fetch recent assigned project IDs via TaskAssignment
     recent_project_ids = (
         TaskAssignment.objects
@@ -80,6 +81,7 @@ def employee_dashboard(request):
     return render(request, 'employee/employee_dashboard.html', {
         'profile': profile,  # ✅ Now passed to template
         'recent_projects': recent_projects,
+        'leave_balance': leave_balance,
     })
 
 
@@ -112,3 +114,13 @@ def my_projects(request):
         'projects': projects,
     })
 
+from timesheet.models import Attendance
+
+@login_required
+def attendance_report(request):
+    profile = request.user.employeeprofile
+    records = Attendance.objects.filter(employee=profile).order_by('-date')
+
+    return render(request, 'employee/attendance_report.html', {
+        'records': records
+    })
