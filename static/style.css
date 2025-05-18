@@ -41,3 +41,11 @@
         margin-bottom: 20px;
     }
 }
+
+.card {
+    border-radius: 12px;
+    background-color: #fff;
+}
+input[type="file"] {
+    padding: 0.45rem 0.75rem;
+}

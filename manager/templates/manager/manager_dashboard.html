@@ -117,7 +117,7 @@
     <div class="dashboard-card">
       <i class="fa-solid fa-clipboard-check"></i>
       <h3>Timesheet Approval</h3>
-      <a href="#">Coming Soon</a>
+       <a href="{% url 'manager:timesheet-approval' %}">Go</a>
     </div>
 
     <!-- Expense Type Add -->
@@ -134,11 +134,13 @@
 	  <a href="{% url 'manager:expense-approval' %}">Go</a>
 	</div>
 	
+	<!-- PDF to Word -->
 	<div class="dashboard-card">
-		<i class="fas fa-file-word"></i>
-		<h3>PDF to Word</h3>
-		<a href="{% url 'manager:pdf-to-word' %}">Go</a>
+	  <i class="fas fa-file-word"></i>
+	  <h3>PDF Tools (Convert & Merge)</h3>
+	  <a href="{% url 'docgen:combined-pdf-tools' %}">Go</a>
 	</div>
+
 
 
 	  

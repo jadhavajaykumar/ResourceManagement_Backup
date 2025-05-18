@@ -3,13 +3,21 @@
 from django.contrib import admin
 
 # ✅ Correct (new)
-from .models import Project, Task, Subtask, ProjectExpensePolicy, CountryDARate
-
+from .models import Project, Task, Subtask, ProjectExpensePolicy
+from expenses.models import CountryDARate
 from django.contrib.auth.admin import UserAdmin
 from accounts.models import CustomUser
 from django.utils.translation import gettext_lazy as _
 
+from django.contrib import admin
+from .models import Project, ProjectType, LocationType, DASetting
 
+#admin.site.register(Project)
+admin.site.register(ProjectType)
+admin.site.register(LocationType)
+admin.site.register(DASetting)
+
+    
 
 
 #admin.site.register(Project)
@@ -46,8 +54,9 @@ class CustomUserAdmin(UserAdmin):
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
-    list_display = ['name', 'customer_name', 'project_type', 'location', 'status']
-    list_filter = ['project_type', 'location', 'status']
+    list_display = ['name', 'customer_name', 'project_type', 'location_type', 'status_type']  # ✅ fixed
+    list_filter = ['project_type', 'location_type', 'status_type']  # ✅ fixed
+
 
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
@@ -65,3 +74,4 @@ class ProjectExpensePolicyAdmin(admin.ModelAdmin):
 class CountryDARateAdmin(admin.ModelAdmin):
     list_display = ['country', 'currency', 'da_rate_per_hour', 'extra_hour_rate']
     search_fields = ['country', 'currency']
+    

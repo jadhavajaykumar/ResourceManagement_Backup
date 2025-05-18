@@ -10,7 +10,15 @@ from io import BytesIO
 
 
 def is_accountant(user):
-    return user.groups.filter(name='Accountant').exists()
+    return (
+        user.is_authenticated and
+        hasattr(user, 'employeeprofile') and
+        user.employeeprofile.role == 'Accountant'
+    )
+
+
+
+
 
 @login_required
 @user_passes_test(is_accountant)

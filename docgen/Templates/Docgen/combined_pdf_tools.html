@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}PDF Tools{% endblock %}
+{% block content %}
+<h2>PDF Merge + Convert Tools</h2>
+
+<div style="display: flex; gap: 50px; flex-wrap: wrap; margin-top: 30px;">
+
+  <!-- PDF Merger -->
+  <div style="flex: 1; min-width: 350px;">
+    <h3>Merge Two PDFs</h3>
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      {{ merge_form.as_p }}
+      <button type="submit" name="merge_submit">Merge PDFs</button>
+    </form>
+  </div>
+
+  <!-- PDF to Word Converter -->
+  <div style="flex: 1; min-width: 350px;">
+    <h3>Convert PDF to Word</h3>
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      {{ convert_form.as_p }}
+      <button type="submit" name="convert_submit">Convert to Word</button>
+    </form>
+  </div>
+
+</div>
+{% endblock %}

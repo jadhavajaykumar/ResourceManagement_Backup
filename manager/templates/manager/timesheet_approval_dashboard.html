@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}Timesheet Approvals{% endblock %}
+{% block content %}
+<h2 class="mb-4 text-primary">Timesheet Approval Dashboard</h2>
+
+{% if timesheets %}
+<table class="table table-striped">
+  <thead class="table-dark">
+    <tr>
+      <th>Employee</th>
+      <th>Project</th>
+      <th>Task</th>
+      <th>Date</th>
+      <th>Time</th>
+      <th>Description</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in timesheets %}
+    <tr>
+      <td>{{ t.employee.user.get_full_name }}</td>
+      <td>{{ t.project.name }}</td>
+      <td>{{ t.task.name }}</td>
+      <td>{{ t.date }}</td>
+      <td>{{ t.time_from }} – {{ t.time_to }}</td>
+      <td>{{ t.task_description }}</td>
+      <td>
+        <form method="post" action="{% url 'manager:handle-timesheet-action' t.id 'approve' %}" class="mb-2">
+          {% csrf_token %}
+          <textarea name="manager_remark" class="form-control mb-1" placeholder="Manager remark" required></textarea>
+          <button class="btn btn-success btn-sm w-100">Approve</button>
+        </form>
+        <form method="post" action="{% url 'manager:handle-timesheet-action' t.id 'reject' %}">
+          {% csrf_token %}
+          <input type="hidden" name="manager_remark" value="Rejected by manager.">
+          <button class="btn btn-danger btn-sm w-100">Reject</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="alert alert-info">No pending timesheets to approve.</div>
+{% endif %}
+{% endblock %}

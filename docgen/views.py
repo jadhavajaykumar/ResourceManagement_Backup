@@ -16,6 +16,14 @@ from django.utils import timezone
 from docx.text.run import Run
 from django.http import HttpResponse
 from openpyxl import load_workbook
+from pdf2docx import Converter
+
+from django.http import FileResponse
+from PyPDF2 import PdfMerger
+from .forms import PDFMergeForm, PDFToWordForm
+import io
+
+
 
 
 def is_manager(user):
@@ -163,3 +171,57 @@ def fill_template(request, template_id):
         'template': template,
         'placeholders': placeholders,
     })   
+
+
+
+
+
+
+
+def combined_pdf_tools_view(request):
+    merge_form = PDFMergeForm()
+    convert_form = PDFToWordForm()
+
+    if request.method == 'POST':
+        if 'merge_submit' in request.POST:
+            merge_form = PDFMergeForm(request.POST, request.FILES)
+            if merge_form.is_valid():
+                pdf1 = request.FILES['pdf1']
+                pdf2 = request.FILES['pdf2']
+                merger = PdfMerger()
+                merger.append(pdf1)
+                merger.append(pdf2)
+                output = io.BytesIO()
+                merger.write(output)
+                merger.close()
+                output.seek(0)
+                return FileResponse(output, as_attachment=True, filename="merged.pdf")
+
+        elif 'convert_submit' in request.POST:
+            convert_form = PDFToWordForm(request.POST, request.FILES)
+            if convert_form.is_valid():
+                uploaded_pdf = request.FILES['pdf']
+                temp_pdf_path = 'temp_input.pdf'
+                with open(temp_pdf_path, 'wb') as f:
+                    f.write(uploaded_pdf.read())
+
+                docx_path = 'converted_output.docx'
+                cv = Converter(temp_pdf_path)
+                cv.convert(docx_path, start=0, end=None)
+                cv.close()
+
+                output = io.BytesIO()
+                with open(docx_path, 'rb') as docx_file:
+                    output.write(docx_file.read())
+                output.seek(0)
+
+                # Clean up temp files
+                os.remove(temp_pdf_path)
+                os.remove(docx_path)
+
+                return FileResponse(output, as_attachment=True, filename="converted.docx")
+
+    return render(request, 'docgen/combined_pdf_tools.html', {
+        'merge_form': merge_form,
+        'convert_form': convert_form
+    })

@@ -1,6 +1,6 @@
 from django.urls import path
 from . import views
-
+from .views import timesheet_approval_dashboard, handle_timesheet_action
 app_name = 'manager'
 
 urlpatterns = [
@@ -15,6 +15,10 @@ urlpatterns = [
     path('ajax/load-assignments/', views.load_assignments_ajax, name='load-assignments-ajax'),
     path('expenses/', views.expense_approval_dashboard, name='expense-approval'),
     path('expenses/<int:expense_id>/<str:action>/', views.handle_expense_action, name='expense-action'),
-    path('pdf-to-word/', views.pdf_to_word_converter, name='pdf-to-word'),
-  
+    path('timesheet-approvals/', timesheet_approval_dashboard, name='timesheet-approval'),
+    path('timesheet-action/<int:timesheet_id>/<str:action>/', handle_timesheet_action, name='handle-timesheet-action'),
 ]
+
+    
+  
+

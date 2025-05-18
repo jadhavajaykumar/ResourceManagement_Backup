@@ -2,94 +2,96 @@
 
 <form method="post" enctype="multipart/form-data" id="expenseForm">
     {% csrf_token %}
-    <div class="row g-4">
-        <!-- Header -->
-        <div class="col-12">
-            <h5 class="text-primary">
-                <i class="fas fa-wallet me-2"></i>{% if editing %}Edit Expense{% else %}New Expense Entry{% endif %}
-            </h5>
-            <hr>
-        </div>
 
-        <!-- Project -->
-        <div class="col-md-6">
-            <label for="{{ form.project.id_for_label }}" class="form-label">Project</label>
-            {{ form.project|add_class:"form-select" }}
-            {{ form.project.errors }}
+    <!-- Section: Expense Information -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <i class="bi bi-wallet2 me-2"></i>{% if editing %}Edit{% else %}New{% endif %} Expense Entry
         </div>
+        <div class="card-body">
+            <div class="row g-3">
 
-        <!-- Expense Type -->
-        <div class="col-md-6">
-            <label for="id_expense_type" class="form-label">Expense Type</label>
-            <select name="{{ form.expense_type.name }}"
-                    id="id_expense_type"
-                    class="form-select"
-                    required>
-                <option value="">-- Select Expense Type --</option>
-                {% for type in form.expense_type.field.queryset %}
-                    <option value="{{ type.id }}"
-                        data-requires-km="{{ type.requires_kilometers|yesno:'true,false' }}"
-                        data-requires-receipt="{{ type.requires_receipt|yesno:'true,false' }}"
-                        data-rate="{{ type.rate_per_km|default:0 }}"
-                        {% if form.expense_type.value|stringformat:'s' == type.id|stringformat:'s' %}selected{% endif %}>
-                        {{ type.name }}
-                    </option>
-                {% endfor %}
-            </select>
-            {{ form.expense_type.errors }}
-        </div>
-
-        <!-- Date -->
-        <div class="col-md-6">
-            <label for="{{ form.date.id_for_label }}" class="form-label">Date</label>
-            {{ form.date|add_class:"form-control" }}
-            {{ form.date.errors }}
-        </div>
-
-        <!-- Distance -->
-        <div class="col-md-6" id="kilometersField" style="display: none;">
-            <label for="id_kilometers" class="form-label">Distance (km)</label>
-            {{ form.kilometers|add_class:"form-control" }}
-            {{ form.kilometers.errors }}
-        </div>
-
-        <!-- Amount -->
-        <div class="col-md-6" id="amountField">
-            <label for="id_amount" id="amountLabel" class="form-label">Amount (₹)</label>
-            {{ form.amount|add_class:"form-control" }}
-            {{ form.amount.errors }}
-        </div>
-
-        <!-- Receipt -->
-        <div class="col-md-6">
-            <label for="{{ form.receipt.id_for_label }}" class="form-label">Receipt Upload</label>
-            {{ form.receipt|add_class:"form-control" }}
-            {{ form.receipt.errors }}
-            {% if form.instance.receipt %}
-                <div class="mt-2">
-                    <a href="{{ form.instance.receipt.url }}" target="_blank">View Existing Receipt</a>
+                <!-- Project -->
+                <div class="col-md-6">
+                    <label for="{{ form.project.id_for_label }}" class="form-label">Project</label>
+                    {{ form.project|add_class:"form-select" }}
+                    {{ form.project.errors }}
                 </div>
-            {% endif %}
-        </div>
 
-        <!-- Comments -->
-        <div class="col-12">
-            <label for="{{ form.comments.id_for_label }}" class="form-label">Comments (Optional)</label>
-            {{ form.comments|add_class:"form-control" }}
-            {{ form.comments.errors }}
+                <!-- Expense Type -->
+                <!-- Expense Type -->
+				<div class="col-md-6">
+					<label for="id_new_expense_type" class="form-label">Expense Type</label>
+					<select name="{{ form.new_expense_type.name }}"
+							id="id_new_expense_type"
+							class="form-select"
+							required>
+						<option value="">-- Select Expense Type --</option>
+						{% for type in form.new_expense_type.field.queryset %}
+							<option value="{{ type.id }}"
+								data-requires-km="{{ type.requires_kilometers|yesno:'true,false' }}"
+								data-requires-receipt="{{ type.requires_receipt|yesno:'true,false' }}"
+								data-rate="{{ type.rate_per_km|default:0 }}"
+								{% if form.new_expense_type.value|stringformat:'s' == type.id|stringformat:'s' %}selected{% endif %}>
+								{{ type.name }}
+							</option>
+						{% endfor %}
+					</select>
+					{{ form.new_expense_type.errors }}
+				</div>
+
+
+                <!-- Date -->
+                <div class="col-md-4">
+                    <label for="{{ form.date.id_for_label }}" class="form-label">Date</label>
+                    {{ form.date|add_class:"form-control" }}
+                    {{ form.date.errors }}
+                </div>
+
+                <!-- Distance (KM) -->
+                <div class="col-md-4" id="kilometersField" style="display: none;">
+                    <label for="id_kilometers" class="form-label">Kilometers</label>
+                    {{ form.kilometers|add_class:"form-control" }}
+                    {{ form.kilometers.errors }}
+                </div>
+
+                <!-- Amount -->
+                <div class="col-md-4" id="amountField">
+                    <label for="id_amount" class="form-label" id="amountLabel">Amount (₹)</label>
+                    {{ form.amount|add_class:"form-control" }}
+                    {{ form.amount.errors }}
+                </div>
+
+                <!-- Receipt Upload -->
+                <div class="col-md-6">
+                    <label for="{{ form.receipt.id_for_label }}" class="form-label">Upload Receipt</label>
+                    {{ form.receipt|add_class:"form-control" }}
+                    {{ form.receipt.errors }}
+                    {% if form.instance.receipt %}
+                        <div class="mt-2">
+                            <a href="{{ form.instance.receipt.url }}" target="_blank">View Existing Receipt</a>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Comments -->
+                <div class="col-md-6">
+                    <label for="{{ form.comments.id_for_label }}" class="form-label">Comments</label>
+                    {{ form.comments|add_class:"form-control" }}
+                    {{ form.comments.errors }}
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Submit Buttons -->
-    <div class="mt-4 d-flex justify-content-between">
+    <!-- Buttons -->
+    <div class="d-flex justify-content-between mb-5">
         <button type="submit" class="btn {% if editing %}btn-primary{% else %}btn-success{% endif %}">
-            <i class="bi bi-save me-1"></i>{% if editing %}Update{% else %}Submit{% endif %} Expense
+            <i class="bi bi-save me-2"></i>{% if editing %}Update{% else %}Submit{% endif %} Expense
         </button>
-
         {% if editing %}
             <a href="{% url 'expenses:employee-expenses' %}" class="btn btn-secondary">Cancel</a>
         {% endif %}
-
         <a href="{% url 'accounts:profile' %}" class="btn btn-outline-dark">
             <i class="bi bi-house me-2"></i>Dashboard
         </a>
@@ -99,7 +101,7 @@
 <!-- JavaScript Logic -->
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const expenseType = document.getElementById('id_expense_type');
+        const expenseType = document.getElementById('id_new_expense_type');
         const kilometersField = document.getElementById('kilometersField');
         const amountField = document.getElementById('amountField');
         const amountInput = document.getElementById('id_amount');
@@ -122,7 +124,6 @@
         }
 
         updateFormFields();
-
         expenseType.addEventListener('change', updateFormFields);
         kilometersInput.addEventListener('input', updateFormFields);
     });

@@ -4,8 +4,11 @@ from django.contrib import messages
 from .models import EmployeeProfile
 from manager.models import EmployeeSkill, TaskAssignment
 from .forms import EmployeeProfileForm
-from project.models import Project
+
 from .models import LeaveBalance
+from project.models import Project, Task
+from django.db.models import Prefetch
+
 
 from employee.models import EmployeeProfile
 
@@ -87,8 +90,7 @@ def employee_dashboard(request):
 
 
 
-from project.models import Project, Task
-from django.db.models import Prefetch
+
 
 @login_required
 def my_projects(request):
@@ -101,18 +103,25 @@ def my_projects(request):
         .distinct()
     )
 
-    # Prefetch related tasks
+    assigned_task_ids = (
+        TaskAssignment.objects
+        .filter(employee=profile)
+        .values_list('task', flat=True)
+        .distinct()
+    )
+
+    tasks_qs = Task.objects.filter(id__in=assigned_task_ids).order_by('start_date')
+
     projects = (
         Project.objects
         .filter(id__in=assigned_project_ids)
-        .prefetch_related(
-            Prefetch('tasks', queryset=Task.objects.order_by('start_date'))
-        )
+        .prefetch_related(Prefetch('tasks', queryset=tasks_qs))
     )
 
     return render(request, 'employee/my_projects.html', {
         'projects': projects,
     })
+
 
 from timesheet.models import Attendance
 

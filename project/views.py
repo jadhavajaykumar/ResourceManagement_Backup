@@ -4,8 +4,8 @@ from django.http import JsonResponse
 from django.core.exceptions import PermissionDenied
 from django.contrib.admin.views.decorators import staff_member_required
 
-from .models import Project, Task, Subtask, CountryDARate, ProjectRequiredSkill
-
+from .models import Project, Task, Subtask, ProjectRequiredSkill
+from expenses.models import CountryDARate
 from .forms import ProjectForm, TaskForm, SubtaskForm, CountryRateForm
 import logging
 
@@ -33,8 +33,12 @@ def project_dashboard(request):
 
                 # ✅ Handle saving required skills
                 import json
-                selected_skills_json = request.POST.get('selected_skills', '[]')
+                #selected_skills_json = request.POST.get('selected_skills', '[]')
+                #selected_skills = json.loads(selected_skills_json)
+                
+                selected_skills_json = request.POST.get('selected_skills') or '[]'
                 selected_skills = json.loads(selected_skills_json)
+
 
                 if instance:
                     # If editing, clear old required skills

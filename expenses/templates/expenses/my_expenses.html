@@ -83,69 +83,62 @@
         <div class="card-body">
             {% if expenses %}
                 <table class="table table-bordered table-hover">
-                    <thead class="table-dark">
-                        <tr>
-                            <th style="width: 10%;">Date</th>
-                            <th style="width: 15%;">Project</th>
-                            <th style="width: 12%;">Type</th>
-                            <th style="width: 10%;">Kilometers</th>
-                            <th style="width: 10%;">Amount (₹)</th>
-                            <th style="width: 20%;">Remarks / Reason</th>
-                            <th style="width: 13%;">Status Details</th>
-                            <th style="width: 10%;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% regroup expenses by project as expense_groups %}
-                        {% for group in expense_groups %}
-                            {% for expense in group.list %}
-                                <tr>
-                                    {% if forloop.first %}
-                                        <td rowspan="{{ group.list|length }}">{{ expense.date }}</td>
-                                        <td rowspan="{{ group.list|length }}">{{ expense.project.name }}</td>
-                                    {% endif %}
-									<!--<td>{{ expense.new_expense_type.name|default:"-" }}</td>-->
-                                    <!-- <td>{{ expense.get_expense_type_display|default:"-" }}</td>-->
-									<td>
-									  {% if expense.new_expense_type %}
-										{{ expense.new_expense_type.name }}
-									  {% else %}
-										{{ expense.get_expense_type_display }}
-									  {% endif %}
-									</td>
+					<thead class="table-dark">
+						<tr>
+							<th style="width: 10%;">Date</th>
+							<th style="width: 15%;">Project</th>
+							<th style="width: 12%;">Type</th>
+							<th style="width: 10%;">Kilometers</th>
+							<th style="width: 10%;">Amount (₹)</th>
+							<th style="width: 20%;">Remarks / Reason</th>
+							<th style="width: 13%;">Status Details</th>
+							<th style="width: 10%;">Actions</th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for expense in expenses %}
+						<tr>
+							<td>{{ expense.date }}</td>
+							<td>{{ expense.project.name }}</td>
+							<td>
+								{% if expense.new_expense_type %}
+									{{ expense.new_expense_type.name }}
+								{% else %}
+									{{ expense.get_expense_type_display }}
+								{% endif %}
+							</td>
+							<td>{{ expense.kilometers|default:"-" }}</td>
+							<td>{{ expense.amount }}</td>
+							<td>
+								{% if expense.receipt %}
+									<a href="{{ expense.receipt.url }}" target="_blank">View</a>
+								{% else %}
+									-
+								{% endif %}
+							</td>
+							<td>
+								<strong>Accountant:</strong> {{ expense.accountant_remark|default:"-" }}<br>
+								<strong>Manager:</strong> {{ expense.manager_remark|default:"-" }}
+							</td>
+							<td>
+								{% if expense.status == 'Pending' %}
+									<a href="{% url 'expenses:edit-expense' expense.id %}" class="btn btn-sm btn-warning">Edit</a>
+									<form method="post" action="{% url 'expenses:delete-expense' expense.id %}" style="display:inline;">
+										{% csrf_token %}
+										<button type="submit" class="btn btn-sm btn-danger"
+												onclick="return confirm('Are you sure you want to delete this expense?')">
+											Delete
+										</button>
+									</form>
+								{% else %}
+									-
+								{% endif %}
+							</td>
+						</tr>
+						{% endfor %}
+					</tbody>
+				</table>
 
-                                    <td>{{ expense.kilometers|default:"-" }}</td>
-                                    <td>{{ expense.amount }}</td>
-                                    <td>
-                                        {% if expense.receipt %}
-                                            <a href="{{ expense.receipt.url }}" target="_blank">View</a>
-                                        {% else %}
-                                            -
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <strong>Accountant:</strong> {{ expense.accountant_remark|default:"-" }}<br>
-                                        <strong>Manager:</strong> {{ expense.manager_remark|default:"-" }}
-                                    </td>
-                                    <td>
-                                        {% if expense.status == 'Pending' %}
-                                            <a href="{% url 'expenses:edit-expense' expense.id %}" class="btn btn-sm btn-warning">Edit</a>
-                                            <form method="post" action="{% url 'expenses:delete-expense' expense.id %}" style="display:inline;">
-                                                {% csrf_token %}
-                                                <button type="submit" class="btn btn-sm btn-danger"
-                                                        onclick="return confirm('Are you sure you want to delete this expense?')">
-                                                    Delete
-                                                </button>
-                                            </form>
-                                        {% else %}
-                                            -
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        {% endfor %}
-                    </tbody>
-                </table>
             {% else %}
                 <p>No expenses submitted yet.</p>
             {% endif %}

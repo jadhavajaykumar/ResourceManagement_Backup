@@ -1,69 +1,76 @@
 from django import forms
 from .models import Expense, ExpenseType, SystemSettings
-from django import forms
+
 from .models import EmployeeExpenseSetting
 from employee.models import EmployeeProfile
 from datetime import date, timedelta
 from .models import ExpenseType
 
-#from core.models import SystemSettings
+from project.models import Project
+from manager.models import TaskAssignment
+from datetime import date, timedelta
+
+
 
 class ExpenseForm(forms.ModelForm):
-    new_expense_type = forms.ModelChoiceField(
-        queryset=ExpenseType.objects.all(),
-        label="Expense Type",
-        widget=forms.Select(attrs={'class': 'form-control'}),
-        required=True
-    )
-
     class Meta:
         model = Expense
         fields = ['project', 'new_expense_type', 'date', 'kilometers', 'amount', 'receipt', 'comments']
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date'}),
+            'new_expense_type': forms.Select(attrs={'class': 'form-control'})  # ✅ styling here
         }
 
-    def clean(self):
-        cleaned_data = super().clean()
-        new_expense_type = cleaned_data.get('expense_type')
-        kilometers = cleaned_data.get('kilometers')
-        amount = cleaned_data.get('amount')
-        receipt = cleaned_data.get('receipt')
+    def __init__(self, *args, **kwargs):
+        employee = kwargs.pop('employee', None)
+        super().__init__(*args, **kwargs)
 
-        if new_expense_type:
-            if new_expense_type.requires_kilometers:
-                if not kilometers:
-                    self.add_error('kilometers', f"Kilometers required for {new_expense_type.name}.")
-                else:
-                    cleaned_data['amount'] = kilometers * new_expense_type.rate_per_km
+        # ✅ This alone sets the queryset (no need to redeclare the field)
+        self.fields['new_expense_type'].queryset = ExpenseType.objects.all()
 
-            if new_expense_type.requires_receipt and not receipt:
-                self.add_error('receipt', f"Receipt required for {new_expense_type.name}.")
+        if employee:
+            assigned_project_ids = TaskAssignment.objects.filter(
+                employee=employee
+            ).values_list('project_id', flat=True).distinct()
+            self.fields['project'].queryset = Project.objects.filter(id__in=assigned_project_ids)
 
-            if not new_expense_type.requires_kilometers and not amount:
-                self.add_error('amount', "Amount required.")
-
-        return cleaned_data
-        
+    # date and custom logic (no change)
     def clean_date(self):
         submitted_date = self.cleaned_data['date']
         today = date.today()
-
-        # Fetch dynamic grace period from SystemSettings model
         grace_period = SystemSettings.objects.first().expense_grace_days or 10
 
         if submitted_date > today:
             raise forms.ValidationError("Expenses cannot be submitted for future dates.")
         if submitted_date < (today - timedelta(days=grace_period)):
             raise forms.ValidationError(f"You can only submit expenses within the last {grace_period} days.")
-        return submitted_date    
-  # assume where grace period is stored
-  
-    def __init__(self, *args, **kwargs):
-        employee = kwargs.pop('employee', None)
-        super().__init__(*args, **kwargs)
-        if employee:
-            self.fields['project'].queryset = Project.objects.filter(assignments__employee=employee)
+        return submitted_date
+
+    def clean(self):
+        cleaned_data = super().clean()
+        expense_type = cleaned_data.get('new_expense_type')
+        kilometers = cleaned_data.get('kilometers')
+        amount = cleaned_data.get('amount')
+        receipt = cleaned_data.get('receipt')
+
+        if expense_type:
+            if expense_type.requires_kilometers:
+                if not kilometers:
+                    self.add_error('kilometers', f"Kilometers required for {expense_type.name}.")
+                else:
+                    cleaned_data['amount'] = kilometers * expense_type.rate_per_km
+
+            if expense_type.requires_receipt and not receipt:
+                self.add_error('receipt', f"Receipt required for {expense_type.name}.")
+
+            if not expense_type.requires_kilometers and not amount:
+                self.add_error('amount', "Amount required.")
+
+        return cleaned_data
+
+
+
+
   
 
 

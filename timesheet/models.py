@@ -4,10 +4,8 @@ from django.core.exceptions import ValidationError
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-from employee.models import EmployeeProfile, AuditLog, LeaveBalance
-from project.models import Project, Task
-from expenses.models import EmployeeExpenseSetting
-
+# No direct imports from project/employee/expenses
+# Use string-based FK references
 
 class Attendance(models.Model):
     STATUS_CHOICES = [
@@ -15,7 +13,7 @@ class Attendance(models.Model):
         ('Half Day', 'Half Day'),
         ('Absent', 'Absent'),
     ]
-    employee = models.ForeignKey(EmployeeProfile, on_delete=models.CASCADE)
+    employee = models.ForeignKey('employee.EmployeeProfile', on_delete=models.CASCADE)
     date = models.DateField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES)
     added_c_off = models.DecimalField(max_digits=3, decimal_places=1, default=0.0)
@@ -34,9 +32,9 @@ class Timesheet(models.Model):
         ('Rejected', 'Rejected'),
     ]
 
-    employee = models.ForeignKey(EmployeeProfile, on_delete=models.CASCADE, related_name='timesheets')
-    project = models.ForeignKey(Project, on_delete=models.CASCADE)
-    task = models.ForeignKey(Task, on_delete=models.SET_NULL, null=True, blank=True)
+    employee = models.ForeignKey('employee.EmployeeProfile', on_delete=models.CASCADE, related_name='timesheets')
+    project = models.ForeignKey('project.Project', on_delete=models.CASCADE)
+    task = models.ForeignKey('project.Task', on_delete=models.SET_NULL, null=True, blank=True)
     date = models.DateField(default=timezone.now)
     time_from = models.TimeField()
     time_to = models.TimeField()
@@ -44,7 +42,6 @@ class Timesheet(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')
     is_locked = models.BooleanField(default=False)
 
-    # DA fields
     da_rate = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     daily_allowance_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     daily_allowance_currency = models.CharField(max_length=10, null=True, blank=True)
@@ -58,9 +55,10 @@ class Timesheet(models.Model):
             raise ValidationError("Time duration cannot exceed 2 hours.")
 
         if self.employee_id:
+            from expenses.models import EmployeeExpenseSetting  # imported here to avoid circular imports
             setting = EmployeeExpenseSetting.objects.filter(employee=self.employee).first()
-            grace_period = setting.grace_days if setting else 3
-            override = setting.allow_submission_override if setting else False
+            grace_period = setting.grace_period_days if setting else 3
+            override = getattr(setting, 'allow_submission_override', False)
 
             if not override:
                 today = datetime.today().date()
@@ -77,56 +75,20 @@ class Timesheet(models.Model):
 
         self.clean()
 
-        # ----------------- DA Logic -------------------
-        total_hours = (datetime.combine(datetime.today(), self.time_to) -
-                       datetime.combine(datetime.today(), self.time_from)).total_seconds() / 3600
-
-        self.daily_allowance_amount = None
-        self.daily_allowance_currency = None
-
-        if self.project.location == 'Local':
-            if total_hours >= 6:
-                self.daily_allowance_amount = Decimal(300)
-                self.daily_allowance_currency = 'INR'
-
-        elif self.project.location == 'Domestic':
-            last_60_days = Timesheet.objects.filter(
-                employee=self.employee,
-                project=self.project,
-                date__lte=self.date,
-                date__gte=self.date - timedelta(days=59)
-            ).values_list('date', flat=True)
-
-            continuous_days = set(last_60_days)
-            total_streak = sum(
-                1 for i in range(60)
-                if (self.date - timedelta(days=i)) in continuous_days
-            )
-
-            self.daily_allowance_amount = Decimal(750 if total_streak == 60 else 600)
-            self.daily_allowance_currency = 'INR'
-
-        elif self.project.location == 'International' and self.project.country_rate:
-            da_rate = self.project.country_rate.da_rate_per_hour
-            currency = self.project.country_rate.currency
-            self.daily_allowance_amount = Decimal(total_hours) * da_rate
-            self.daily_allowance_currency = currency
-
-        elif self.project.location == 'Office':
-            self.daily_allowance_amount = None
-            self.daily_allowance_currency = None
+        # Centralized DA logic
+        from project.services.da_calculator import calculate_da
+        self.daily_allowance_amount, self.daily_allowance_currency = calculate_da(self)
 
         super().save(*args, **kwargs)
 
-        # ----------------- Audit Log -------------------
+        from employee.models import AuditLog, LeaveBalance  # Avoid circular import
         AuditLog.objects.create(
             user=self.employee.user,
             action="Timesheet Submitted",
             details=f"Timesheet for {self.project.name} on {self.date}"
         )
 
-        # ----------------- Attendance for 'Office' Projects -------------------
-        if self.project.location == 'Office':
+        if getattr(self.project, 'location', '') == 'Office':
             same_day_entries = Timesheet.objects.filter(employee=self.employee, date=self.date)
             total_hours = sum([
                 (datetime.combine(self.date, e.time_to) - datetime.combine(self.date, e.time_from)).seconds
@@ -154,7 +116,7 @@ class Timesheet(models.Model):
 
             if comp_off > 0:
                 leave_balance, _ = LeaveBalance.objects.get_or_create(employee=self.employee)
-                leave_balance.compensatory_off += comp_off
+                leave_balance.c_off += comp_off
                 leave_balance.save()
 
     def __str__(self):

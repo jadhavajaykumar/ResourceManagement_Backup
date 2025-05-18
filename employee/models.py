@@ -3,15 +3,8 @@ from django.conf import settings
 from django.utils import timezone
 from datetime import timedelta
 import uuid
-#from project.models import Project, Task  # ✅ Add this line
-from accounts.models import CustomUser
-# employee/models.py
-
-
-from django.contrib.auth.models import User
 
 def generate_employee_id():
-    """Generate a unique employee ID in the format EMP-XXXXXX."""
     return f"EMP-{uuid.uuid4().hex[:6].upper()}"
 
 class EmployeeProfile(models.Model):
@@ -23,18 +16,12 @@ class EmployeeProfile(models.Model):
         ('Director', 'Director'),
         ('Admin', 'Admin'),
     )
-    
-    
     EMPLOYMENT_TYPES = [
         ('Permanent', 'Permanent'),
         ('Contract', 'Contract'),
         ('Intern', 'Intern'),
     ]
-    user = models.OneToOneField(
-        CustomUser,
-        on_delete=models.CASCADE,
-        related_name='employeeprofile'  # Ensure this matches your reference
-    )
+    user = models.OneToOneField('accounts.CustomUser', on_delete=models.CASCADE, related_name='employeeprofile')
     role = models.CharField(max_length=20, choices=ROLES, default='Employee')
     career_start_date = models.DateField(null=True, blank=True)
     probotix_joining_date = models.DateField(default=timezone.now)
@@ -46,17 +33,13 @@ class EmployeeProfile(models.Model):
     emergency_contact_relation = models.CharField(max_length=50, blank=True)
     emergency_contact_number = models.CharField(max_length=15, blank=True)
     employee_id = models.CharField(max_length=20, unique=True, default=generate_employee_id)
-    #role = models.CharField(max_length=50, blank=True)
     department = models.CharField(max_length=50, blank=True)
-    reporting_manager = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='managed_employees'
-    )
+    reporting_manager = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='managed_employees')
     employment_type = models.CharField(max_length=20, choices=EMPLOYMENT_TYPES, default='Permanent')
     pan_aadhar_ssn = models.CharField(max_length=20, blank=True)
     bank_account_number = models.CharField(max_length=30, blank=True)
     bank_ifsc_code = models.CharField(max_length=20, blank=True)
     epf_number = models.CharField(max_length=20, blank=True)
-    # employee/models.py
     grace_period_days = models.IntegerField(default=0)
 
     def __str__(self):
@@ -66,7 +49,6 @@ class EmployeeProfile(models.Model):
         if not self.confirmation_date and self.probotix_joining_date:
             self.confirmation_date = self.probotix_joining_date + timedelta(days=180)
         super().save(*args, **kwargs)
-        # Log changes
         AuditLog.objects.create(
             user=self.user,
             action='Updated Employee Profile',
@@ -94,11 +76,9 @@ class AuditLog(models.Model):
 
     def __str__(self):
         return f"{self.action} by {self.user} at {self.timestamp}"
-        
-        
+
 class TimesheetEntry(models.Model):
-    employee = models.ForeignKey(EmployeeProfile, on_delete=models.CASCADE)
-    project = models.ForeignKey('project.Project', on_delete=models.CASCADE, null=True, blank=True)
+    employee = models.ForeignKey('employee.EmployeeProfile', on_delete=models.CASCADE)
     task = models.ForeignKey('project.Task', on_delete=models.CASCADE, null=True, blank=True)
     date = models.DateField()
     hours = models.DecimalField(max_digits=4, decimal_places=2)
@@ -106,16 +86,13 @@ class TimesheetEntry(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.details:
-            self.details = f"Timesheet for {self.project.name} on {self.date}"
+            self.details = f"Timesheet for {self.task.project.name if self.task else ''} on {self.date}"
         super().save(*args, **kwargs)
 
-
-
 class LeaveBalance(models.Model):
-    employee = models.OneToOneField('EmployeeProfile', on_delete=models.CASCADE, related_name='leave_balance')
-    c_off = models.DecimalField(max_digits=5, decimal_places=1, default=0.0)  # Compensatory off days
+    employee = models.OneToOneField('employee.EmployeeProfile', on_delete=models.CASCADE, related_name='leave_balance')
+    c_off = models.DecimalField(max_digits=5, decimal_places=1, default=0.0)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.employee.user.get_full_name()} - C-Off: {self.c_off}"
-        

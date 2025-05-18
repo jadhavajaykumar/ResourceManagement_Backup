@@ -10,25 +10,24 @@ from employee.models import EmployeeProfile
 from manager.models import TaskAssignment
 from django.contrib import messages
 
+# timesheet/views.py
+
 @login_required
 def my_timesheets(request):
     employee = request.user.employeeprofile
-    
 
     if request.method == 'POST':
-        form = TimesheetForm(request.POST or None, employee=request.user.employeeprofile)
+        form = TimesheetForm(request.POST or None, employee=employee)
         if form.is_valid():
             entry = form.save(commit=False)
             entry.employee = employee
-            entry.full_clean()  # safe now
+            entry.full_clean()
             entry.save()
             return redirect('timesheet:my-timesheets')
     else:
-        form = TimesheetForm()
+        form = TimesheetForm(employee=employee)
 
     timesheets = Timesheet.objects.filter(employee=employee).order_by('-date', 'time_from')
-
-    # Group by date
     grouped = {}
     for entry in timesheets:
         grouped.setdefault(entry.date, []).append(entry)
