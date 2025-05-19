@@ -32,6 +32,18 @@ class Project(models.Model):
     da_rate_per_day = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     extended_hours_threshold = models.IntegerField(blank=True, null=True)
     extended_hours_da_rate = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    
+    PROJECT_TYPE_CHOICES = [
+        ('Turnkey', 'Turnkey (Fixed Budget & Duration)'),
+        ('Service', 'Service (Daily Rate Billing)'),
+    ]
+    type = models.CharField(max_length=20, choices=PROJECT_TYPE_CHOICES, default='Turnkey')
+    # For Turnkey
+    budget = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+
+    # For Service
+    daily_rate = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
 
     def __str__(self):
         return self.name

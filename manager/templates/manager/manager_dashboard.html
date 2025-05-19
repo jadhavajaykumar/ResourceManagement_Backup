@@ -152,6 +152,26 @@
 	
 
 	</div>
+	
+	<ul class="nav nav-tabs mb-3">
+	  <li class="nav-item">
+		<a class="nav-link {% if current_page == 'summary' %}active{% endif %}" 
+		   href="{% url 'manager:project-summary' %}">Project Summary</a>
+	  </li>
+	  <li class="nav-item">
+		<a class="nav-link {% if current_page == 'tracking' %}active{% endif %}" 
+		   href="{% url 'manager:project-tracking' %}">Project Tracking</a>
+	  </li>
+	  <li class="nav-item">
+		<a class="nav-link {% if current_page == 'timesheets' %}active{% endif %}" 
+		   href="{% url 'manager:timesheet-approvals' %}">Timesheet Approvals</a>
+	  </li>
+	  <li class="nav-item">
+		<a class="nav-link {% if current_page == 'expenses' %}active{% endif %}" 
+		   href="{% url 'manager:expense-approvals' %}">Expense Approvals</a>
+	  </li>
+	</ul>
+
 
 
 	

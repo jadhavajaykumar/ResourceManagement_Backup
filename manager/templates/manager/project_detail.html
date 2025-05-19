@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Project: {{ project.name }}{% endblock %}
+
+{% block content %}
+<h2 class="mb-3 text-primary">{{ project.name }} — Detailed View</h2>
+
+	<form method="get" class="row gx-2 align-items-end mb-3">  <!-- Filter Form -->
+	  <div class="col-auto">
+		<label for="startDate" class="form-label mb-0">From:</label>
+		<input type="date" id="startDate" name="start_date" value="{{ request.GET.start_date|default:'' }}" class="form-control form-control-sm">
+	  </div>
+	  <div class="col-auto">
+		<label for="endDate" class="form-label mb-0">To:</label>
+		<input type="date" id="endDate" name="end_date" value="{{ request.GET.end_date|default:'' }}" class="form-control form-control-sm">
+	  </div>
+	  <div class="col-auto">
+		<label for="employee" class="form-label mb-0">Employee:</label>
+		<select name="employee" id="employee" class="form-select form-select-sm">
+		  <option value="">All</option>
+		  {% for emp in employees %}
+			<option value="{{ emp.id }}" {% if emp.id|stringformat:"s" == request.GET.employee %}selected{% endif %}>
+			  {{ emp.name }}
+			</option>
+
+		  {% endfor %}
+		</select>
+	  </div>
+	  <div class="col-auto">
+		<button type="submit" class="btn btn-primary btn-sm">Filter</button>
+	  </div>
+	</form>
+
+	<div class="d-flex justify-content-end mb-2">  <!-- Export Buttons -->
+	  {% comment %} Preserve current filters in export links {% endcomment %}
+	  <a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}export=csv" class="btn btn-outline-secondary btn-sm me-2">
+	  Export CSV
+	  </a>
+	  <a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}export=pdf" class="btn btn-outline-primary btn-sm">
+	  Export PDF
+	  </a>
+
+	</div>
+
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <ul class="list-group">
+            <li class="list-group-item"><strong>Client:</strong> {{ project.client_name }}</li>
+            <li class="list-group-item"><strong>Type:</strong> {{ project.project_type }}</li>
+            <li class="list-group-item"><strong>Start Date:</strong> {{ project.start_date }}</li>
+            <li class="list-group-item"><strong>End Date:</strong> {{ project.end_date }}</li>
+            {% if project.project_type == 'Turnkey' %}
+            <li class="list-group-item"><strong>Budget:</strong> ₹{{ project.budget }}</li>
+            {% else %}
+            <li class="list-group-item"><strong>Rate/Day:</strong> ₹{{ project.daily_hourly_rate }}</li>
+            {% endif %}
+        </ul>
+    </div>
+    <div class="col-md-6">
+        <canvas id="project-detail-chart" height="200"></canvas>
+    </div>
+</div>
+
+<h4>Recent Timesheets</h4>
+<table class="table table-sm table-bordered mb-4">
+    <thead class="table-light">
+        <tr>
+            <th>Employee</th><th>Date</th><th>Task</th><th>Hours</th><th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for t in timesheets %}
+        <tr>
+            <td>{{ t.employee.user.get_full_name }}</td>
+            <td>{{ t.date }}</td>
+            <td>{{ t.task.name }}</td>
+            <td>{{ t.duration_hours }}</td>
+            <td>{{ t.status }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h4>Recent Expenses</h4>
+<table class="table table-sm table-bordered">
+    <thead class="table-light">
+        <tr>
+            <th>Employee</th><th>Date</th><th>Type</th><th>Amount</th><th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for e in expenses %}
+        <tr>
+            <td>{{ e.employee.user.get_full_name }}</td>
+            <td>{{ e.date }}</td>
+            <td>{{ e.new_expense_type.name }}</td>
+            <td>₹{{ e.amount }}</td>
+            <td>{{ e.status }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const ctx = document.getElementById('project-detail-chart');
+new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Total Earnings', 'Total Expenses'],
+        datasets: [{
+            label: 'Financials',
+            data: [{{ earnings_total }}, {{ expenses_total }}],
+            backgroundColor: ['#28a745', '#dc3545'],
+            borderWidth: 1
+        }]
+    },
+    options: {
+        plugins: { legend: { position: 'bottom' } }
+    }
+});
+</script>
+{% endblock %}

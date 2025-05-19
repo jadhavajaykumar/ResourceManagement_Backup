@@ -1,0 +1,39 @@
+<table class="table table-striped">
+  <thead class="table-dark">
+    <tr>
+      <th>Employee</th>
+      <th>Project</th>
+      <th>Type</th>
+      <th>Date</th>
+      <th>Amount</th>
+      <th>Description</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for exp in expenses %}
+    <tr>
+      <td>{{ exp.employee.user.get_full_name }}</td>
+      <td>{{ exp.project.name }}</td>
+      <td>{{ exp.new_expense_type.name }}</td>
+      <td>{{ exp.date }}</td>
+      <td>{{ exp.amount }}</td>
+      <td>{{ exp.description }}</td>
+      <td>
+        <form method="post" action="{% url 'manager:expense-action' exp.id 'approve' %}">
+          {% csrf_token %}
+          <textarea name="manager_remark" class="form-control mb-1" placeholder="Remark" required></textarea>
+          <button class="btn btn-success btn-sm">Approve</button>
+        </form>
+        <form method="post" action="{% url 'manager:expense-action' exp.id 'reject' %}">
+          {% csrf_token %}
+          <input type="hidden" name="manager_remark" value="Rejected by manager.">
+          <button class="btn btn-danger btn-sm">Reject</button>
+        </form>
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="7" class="text-center">No expenses submitted.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
