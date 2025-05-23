@@ -44,7 +44,7 @@
       <!-- Approve Modal -->
       <div class="modal fade" id="modal-approve-{{ expense.id }}" tabindex="-1">
         <div class="modal-dialog">
-          <form method="post" action="{% url 'manager:expense-action' expense.id 'approve' %}">
+          <form method="post" action="{% url 'manager:handle-expense-action' expense.id 'approve' %}">
             {% csrf_token %}
             <div class="modal-content">
               <div class="modal-header"><h5 class="modal-title">Approve Expense</h5></div>
@@ -63,7 +63,7 @@
       <!-- Reject Modal -->
       <div class="modal fade" id="modal-reject-{{ expense.id }}" tabindex="-1">
         <div class="modal-dialog">
-          <form method="post" action="{% url 'manager:expense-action' expense.id 'reject' %}">
+          <form method="post" action="{% url 'manager:handle-expense-action' expense.id 'reject' %}">
             {% csrf_token %}
             <div class="modal-content">
               <div class="modal-header"><h5 class="modal-title">Reject Expense</h5></div>

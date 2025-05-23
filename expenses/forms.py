@@ -1,40 +1,33 @@
 from django import forms
-from .models import Expense, ExpenseType, SystemSettings
+from datetime import date, timedelta
 
-from .models import EmployeeExpenseSetting
+from .models import (
+    Expense, ExpenseType, SystemSettings,
+    EmployeeExpenseSetting, CountryDASetting
+)
 from employee.models import EmployeeProfile
-from datetime import date, timedelta
-from .models import ExpenseType
-
-from project.models import Project
-from manager.models import TaskAssignment
-from datetime import date, timedelta
+from project.services.assignment import get_assigned_projects
 
 
-
+# ---------------------- Expense Entry Form ----------------------
 class ExpenseForm(forms.ModelForm):
     class Meta:
         model = Expense
         fields = ['project', 'new_expense_type', 'date', 'kilometers', 'amount', 'receipt', 'comments']
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date'}),
-            'new_expense_type': forms.Select(attrs={'class': 'form-control'})  # ✅ styling here
+            'new_expense_type': forms.Select(attrs={'class': 'form-control'})
         }
 
     def __init__(self, *args, **kwargs):
         employee = kwargs.pop('employee', None)
         super().__init__(*args, **kwargs)
 
-        # ✅ This alone sets the queryset (no need to redeclare the field)
         self.fields['new_expense_type'].queryset = ExpenseType.objects.all()
 
         if employee:
-            assigned_project_ids = TaskAssignment.objects.filter(
-                employee=employee
-            ).values_list('project_id', flat=True).distinct()
-            self.fields['project'].queryset = Project.objects.filter(id__in=assigned_project_ids)
+            self.fields['project'].queryset = get_assigned_projects(employee)
 
-    # date and custom logic (no change)
     def clean_date(self):
         submitted_date = self.cleaned_data['date']
         today = date.today()
@@ -69,11 +62,7 @@ class ExpenseForm(forms.ModelForm):
         return cleaned_data
 
 
-
-
-  
-
-
+# ---------------------- Global Grace Period Settings ----------------------
 class GracePeriodForm(forms.ModelForm):
     class Meta:
         model = SystemSettings
@@ -85,7 +74,8 @@ class GracePeriodForm(forms.ModelForm):
             'expense_grace_days': 'Allowed Grace Period (in days)',
         }
 
-# Setting related to Expenses 
+
+# ---------------------- Per-Employee Grace Period ----------------------
 class EmployeeGracePeriodForm(forms.ModelForm):
     employee = forms.ModelChoiceField(queryset=EmployeeProfile.objects.all(), required=True)
 
@@ -93,9 +83,8 @@ class EmployeeGracePeriodForm(forms.ModelForm):
         model = EmployeeExpenseSetting
         fields = ['employee', 'grace_period_days']
 
-from django import forms
-from .models import CountryDASetting
 
+# ---------------------- Country DA Rate Form ----------------------
 class CountryDASettingForm(forms.ModelForm):
     class Meta:
         model = CountryDASetting

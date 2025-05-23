@@ -77,17 +77,7 @@ class AuditLog(models.Model):
     def __str__(self):
         return f"{self.action} by {self.user} at {self.timestamp}"
 
-class TimesheetEntry(models.Model):
-    employee = models.ForeignKey('employee.EmployeeProfile', on_delete=models.CASCADE)
-    task = models.ForeignKey('project.Task', on_delete=models.CASCADE, null=True, blank=True)
-    date = models.DateField()
-    hours = models.DecimalField(max_digits=4, decimal_places=2)
-    details = models.TextField()
 
-    def save(self, *args, **kwargs):
-        if not self.details:
-            self.details = f"Timesheet for {self.task.project.name if self.task else ''} on {self.date}"
-        super().save(*args, **kwargs)
 
 class LeaveBalance(models.Model):
     employee = models.OneToOneField('employee.EmployeeProfile', on_delete=models.CASCADE, related_name='leave_balance')

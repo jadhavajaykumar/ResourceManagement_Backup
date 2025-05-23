@@ -71,7 +71,6 @@
   <h2 class="dashboard-title">Welcome, {{ profile.user.get_full_name }}</h2>
   <div class="card-grid">
 
-    <!-- Employee Features -->
     <div class="dashboard-card">
       <i class="fa-solid fa-id-card"></i>
       <h3>My Profile</h3>
@@ -93,7 +92,6 @@
       <a href="{% url 'expenses:employee-expenses' %}">Go</a>
     </div>
 
-    <!-- Accountant Features -->
     <div class="dashboard-card">
       <i class="fa-solid fa-check-circle"></i>
       <h3>Expense Approvals</h3>
@@ -102,28 +100,29 @@
     <div class="dashboard-card">
       <i class="fa-solid fa-file-arrow-down"></i>
       <h3>Download Receipts</h3>
-      <a href="#" class="disabled">Coming Soon</a>
+      <a href="#" class="btn btn-secondary disabled" aria-disabled="true">Coming Soon</a>
     </div>
     <div class="dashboard-card">
       <i class="fa-solid fa-chart-line"></i>
       <h3>Analytics / Charts</h3>
-      <a href="#" class="disabled">Coming Soon</a>
+      <a href="#" class="btn btn-secondary disabled" aria-disabled="true">Coming Soon</a>
     </div>
     <div class="dashboard-card">
       <i class="fa-solid fa-calendar-days"></i>
       <h3>Monthly Summary</h3>
-      <a href="#" class="disabled">Coming Soon</a>
+      <a href="#" class="btn btn-secondary disabled" aria-disabled="true">Coming Soon</a>
     </div>
     <div class="dashboard-card">
       <i class="fa-solid fa-bell"></i>
       <h3>Team Notifications</h3>
-      <a href="#" class="disabled">Coming Soon</a>
+      <a href="#" class="btn btn-secondary disabled" aria-disabled="true">Coming Soon</a>
     </div>
   </div>
 </div>
 
 <script>
   document.body.classList.add(localStorage.getItem("theme") || "light");
+
   function toggleTheme() {
     const currentTheme = document.body.classList.contains("dark") ? "dark" : "light";
     const newTheme = currentTheme === "dark" ? "light" : "dark";

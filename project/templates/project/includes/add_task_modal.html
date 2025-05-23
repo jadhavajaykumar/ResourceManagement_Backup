@@ -1,5 +1,4 @@
-<!-- project/includes/add_task_modal.html -->
-
+{# project/includes/add_task_modal.html #}
 <div class="modal fade" id="addTaskModal" tabindex="-1">
   <div class="modal-dialog modal-lg">
     <form method="post">
@@ -12,10 +11,7 @@
         </div>
         <div class="modal-body">
           {% for field in task_form %}
-            <div class="mb-3">
-              <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-              {{ field }}
-            </div>
+            {% include 'project/includes/form_field.html' with field=field %}
           {% endfor %}
         </div>
         <div class="modal-footer">

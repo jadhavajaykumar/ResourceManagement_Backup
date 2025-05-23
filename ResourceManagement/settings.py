@@ -14,6 +14,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_extensions',
     'accounts',
     'accountant',
     #'employee',
@@ -28,6 +29,11 @@ INSTALLED_APPS = [
     'employee.apps.EmployeeConfig',    # Use the AppConfig class
     'docgen',
 ]
+
+GRAPH_MODELS = {
+    'all_applications': True,
+    'group_models': True,
+}
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"

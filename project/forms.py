@@ -13,7 +13,6 @@ BILLING_CHOICES = [
 ]
 
 
-
 class TaskForm(forms.ModelForm):
     class Meta:
         model = Task
@@ -30,15 +29,13 @@ class CountryRateForm(forms.ModelForm):
         model = CountryDARate
         fields = ['country', 'currency', 'da_rate_per_hour', 'extra_hour_rate']
 
-
 class ProjectForm(forms.ModelForm):
+    start_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
+    end_date = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date'}))
+
     class Meta:
         model = Project
         fields = '__all__'
-        widgets = {
-            'start_date': forms.DateInput(attrs={'type': 'date'}),
-            'end_date': forms.DateInput(attrs={'type': 'date'}),
-        }
 
     def clean(self):
         cleaned_data = super().clean()
@@ -51,4 +48,5 @@ class ProjectForm(forms.ModelForm):
             if not cleaned_data.get('extended_hours_da_rate'):
                 self.add_error('extended_hours_da_rate', 'Extended hours DA rate is required for International projects.')
         return cleaned_data
+
 

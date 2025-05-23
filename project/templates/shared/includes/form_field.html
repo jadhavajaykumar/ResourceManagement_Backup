@@ -1,0 +1,10 @@
+{# project/includes/form_field.html #}
+<div class="mb-3" id="div_{{ field.name }}">
+  <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+  {{ field }}
+  {% if field.errors %}
+    <div class="text-danger small">{{ field.errors }}</div>
+  {% endif %}
+</div>
+
+

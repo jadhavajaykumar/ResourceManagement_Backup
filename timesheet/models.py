@@ -4,8 +4,21 @@ from django.core.exceptions import ValidationError
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-# No direct imports from project/employee/expenses
-# Use string-based FK references
+# timesheet/models.py
+
+
+from employee.models import EmployeeProfile
+from project.models import Task
+
+
+# Avoid direct model imports from related apps in class body
+# Use string-based references to prevent circular imports
+
+class Meta:
+    db_table = 'employee_timesheetentry'
+    managed = True
+
+
 
 class Attendance(models.Model):
     STATUS_CHOICES = [
@@ -13,6 +26,7 @@ class Attendance(models.Model):
         ('Half Day', 'Half Day'),
         ('Absent', 'Absent'),
     ]
+
     employee = models.ForeignKey('employee.EmployeeProfile', on_delete=models.CASCADE)
     date = models.DateField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES)
@@ -42,11 +56,13 @@ class Timesheet(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')
     is_locked = models.BooleanField(default=False)
 
+    # Daily Allowance (DA) Details
     da_rate = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     daily_allowance_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     daily_allowance_currency = models.CharField(max_length=10, null=True, blank=True)
 
     def clean(self):
+        """Custom validation for timesheet entry."""
         if not self.time_from or not self.time_to:
             raise ValidationError("Both 'time from' and 'time to' are required.")
 
@@ -55,7 +71,7 @@ class Timesheet(models.Model):
             raise ValidationError("Time duration cannot exceed 2 hours.")
 
         if self.employee_id:
-            from expenses.models import EmployeeExpenseSetting  # imported here to avoid circular imports
+            from expenses.models import EmployeeExpenseSetting  # local import to prevent circular reference
             setting = EmployeeExpenseSetting.objects.filter(employee=self.employee).first()
             grace_period = setting.grace_period_days if setting else 3
             override = getattr(setting, 'allow_submission_override', False)
@@ -69,55 +85,31 @@ class Timesheet(models.Model):
                     )
 
     def save(self, *args, **kwargs):
+        """Delegates logic to service before saving."""
         if not self.employee_id:
             super().save(*args, **kwargs)
             return
 
         self.clean()
 
-        # Centralized DA logic
-        from project.services.da_calculator import calculate_da
-        self.daily_allowance_amount, self.daily_allowance_currency = calculate_da(self)
+        from timesheet.services.timesheet_service import process_timesheet_save
+        process_timesheet_save(self)
 
         super().save(*args, **kwargs)
 
-        from employee.models import AuditLog, LeaveBalance  # Avoid circular import
-        AuditLog.objects.create(
-            user=self.employee.user,
-            action="Timesheet Submitted",
-            details=f"Timesheet for {self.project.name} on {self.date}"
-        )
-
-        if getattr(self.project, 'location', '') == 'Office':
-            same_day_entries = Timesheet.objects.filter(employee=self.employee, date=self.date)
-            total_hours = sum([
-                (datetime.combine(self.date, e.time_to) - datetime.combine(self.date, e.time_from)).seconds
-                for e in same_day_entries
-            ]) / 3600
-
-            is_weekend = self.date.weekday() >= 5
-            status = 'Absent'
-            comp_off = 0
-
-            if total_hours >= 8:
-                status = 'Present'
-            elif total_hours >= 4:
-                status = 'Half Day' if not is_weekend else 'Present'
-                comp_off = 1 if is_weekend else 0
-            else:
-                status = 'Absent' if not is_weekend else 'Half Day'
-                comp_off = 0.5 if is_weekend else 0
-
-            Attendance.objects.update_or_create(
-                employee=self.employee,
-                date=self.date,
-                defaults={'status': status}
-            )
-
-            if comp_off > 0:
-                leave_balance, _ = LeaveBalance.objects.get_or_create(employee=self.employee)
-                leave_balance.c_off += comp_off
-                leave_balance.save()
-
     def __str__(self):
         return f"{self.employee.user.get_full_name()} - {self.project.name} ({self.date})"
+
+
+class TimesheetEntry(models.Model):
+    employee = models.ForeignKey(EmployeeProfile, on_delete=models.CASCADE)
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, null=True, blank=True)
+    date = models.DateField()
+    hours = models.DecimalField(max_digits=4, decimal_places=2)
+    details = models.TextField()
+
+    def save(self, *args, **kwargs):
+        if not self.details:
+            self.details = f"Timesheet for {self.task.project.name if self.task else ''} on {self.date}"
+        super().save(*args, **kwargs)
+

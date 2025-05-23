@@ -7,9 +7,9 @@
     <!-- Back to Dashboard -->
     <form method="post" action="{% url 'accounts:profile' %}">
         {% csrf_token %}
-        <button type="submit" class="btn btn-secondary mb-4 shadow-sm">
+       <!-- <button type="submit" class="btn btn-secondary mb-4 shadow-sm">
             <i class="bi bi-house me-2"></i>Dashboard
-        </button>
+        </button>-->
     </form>
 
     <!-- SECTION 1: Manage Expense Types -->
@@ -133,6 +133,36 @@
             </form>
         </div>
     </div>
+	
+	 <!-- SECTION 3: Employee list of changed Grace Period -->
+	{% if custom_grace_employees %}
+    <div class="card shadow-sm mt-5">
+        <div class="card-header bg-warning">
+            <h5 class="mb-0 text-white">Employees with Custom Grace Periods</h5>
+        </div>
+        <div class="card-body">
+            <table class="table table-bordered table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Employee</th>
+                        <th>Email</th>
+                        <th>Custom Grace (days)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in custom_grace_employees %}
+                    <tr>
+                        <td>{{ entry.employee.user.get_full_name }}</td>
+                        <td>{{ entry.employee.user.email }}</td>
+                        <td>{{ entry.days }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endif %}
+
 
 </div>
 {% endblock %}

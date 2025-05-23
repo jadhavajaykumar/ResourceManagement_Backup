@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container py-4">
+  <h2 class="mb-4 text-primary">Filtered Timesheet Approvals</h2>
+
+  {% include "manager/includes/filter_block.html" %}
+
+  <div class="table-responsive">
+    <table class="table table-bordered table-striped" id="timesheetTable">
+      <thead class="table-dark">
+        <tr>
+          <th>Date</th>
+          <th>Employee</th>
+          <th>Project</th>
+          <th>Task</th>
+          <th>Description</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in timesheets %}
+        <tr>
+          <td>{{ t.date }}</td>
+          <td>{{ t.employee.user.get_full_name }}</td>
+          <td>{{ t.project.name }}</td>
+          <td>{{ t.task.name|default:"-" }}</td>
+          <td>{{ t.task_description|truncatewords:10 }}</td>
+          <td>{{ t.status }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="text-center">No timesheets found for the selected filters.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
+<script>
+  $(document).ready(function () {
+    $('#timesheetTable').DataTable({
+      dom: 'Bfrtip',
+      buttons: ['csvHtml5', 'excelHtml5']
+    });
+  });
+</script>
+{% endblock %}

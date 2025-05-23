@@ -1,11 +1,12 @@
 {% extends 'base.html' %}
-
 {% block content %}
 <div class="container mt-4">
   <h2>Edit Task: {{ task.name }}</h2>
   <form method="post">
     {% csrf_token %}
-    {{ form.as_p }}
+    {% for field in form %}
+      {% include 'shared/includes/form_field.html' with field=field %}
+    {% endfor %}
     <button type="submit" class="btn btn-primary">Save Changes</button>
     <a href="{% url 'project:project-dashboard' %}" class="btn btn-secondary">Cancel</a>
   </form>

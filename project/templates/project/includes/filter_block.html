@@ -1,0 +1,28 @@
+<!-- project/includes/filter_block.html -->
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="get" class="row">
+      <div class="col-md-3">
+        <label class="form-label">Filter by Project Type</label>
+        <select class="form-select" name="project_type">
+          <option value="">All</option>
+          <option value="Turnkey">Turnkey</option>
+          <option value="Service">Service</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Filter by Status</label>
+        <select class="form-select" name="status">
+          <option value="">All</option>
+          <option value="Not Started">Not Started</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Completed">Completed</option>
+          <option value="On Hold">On Hold</option>
+        </select>
+      </div>
+      <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-outline-primary">Apply Filter</button>
+      </div>
+    </form>
+  </div>
+</div>

@@ -1,40 +1,72 @@
+# manager/urls.py
+
 from django.urls import path
-from . import views
-from .views import timesheet_approval_dashboard, handle_timesheet_action
+from manager.views import (
+    manager_dashboard,
+
+    # Skill Management
+    assign_skills,
+    load_subskills,
+    export_skill_matrix,
+    get_employee_skill_data,
+    edit_skill_assignment,
+
+    # Task Assignment
+    assign_task,
+    load_tasks,
+    load_assignments_ajax,
+
+    # Expense Approval
+    expense_approval_dashboard,
+    expense_approvals,
+    handle_expense_action,
+
+    # Timesheet Approval
+    timesheet_approval_dashboard,
+    timesheet_approvals,
+    handle_timesheet_action,
+    filtered_timesheet_approvals,
+    
+   
+    
+
+    # Project Reports
+    project_tracking_dashboard,
+    project_summary_dashboard,
+    project_detail,
+)
+
 app_name = 'manager'
 
-
-
 urlpatterns = [
-    path('dashboard/', views.manager_dashboard, name='manager-dashboard'),
+    # Dashboard
+    path('', manager_dashboard, name='manager-dashboard'),
 
-    # Core functions
-    path('assign-skills/', views.assign_skills, name='assign-skills'),
-    path('assign-task/', views.assign_task, name='assign-task'),
-    path('load-subskills/', views.load_subskills, name='load-subskills'),
-    path('export-skill-matrix/', views.export_skill_matrix, name='export-skill-matrix'),
-    path('get-employee-skill-data/', views.get_employee_skill_data, name='get-employee-skill-data'),
-    path('edit-skill-assignment/', views.edit_skill_assignment, name='edit-skill-assignment'),
-    path('ajax/load-tasks/', views.load_tasks, name='ajax-load-tasks'),
-    path('ajax/load-assignments/', views.load_assignments_ajax, name='load-assignments-ajax'),
+    # Skills
+    path('assign-skills/', assign_skills, name='assign-skills'),
+    path('load-subskills/', load_subskills, name='load-subskills'),
+    path('export-skill-matrix/', export_skill_matrix, name='export-skill-matrix'),
+    path('get-employee-skill-data/', get_employee_skill_data, name='get-employee-skill-data'),
+    path('edit-skill-assignment/', edit_skill_assignment, name='edit-skill-assignment'),
 
-    # Project views
-    path('project-summary/', views.project_summary_dashboard, name='project-summary'),
-    path('project-tracking/', views.project_tracking_dashboard, name='project-tracking'),
-    path('project/<int:project_id>/', views.project_detail, name='project-detail'),
+    # Tasks
+    path('assign-task/', assign_task, name='assign-task'),
+    path('load-tasks/', load_tasks, name='load-tasks'),
+    path('load-assignments-ajax/', load_assignments_ajax, name='load-assignments-ajax'),
 
-    # Timesheet views
-    path('timesheet-approvals/', views.timesheet_approvals, name='timesheet-approvals'),
-    path('timesheet-approval-dashboard/', views.timesheet_approval_dashboard, name='timesheet-approval'),
-    path('timesheet-action/<int:timesheet_id>/<str:action>/', views.handle_timesheet_action, name='handle-timesheet-action'),
+    # Expenses
+    path('expense-approval/', expense_approval_dashboard, name='expense-approval'),
+    path('expense-approvals/', expense_approvals, name='expense-approvals'),
+    path('handle-expense-action/<int:expense_id>/<str:action>/', handle_expense_action, name='handle-expense-action'),
 
-    # Expense views
-    path('expense-approvals/', views.expense_approvals, name='expense-approvals'),
-    path('expense-approval-dashboard/', views.expense_approval_dashboard, name='expense-approval'),
-    path('expenses/<int:expense_id>/<str:action>/', views.handle_expense_action, name='expense-action'),
+    # Timesheets
+    path('timesheet-approval/', timesheet_approval_dashboard, name='timesheet-approval'),
+    path('timesheet-approvals/', timesheet_approvals, name='timesheet-approvals'),
+    path('handle-timesheet-action/<int:timesheet_id>/<str:action>/', handle_timesheet_action, name='handle-timesheet-action'),
+    path('filtered-timesheet-approvals/', filtered_timesheet_approvals, name='filtered-timesheet-approvals'),
+
+    # Projects
+    path('project-tracking/', project_tracking_dashboard, name='project-tracking'),
+    path('project-summary/', project_summary_dashboard, name='project-summary'),
+    path('project/<int:project_id>/', project_detail, name='project-detail'),
 ]
-
-
-    
-  
-

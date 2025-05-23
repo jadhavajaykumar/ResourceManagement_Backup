@@ -2,6 +2,10 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.contrib.auth import get_user_model
+# expenses/models.py
+
+from django.db import models
+from employee.models import EmployeeProfile
 
 User = get_user_model()
 
@@ -151,3 +155,38 @@ class CountryDARate(models.Model):
 
     def __str__(self):
         return f"{self.country} ({self.currency})"
+
+
+
+
+class GlobalExpenseSettings(models.Model):
+    days = models.PositiveIntegerField(default=5)
+
+    def __str__(self):
+        return f"{self.days} day(s)"
+
+class EmployeeExpenseGrace(models.Model):
+    employee = models.OneToOneField(EmployeeProfile, on_delete=models.CASCADE)
+    days = models.PositiveIntegerField(default=5)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.employee.user.get_full_name()} – {self.days} day(s)"
+
+
+# ✅ ADD THIS BELOW:
+class GlobalDASettings(models.Model):
+    local_da = models.DecimalField(max_digits=10, decimal_places=2, default=150)
+    domestic_da = models.DecimalField(max_digits=10, decimal_places=2, default=350)
+    international_da = models.DecimalField(max_digits=10, decimal_places=2, default=800)
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"DA Rates: Local ₹{self.local_da}, Domestic ₹{self.domestic_da}, International ₹{self.international_da}"
