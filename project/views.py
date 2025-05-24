@@ -11,6 +11,9 @@ from .services.project_skill_service import save_required_skills
 from .services.country_service import get_country_rate_details
 from manager.models import MainSkill
 from expenses.models import CountryDARate
+# project/views.py
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -135,3 +138,9 @@ def edit_project(request, project_id):
         'form': form,
         'project': project
     })
+
+
+def get_tasks_by_project(request):
+    project_id = request.GET.get('project_id')
+    tasks = Task.objects.filter(project_id=project_id).values('id', 'name')
+    return JsonResponse({'tasks': list(tasks)})

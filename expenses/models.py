@@ -2,7 +2,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.contrib.auth import get_user_model
-# expenses/models.py
+
 
 from django.db import models
 from employee.models import EmployeeProfile

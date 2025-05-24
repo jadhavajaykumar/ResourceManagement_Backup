@@ -7,6 +7,9 @@ from .views_reporting import (
     export_timesheet_earnings_excel,
 )
 
+
+from project.views import get_tasks_by_project
+
 app_name = 'project'
 
 urlpatterns = [
@@ -29,4 +32,11 @@ urlpatterns = [
     path('report/profitability/<int:project_id>/pdf/', export_project_profitability_pdf, name='export_project_profitability_pdf'),
     path('report/da-claims/<int:project_id>/excel/', export_da_claims_excel, name='export_da_claims_excel'),
     path('report/earnings/<int:project_id>/excel/', export_timesheet_earnings_excel, name='export_timesheet_earnings_excel'),
+    
+    path('api/get-tasks-by-project/', get_tasks_by_project, name='get_tasks_by_project'),
 ]
+
+
+
+
+

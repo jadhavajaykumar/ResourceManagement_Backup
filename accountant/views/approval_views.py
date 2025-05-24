@@ -5,24 +5,15 @@ from django.contrib import messages
 from expenses.models import Expense, DailyAllowance
 from accountant.services.approval_flow import process_expense_action
 from accountant.views.common import is_accountant
-
-
-from django.db.models import Q
-
-# accountant/views/expense_approval_dashboard.py
-
-
-
-from accountant.views.common import is_accountant
 from collections import defaultdict
-from datetime import datetime
+
 
 
 @login_required
 @user_passes_test(is_accountant)
 def expense_approval_dashboard(request):
-    expenses = Expense.objects.select_related('employee__user', 'project', 'new_expense_type').all()
-    das = DailyAllowance.objects.select_related('employee__user', 'project').all()
+    expenses = Expense.objects.select_related('employee__user', 'project', 'new_expense_type')
+    das = DailyAllowance.objects.select_related('employee__user', 'project')
 
     # Filters
     project_id = request.GET.get('project')
@@ -38,45 +29,40 @@ def expense_approval_dashboard(request):
         if status == "Approved":
             das = das.filter(approved=True)
         elif status == "Rejected":
-            das = das.none()  # No rejected field; adjust if needed
+            das = das.none()
         else:
             das = das.filter(approved=False)
     if start_date and end_date:
         expenses = expenses.filter(date__range=[start_date, end_date])
         das = das.filter(date__range=[start_date, end_date])
 
-    # Group both expenses and DAs under a common key: (date, employee_id, project_id)
+    # Grouping by (date, employee_id, project_id)
     grouped_data = defaultdict(lambda: {"expenses": [], "da": None})
     for exp in expenses:
-        key = (exp.date, exp.employee.id, exp.project.id)
+        key = (exp.date, exp.employee_id, exp.project_id)
         grouped_data[key]["expenses"].append(exp)
 
     for da in das:
-        key = (da.date, da.employee.id, da.project.id)
+        key = (da.date, da.employee_id, da.project_id)
         grouped_data[key]["da"] = da
 
-    # Reformat keys for display in template: replace tuple with an object for cleaner access
+    # Reformat key for template-friendly access
     formatted_grouped = {}
-    for key, val in grouped_data.items():
+    for key, value in grouped_data.items():
         date_val, employee_id, project_id = key
-        if val["expenses"]:
-            sample = val["expenses"][0]
-        elif val["da"]:
-            sample = val["da"]
-        else:
-            continue  # skip if no data at all (shouldn't happen)
-        display_key = type("GroupKey", (object,), {
-            "date": date_val,
-            "employee": sample.employee,
-            "project": sample.project
-        })()
-        formatted_grouped[display_key] = val
+        ref_obj = value["expenses"][0] if value["expenses"] else value["da"]
+        if ref_obj:
+            display_key = type("GroupKey", (object,), {
+                "date": date_val,
+                "employee": ref_obj.employee,
+                "project": ref_obj.project
+            })()
+            formatted_grouped[display_key] = value
 
     return render(request, 'accountant/expense_approval_dashboard.html', {
         'grouped_data': formatted_grouped,
         'projects': Expense.objects.values('project__id', 'project__name').distinct(),
     })
-
 
 
 @require_POST
@@ -92,5 +78,22 @@ def approve_or_reject_expense(request, expense_id, action):
 
     if expense.status == 'Pending':
         process_expense_action(expense, action, remark, request)
+
+    return redirect('accountant:expense-approval')
+
+
+
+
+@login_required
+@user_passes_test(is_accountant)
+def approve_daily_allowance(request, da_id):
+    da = get_object_or_404(DailyAllowance, id=da_id)
+
+    if not da.approved:
+        da.approved = True
+        da.save()
+        messages.success(request, f"DA for {da.employee.user.get_full_name()} on {da.date} approved.")
+    else:
+        messages.info(request, "DA is already approved.")
 
     return redirect('accountant:expense-approval')

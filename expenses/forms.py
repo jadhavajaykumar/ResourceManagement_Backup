@@ -1,42 +1,46 @@
 from django import forms
 from datetime import date, timedelta
-
 from .models import (
     Expense, ExpenseType, SystemSettings,
     EmployeeExpenseSetting, CountryDASetting
 )
 from employee.models import EmployeeProfile
 from project.services.assignment import get_assigned_projects
-
-
 # ---------------------- Expense Entry Form ----------------------
+from utils.grace_period import get_allowed_grace_days, is_within_grace
+
+
 class ExpenseForm(forms.ModelForm):
     class Meta:
         model = Expense
         fields = ['project', 'new_expense_type', 'date', 'kilometers', 'amount', 'receipt', 'comments']
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date'}),
-            'new_expense_type': forms.Select(attrs={'class': 'form-control'})
+            'new_expense_type': forms.Select(attrs={'class': 'form-control'}),
         }
 
     def __init__(self, *args, **kwargs):
-        employee = kwargs.pop('employee', None)
+        self.employee = kwargs.pop('employee', None)
         super().__init__(*args, **kwargs)
 
         self.fields['new_expense_type'].queryset = ExpenseType.objects.all()
-
-        if employee:
-            self.fields['project'].queryset = get_assigned_projects(employee)
+        if self.employee:
+            self.fields['project'].queryset = get_assigned_projects(self.employee)
 
     def clean_date(self):
         submitted_date = self.cleaned_data['date']
         today = date.today()
-        grace_period = SystemSettings.objects.first().expense_grace_days or 10
 
         if submitted_date > today:
             raise forms.ValidationError("Expenses cannot be submitted for future dates.")
-        if submitted_date < (today - timedelta(days=grace_period)):
-            raise forms.ValidationError(f"You can only submit expenses within the last {grace_period} days.")
+
+        if self.employee:
+            grace_days = get_allowed_grace_days(self.employee)
+            if not is_within_grace(submitted_date, grace_days):
+                raise forms.ValidationError(
+                    f"You can only submit expenses within the last {grace_days} days."
+                )
+
         return submitted_date
 
     def clean(self):
@@ -47,11 +51,10 @@ class ExpenseForm(forms.ModelForm):
         receipt = cleaned_data.get('receipt')
 
         if expense_type:
-            if expense_type.requires_kilometers:
-                if not kilometers:
-                    self.add_error('kilometers', f"Kilometers required for {expense_type.name}.")
-                else:
-                    cleaned_data['amount'] = kilometers * expense_type.rate_per_km
+            if expense_type.requires_kilometers and not kilometers:
+                self.add_error('kilometers', f"Kilometers required for {expense_type.name}.")
+            elif expense_type.requires_kilometers:
+                cleaned_data['amount'] = kilometers * expense_type.rate_per_km
 
             if expense_type.requires_receipt and not receipt:
                 self.add_error('receipt', f"Receipt required for {expense_type.name}.")
@@ -60,6 +63,7 @@ class ExpenseForm(forms.ModelForm):
                 self.add_error('amount', "Amount required.")
 
         return cleaned_data
+
 
 
 # ---------------------- Global Grace Period Settings ----------------------

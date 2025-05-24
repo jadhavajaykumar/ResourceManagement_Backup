@@ -1,9 +1,11 @@
 {% extends 'base.html' %}
 {% load custom_filters %}
+
 {% block content %}
 <div class="container mt-4">
   <h3 class="mb-4 text-primary">Expense Approval Dashboard</h3>
 
+  <!-- Filters -->
   <form method="get" class="row g-3 mb-4">
     <div class="col-md-3">
       <label>Project</label>
@@ -39,15 +41,16 @@
     </div>
   </form>
 
+  <!-- Grouped Display -->
   {% if grouped_data %}
     {% for key, data in grouped_data.items %}
       <div class="card mb-4 shadow-sm">
         <div class="card-header bg-light d-flex justify-content-between align-items-center">
-          <strong>{{ key.date }} - {{ key.employee.user.get_full_name }} - {{ key.project.name }}</strong>
+          <strong>{{ key.date }} – {{ key.employee.user.get_full_name }} – {{ key.project.name }}</strong>
         </div>
         <div class="card-body">
-          <table class="table table-bordered mb-3">
-            <thead class="table-light">
+          <table class="table table-bordered mb-0">
+            <thead class="table-light sticky-top bg-light" style="top: 65px;">
               <tr>
                 <th>Type</th>
                 <th>KMs</th>
@@ -55,7 +58,7 @@
                 <th>Receipt</th>
                 <th>Comments</th>
                 <th>Status</th>
-                <th>Action</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -64,9 +67,15 @@
                 <td>{{ exp.new_expense_type.name }}</td>
                 <td>{{ exp.kilometers|default:"-" }}</td>
                 <td>{{ exp.amount }}</td>
-                <td>{% if exp.receipt %}<a href="{{ exp.receipt.url }}" target="_blank">View</a>{% else %}-{% endif %}</td>
-                <td>{{ exp.comments|default:"-" }}</td>
-                <td>{{ exp.status }}</td>
+                <td>
+                  {% if exp.receipt %}
+                    <a href="{{ exp.receipt.url }}" target="_blank">View</a>
+                  {% else %}
+                    -
+                  {% endif %}
+                <td style="max-width: 200px; word-wrap: break-word;">
+					{{ exp.comments|default:"-" }}
+					{{ exp.status }}
                 <td>
                   {% if exp.status == 'Pending' %}
                     <button class="btn btn-sm btn-success" onclick="openRemarkModal('{{ exp.id }}', 'approve')">✓</button>
@@ -79,24 +88,26 @@
               {% endfor %}
 
               {% if data.da %}
-              <tr class="table-warning">
+              <tr class="table-warning text-dark align-middle">
                 <td><strong>Daily Allowance</strong></td>
                 <td>-</td>
                 <td>{{ data.da.da_amount }}</td>
-                <td colspan="2">DA Entry (Auto-calculated)</td>
+                <td colspan="2">
+                  Auto-calculated for DA (Project: {{ data.da.project.name }}, Location: {{ data.da.project.location_type.name }})
+                </td>
                 <td>
                   {% if data.da.approved %}
-                    Approved
+                    <span class="badge bg-success">Approved</span>
                   {% else %}
-                    Pending
+                    <span class="badge bg-warning text-dark">Pending</span>
                   {% endif %}
                 </td>
                 <td>
                   {% if not data.da.approved %}
-                    <form method="post" action="{% url 'accountant:approve-da' data.da.id %}">
-                      {% csrf_token %}
-                      <button type="submit" class="btn btn-sm btn-outline-success">Approve DA</button>
-                    </form>
+                  <form method="post" action="{% url 'accountant:approve-da' data.da.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-success" title="Approve Daily Allowance">
+                  </form>
                   {% else %}
                     <span class="text-muted">✓</span>
                   {% endif %}
@@ -112,6 +123,7 @@
     <div class="alert alert-info text-center">No records found for selected filters.</div>
   {% endif %}
 
+  <!-- Approval Modal -->
   <div class="modal fade" id="remarkModal" tabindex="-1" aria-labelledby="remarkModalLabel" aria-hidden="true">
     <div class="modal-dialog">
       <form method="post" id="remarkForm">
@@ -133,6 +145,7 @@
     </div>
   </div>
 
+  <!-- Back to Dashboard -->
   <form method="post" action="{% url 'accounts:profile' %}">
     {% csrf_token %}
     <button type="submit" class="btn btn-secondary shadow-sm mt-3">
@@ -143,10 +156,10 @@
 
 <script>
 function openRemarkModal(expenseId, action) {
-    const form = document.getElementById('remarkForm');
-    form.action = `/accountant/expenses/${expenseId}/${action}/`;
-    document.querySelector('#remarkForm textarea').value = "";
-    new bootstrap.Modal(document.getElementById('remarkModal')).show();
+  const form = document.getElementById('remarkForm');
+  form.action = `/accountant/expenses/${expenseId}/${action}/`;
+  document.querySelector('#remarkForm textarea').value = "";
+  new bootstrap.Modal(document.getElementById('remarkModal')).show();
 }
 </script>
 {% endblock %}

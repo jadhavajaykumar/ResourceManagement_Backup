@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from datetime import datetime, timedelta
 from decimal import Decimal
 
+from utils.grace_period import get_allowed_grace_days, is_within_grace
 # timesheet/models.py
 
 
@@ -63,6 +64,7 @@ class Timesheet(models.Model):
 
     def clean(self):
         """Custom validation for timesheet entry."""
+
         if not self.time_from or not self.time_to:
             raise ValidationError("Both 'time from' and 'time to' are required.")
 
@@ -71,18 +73,12 @@ class Timesheet(models.Model):
             raise ValidationError("Time duration cannot exceed 2 hours.")
 
         if self.employee_id:
-            from expenses.models import EmployeeExpenseSetting  # local import to prevent circular reference
-            setting = EmployeeExpenseSetting.objects.filter(employee=self.employee).first()
-            grace_period = setting.grace_period_days if setting else 3
-            override = getattr(setting, 'allow_submission_override', False)
-
-            if not override:
-                today = datetime.today().date()
-                last_allowed = self.date + timedelta(days=grace_period)
-                if today > last_allowed:
-                    raise ValidationError(
-                        f"Submission deadline passed (grace period: {grace_period} days). Contact manager."
-                    )
+            from utils.grace_period import get_allowed_grace_days, is_within_grace
+            grace_days = get_allowed_grace_days(self.employee)
+            if not is_within_grace(self.date, grace_days):
+                raise ValidationError(
+                    f"Submission deadline passed (grace period: {grace_days} days). Contact manager."
+                )
 
     def save(self, *args, **kwargs):
         """Delegates logic to service before saving."""

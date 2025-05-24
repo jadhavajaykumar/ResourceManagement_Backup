@@ -1,73 +1,105 @@
-# expenses/views/expense_entry.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from ..forms import ExpenseForm
-from employee.models import EmployeeProfile
-from accounts.access_control import is_manager_or_admin
-
-
 from django.utils import timezone
-from datetime import timedelta
-
-
 from collections import defaultdict
+from datetime import datetime
 
+from employee.models import EmployeeProfile
+from expenses.forms import ExpenseForm
+from expenses.models import Expense, ExpenseType, GlobalExpenseSettings, EmployeeExpenseGrace, DailyAllowance, SystemSettings
+from project.services.assignment import get_assigned_projects
+from timesheet.models import Timesheet
 
-
-from ..models import Expense, ExpenseType, DailyAllowance, GlobalExpenseSettings, EmployeeExpenseGrace
-
-
+from utils.grace_period import get_allowed_grace_days, is_within_grace
 
 
 @login_required
 def employee_expenses(request):
-    profile = EmployeeProfile.objects.get(user=request.user)
-    expenses = Expense.objects.filter(employee=profile).select_related('project').order_by('-date')
-    form = ExpenseForm(request.POST or None, request.FILES or None, employee=profile)
+    user = request.user
+    employee = user.employeeprofile
+    assigned_projects = get_assigned_projects(employee)
 
-    if request.method == 'POST' and form.is_valid():
-        # Grace period logic
-        expense_date = form.cleaned_data.get('date')
-        grace_days = 0
+    editing = False
+    edit_expense = None
 
-        grace_obj = EmployeeExpenseGrace.objects.filter(employee=profile).first()
-        if grace_obj:
-            grace_days = grace_obj.days
+    if request.method == 'POST':
+        if 'expense_id' in request.POST:
+            expense = get_object_or_404(Expense, id=request.POST['expense_id'], employee=employee)
+            form = ExpenseForm(request.POST, request.FILES, instance=expense)
+            editing = True
+            edit_expense = expense
         else:
-            global_grace = GlobalExpenseSettings.objects.first()
-            if global_grace:
-                grace_days = global_grace.days
+            form = ExpenseForm(request.POST, request.FILES, employee=employee)
 
-        if expense_date:
-            cutoff_date = timezone.now().date() - timedelta(days=grace_days)
-            if expense_date < cutoff_date:
-                messages.error(request, f"Expenses older than {grace_days} day(s) cannot be submitted.")
-            else:
-                expense = form.save(commit=False)
-                expense.employee = profile
-                expense.save()
-                messages.success(request, "Expense submitted successfully.")
+        if form.is_valid():
+            submitted_date = form.cleaned_data.get('date')
+            grace_days = get_allowed_grace_days(employee)
+
+            if not is_within_grace(submitted_date, grace_days):
+                messages.error(
+                    request,
+                    f"Submission not allowed. You can only submit expenses within {grace_days} days."
+                )
                 return redirect('expenses:employee-expenses')
 
-    # Fetch project list for filter dropdown
-    projects = profile.expense_set.select_related('project').values('project__id', 'project__name').distinct()
-    expense_types = ExpenseType.objects.all()
+            exp = form.save(commit=False)
+            exp.employee = employee
+            exp.save()
+            messages.success(request, 'Expense submitted successfully.')
+            return redirect('expenses:employee-expenses')
+        else:
+            messages.error(request, 'Please correct the errors below.')
 
-    # Fetch Daily Allowance data for each (project, date)
-    all_da_entries = DailyAllowance.objects.filter(employee=profile)
-    daily_allowances = defaultdict(lambda: {})
-    for da in all_da_entries:
-        daily_allowances[da.project.id][str(da.date)] = da
+    else:
+        form = ExpenseForm(employee=employee)
+
+    # Filtering logic
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    project_id = request.GET.get('project')
+    expense_type_id = request.GET.get('type')
+
+    expenses = Expense.objects.filter(employee=employee, project__in=assigned_projects).select_related('project', 'new_expense_type')
+    if start_date and end_date:
+        expenses = expenses.filter(date__range=[start_date, end_date])
+    if project_id:
+        expenses = expenses.filter(project__id=project_id)
+    if expense_type_id:
+        expenses = expenses.filter(new_expense_type__id=expense_type_id)
+
+    das = DailyAllowance.objects.filter(employee=employee, project__in=assigned_projects)
+    if start_date and end_date:
+        das = das.filter(date__range=[start_date, end_date])
+    if project_id:
+        das = das.filter(project__id=project_id)
+
+    grouped_data = defaultdict(lambda: {"expenses": [], "da": None})
+    for e in expenses:
+        key = (e.project, e.date)
+        grouped_data[key]["expenses"].append(e)
+    for d in das:
+        key = (d.project, d.date)
+        grouped_data[key]["da"] = d
+
+    grouped_list = [
+        {
+            "project": key[0],
+            "date": key[1],
+            "expenses": value["expenses"],
+            "da": value["da"]
+        }
+        for key, value in grouped_data.items()
+    ]
 
     return render(request, 'expenses/my_expenses.html', {
         'form': form,
-        'expenses': expenses,
-        'expense_types': expense_types,
-        'projects': projects,
-        'daily_allowances': daily_allowances,  # included for template rendering
+        'editing': editing,
+        'edit_expense': edit_expense,
+        'projects': assigned_projects,
+        'expense_types': ExpenseType.objects.all(),
+        'grouped_data': grouped_list
     })
-
 
 
 @login_required
@@ -87,7 +119,9 @@ def edit_expense(request, expense_id):
 
     return render(request, 'expenses/my_expenses.html', {
         'form': form,
-        'expenses': Expense.objects.filter(employee=profile).order_by('-date'),
+        'expense_types': ExpenseType.objects.all(),
+        'projects': get_assigned_projects(profile),
+        'grouped_data': [],
         'editing': True,
         'edit_expense': expense
     })

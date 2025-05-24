@@ -6,15 +6,17 @@
 <div class="container py-4">
   <h2 class="mb-4 text-primary">My Timesheets</h2>
 
-  <form method="post" action="{% url 'accounts:profile' %}">
-    {% csrf_token %}
-    <!--<button type="submit" class="btn btn-secondary mb-3">
-      <i class="bi bi-house me-2"></i> Dashboard
-    </button>-->
-  </form>
-
   <form method="post" class="card p-4 shadow-sm mb-4">
     {% csrf_token %}
+
+    {% if form.non_field_errors %}
+      <div class="alert alert-danger">
+        {% for error in form.non_field_errors %}
+          <p>{{ error }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+
     <div class="row g-3">
       <div class="col-md-4">
         <label>Project:</label>
@@ -46,122 +48,86 @@
     </div>
   </form>
 
-  {% if grouped_timesheets %}
-  <div class="card shadow-sm">
-    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-      <h5 class="mb-0">Submitted Timesheets</h5>
-      <div class="d-flex gap-2">
-        <select id="viewToggle" class="form-select form-select-sm">
-          <option value="">View All</option>
-          <option value="daily">Daily</option>
-          <option value="weekly">Weekly</option>
-          <option value="monthly">Monthly</option>
-        </select>
-        <input type="date" id="startDate" class="form-control form-control-sm" />
-        <input type="date" id="endDate" class="form-control form-control-sm" />
-        <input type="text" id="projectSearch" class="form-control form-control-sm" placeholder="Search Project" />
-        <input type="text" id="taskSearch" class="form-control form-control-sm" placeholder="Search Task" />
-        <a href="{% url 'timesheet:export-timesheets-csv' %}" class="btn btn-outline-light btn-sm">
-          <i class="bi bi-download"></i> Export CSV
-        </a>
+  {% if weekly_grouped %}
+  <div class="accordion" id="weeklyTimesheetAccordion">
+    {% for week_label, entries in weekly_grouped.items %}
+    <div class="accordion-item mb-2">
+      <h2 class="accordion-header" id="heading-{{ forloop.counter }}">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+          data-bs-target="#collapse-{{ forloop.counter }}">
+          {{ week_label }} — {{ entries|length }} Entries
+        </button>
+      </h2>
+      <div id="collapse-{{ forloop.counter }}" class="accordion-collapse collapse"
+        data-bs-parent="#weeklyTimesheetAccordion">
+        <div class="accordion-body">
+          <table class="table table-striped table-bordered text-center">
+            <thead class="table-light">
+              <tr>
+                <th>Date</th>
+                <th>Project</th>
+                <th>Time Slot</th>
+                <th>Task Description</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for entry in entries %}
+              <tr>
+                <td>{{ entry.date }}</td>
+                <td>{{ entry.project.name }}</td>
+                <td>{{ entry.time_from }} - {{ entry.time_to }}</td>
+                <td>{{ entry.task_description }}</td>
+                <td>{{ entry.status }}</td>
+                <td>
+                  {% if entry.status != 'Approved' %}
+                  <a href="{% url 'timesheet:edit-timesheet' entry.id %}" class="btn btn-sm btn-primary">Edit</a>
+                  <a href="{% url 'timesheet:delete_timesheet' entry.id %}" class="btn btn-sm btn-danger"
+                    onclick="return confirm('Are you sure?');">Delete</a>
+                  {% else %} - {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
-
-    <div class="card-body table-responsive">
-      <table id="timesheetTable" class="table table-striped table-bordered text-center">
-        <thead class="table-light">
-		  <tr>
-			<th>Date</th>
-			<th>Project</th>
-			<th>Time Slot</th>
-			<th>Task Description</th>
-			<th>Status</th>
-			<th>Action</th>
-		  </tr>
-		</thead>
-
-			<tbody>
-			  {% for date, entries in grouped_timesheets.items %}
-				{% for entry in entries %}
-				  <tr>
-					{% if forloop.first %}
-					  <td rowspan="{{ entries|length }}">{{ date }}</td>
-					{% endif %}
-					<td>{{ entry.project.name }}</td>
-					<td>{{ entry.time_from }} - {{ entry.time_to }}</td>
-					<td>{{ entry.task_description }}</td>
-					<td>{{ entry.status }}</td>
-					<td>
-					  {% if entry.status != 'Approved' %}
-						<a href="{% url 'timesheet:edit-timesheet' entry.id %}" class="btn btn-sm btn-primary">Edit</a>
-						<a href="{% url 'timesheet:delete_timesheet' entry.id %}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?');">Delete</a>
-					  {% else %}
-						-
-					  {% endif %}
-					</td>
-				  </tr>
-				{% endfor %}
-			  {% endfor %}
-			</tbody>
-
-      </table>
-    </div>
+    {% endfor %}
   </div>
   {% endif %}
 </div>
 {% endblock %}
 
 {% block scripts %}
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css">
-<link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.dataTables.min.css">
-<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
-<script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-
 <script>
-  $(document).ready(function () {
-    const table = $('#timesheetTable').DataTable({
-      dom: 'Bfrtip',
-      buttons: ['csvHtml5', 'excelHtml5'],
-      order: [[0, 'desc']],
+document.addEventListener('DOMContentLoaded', function () {
+  const projectSelect = document.getElementById('id_project');
+  const taskSelect = document.getElementById('id_task');
+
+  if (projectSelect) {
+    projectSelect.addEventListener('change', function () {
+      const projectId = this.value;
+      fetch(`/api/get-tasks-by-project/?project_id=${projectId}`)
+        .then(response => response.json())
+        .then(data => {
+          taskSelect.innerHTML = '';
+          if (data.tasks.length > 0) {
+            data.tasks.forEach(task => {
+              const option = document.createElement('option');
+              option.value = task.id;
+              option.text = task.name;
+              taskSelect.appendChild(option);
+            });
+          } else {
+            const option = document.createElement('option');
+            option.text = 'No tasks available';
+            taskSelect.appendChild(option);
+          }
+        });
     });
-
-    const filterByDate = () => {
-      const view = $('#viewToggle').val();
-      const startDate = new Date($('#startDate').val());
-      const endDate = new Date($('#endDate').val());
-      const today = new Date();
-
-      table.rows().every(function () {
-        const rowDate = new Date(this.data()[0]);
-        let show = true;
-
-        if (view === 'daily') {
-          show = rowDate.toDateString() === today.toDateString();
-        } else if (view === 'weekly') {
-          const startOfWeek = new Date(today);
-          startOfWeek.setDate(today.getDate() - today.getDay());
-          const endOfWeek = new Date(startOfWeek);
-          endOfWeek.setDate(startOfWeek.getDate() + 6);
-          show = rowDate >= startOfWeek && rowDate <= endOfWeek;
-        } else if (view === 'monthly') {
-          show = rowDate.getMonth() === today.getMonth() &&
-                 rowDate.getFullYear() === today.getFullYear();
-        }
-
-        if ($('#startDate').val() && $('#endDate').val()) {
-          show = rowDate >= startDate && rowDate <= endDate;
-        }
-
-        $(this.node()).toggle(show);
-      });
-    };
-
-    $('#viewToggle, #startDate, #endDate').on('change', filterByDate);
-    $('#projectSearch').on('keyup', () => table.column(1).search($('#projectSearch').val()).draw());
-    $('#taskSearch').on('keyup', () => table.column(3).search($('#taskSearch').val()).draw());
-  });
+  }
+});
 </script>
 {% endblock %}
