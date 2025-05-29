@@ -1,6 +1,9 @@
 # timesheet/urls.py
 from django.urls import path
 from . import views
+from employee.views.attendance_views import my_c_offs
+from .views import apply_c_off
+
 
 app_name = 'timesheet'
 
@@ -12,4 +15,7 @@ urlpatterns = [
     #path('delete/<int:pk>/', views.delete_timesheet, name='delete-timesheet'),
     #path('delete/<int:timesheet_id>/', views.delete_timesheet, name='delete_timesheet'),
     path('delete/<int:timesheet_id>/', views.delete_timesheet, name='delete_timesheet'),
+    path('c-off/', my_c_offs, name='my-c-offs'),
+    path('apply-c-off/', apply_c_off, name='apply-c-off'),
+
 ]

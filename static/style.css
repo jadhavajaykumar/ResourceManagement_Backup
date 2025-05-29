@@ -49,3 +49,10 @@
 input[type="file"] {
     padding: 0.45rem 0.75rem;
 }
+
+
+.bg-success { background-color: #d4edda !important; }
+.bg-warning { background-color: #fff3cd !important; }
+.bg-danger  { background-color: #f8d7da !important; }
+.bg-primary { background-color: #cce5ff !important; }
+.bg-orange  { background-color: #ffe0b2 !important; }

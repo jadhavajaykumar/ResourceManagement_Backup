@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+  <h3>Pending C-Off Applications</h3>
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>Employee</th>
+        <th>Date Applied For</th>
+        <th>Days</th>
+        <th>Reason</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for app in applications %}
+        <tr>
+          <td>{{ app.employee.user.get_full_name }}</td>
+          <td>{{ app.date_applied_for }}</td>
+          <td>{{ app.number_of_days }}</td>
+          <td>{{ app.reason }}</td>
+          <td>{{ app.status }}</td>
+          <td>
+            {% if app.status == 'Pending' %}
+              <a href="{% url 'manager:approve-c-off' app.id %}" class="btn btn-success btn-sm">Approve</a>
+			  <a href="{% url 'manager:reject-c-off' app.id %}" class="btn btn-danger btn-sm">Reject</a>
+
+            {% else %}
+              <span class="text-muted">Reviewed</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6">No applications yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

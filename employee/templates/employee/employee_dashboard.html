@@ -97,17 +97,26 @@
 	  <a href="{% url 'expenses:employee-expenses' %}">Go</a>
 	</div>
 	
-	<div class="card mb-3 shadow-sm">
+	<!--<div class="card mb-3 shadow-sm">
 	  <div class="card-header bg-info text-white">Leave Balance</div>
 	  <div class="card-body">
 		<p class="mb-1"><strong>Compensatory Off:</strong> {{ leave_balance.compensatory_off|default:"0" }} day(s)</p>
 		<p class="text-muted">Last updated: {{ leave_balance.updated_at|date:"d M Y H:i" }}</p>
 	  </div>
 	</div>
-	
-	<li class="nav-item">
-	  <a href="{% url 'employee:attendance-report' %}" class="nav-link">Attendance Report</a>
-	</li>
+	<h4>C-Off Balance: {{ balance.balance }}</h4>
+	<ul>
+	  {% for off in earned_offs %}
+		<li>{{ off.date_earned }} — {{ off.credited_days }} day(s) credited</li>
+	  {% endfor %}
+	</ul>-->
+
+	<div class="dashboard-card">
+	  <i class="fa-solid fa-calendar-check"></i>
+	  <h3>Attendance / C-Off Report</h3>
+	  <p class="text-muted" style="font-size: 14px;">Track your monthly attendance & C-Off usage</p>
+	  <a href="{% url 'employee:attendance-c-off-report' %}">View Report</a>
+	</div>
 
 
 

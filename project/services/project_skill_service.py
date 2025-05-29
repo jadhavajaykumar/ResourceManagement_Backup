@@ -1,6 +1,6 @@
 # services/project_skill_service.py
 def save_required_skills(project, selected_skills):
-    from .models import ProjectRequiredSkill
+    from ..models import ProjectRequiredSkill
     if not project or not selected_skills:
         return
 

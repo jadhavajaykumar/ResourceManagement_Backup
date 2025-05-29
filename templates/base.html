@@ -1,11 +1,12 @@
-<!-- templates/base.html -->
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>{% block title %}Resource Management{% endblock %}</title>
+  <title>{% block title %}Project Management{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  {% load static %}
+
+  <link rel="stylesheet" type="text/css" href="{% static 'css/styles.css' %}">
 
   <!-- Google Font -->
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
@@ -23,6 +24,11 @@
   {% block extra_styles %}{% endblock %}
 
   <style>
+    .logo {
+      max-height: 50px;
+      width: auto;
+    }
+
     body {
       font-family: 'Poppins', sans-serif;
       background-color: #f9fafc;
@@ -36,8 +42,9 @@
     }
 
     .navbar {
-      background: linear-gradient(to right, #007bff, #0056b3);
-    }
+	  background: linear-gradient(to right, #343a40, #495057); /* dark grey to steel */
+	}
+
 
     .navbar-brand, .nav-link {
       color: #fff !important;
@@ -74,28 +81,48 @@
 </head>
 <body>
 
+  <!-- Logo (now correctly inside body) -->
+	<nav class="navbar navbar-expand-lg" style="background: linear-gradient(to right, #444, #888);">
+	  <div class="container d-flex justify-content-center align-items-center" style="height: 60px;">
+		<img id="site-logo" src="{% static 'images/logo.png' %}" alt="Company Logo" class="logo" style="height: 45px;">
+	  </div>
+	</nav>
+
+
+
+
   <!-- Navbar -->
-  <nav class="navbar navbar-expand-lg shadow-sm">
-    <div class="container">
-      <a class="navbar-brand" href="#">Resource Management</a>
+  <!-- Navbar -->
+	<nav class="navbar navbar-expand-lg shadow-sm">
+	  <div class="container">
+		<a class="navbar-brand" href="#">Project Management</a>
 
-      <div class="ms-auto d-flex align-items-center gap-2">
-        <!-- Back to Dashboard Button -->
-        <a href="{% url 'accounts:profile' %}" class="btn btn-outline-light btn-sm">
-          <i class="bi bi-house-door-fill me-1"></i> Dashboard
-        </a>
+		<div class="ms-auto d-flex align-items-center gap-3">
 
-        <!-- Theme Toggle -->
-        <button class="btn-theme-toggle" onclick="toggleTheme()" title="Toggle Light/Dark">🌓</button>
+		  {% if request.user.is_authenticated %}
+			<!-- Show logged-in name -->
+			<span class="text-white fw-semibold">
+			  👤 {{ request.user.get_full_name|default:request.user.username }}
+			</span>
+		  {% endif %}
 
-        <!-- Logout -->
-        <form method="post" action="{% url 'accounts:logout' %}" style="display:inline;">
-          {% csrf_token %}
-          <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
-        </form>
-      </div>
-    </div>
-  </nav>
+		  <!-- Back to Dashboard Button -->
+		  <a href="{% url 'accounts:profile' %}" class="btn btn-outline-light btn-sm">
+			<i class="bi bi-house-door-fill me-1"></i> Dashboard
+		  </a>
+
+		  <!-- Theme Toggle -->
+		  <button class="btn-theme-toggle" onclick="toggleTheme()" title="Toggle Light/Dark">🌓</button>
+
+		  <!-- Logout -->
+		  <form method="post" action="{% url 'accounts:logout' %}" style="display:inline;">
+			{% csrf_token %}
+			<button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
+		  </form>
+		</div>
+	  </div>
+	</nav>
+
 
   <!-- Main content -->
   <div class="container py-4">
@@ -124,6 +151,53 @@
       if (saved === "dark") document.body.classList.add("dark-mode");
     };
   </script>
+	<script>
+	  AOS.init();
+
+	  function toggleTheme() {
+		const isDark = document.body.classList.toggle("dark-mode");
+		localStorage.setItem("theme", isDark ? "dark" : "light");
+		updateLogo(isDark);
+	  }
+
+	  function updateLogo(isDark) {
+		const logo = document.getElementById("site-logo");
+		if (logo) {
+		  logo.src = isDark ? "{% static 'images/logo_1.png' %}" : "{% static 'images/logo.png' %}";
+		}
+	  }
+
+	  // Apply saved theme + logo on load
+	  window.onload = function () {
+		const savedTheme = localStorage.getItem("theme") || "light";
+		const isDark = savedTheme === "dark";
+		if (isDark) {
+		  document.body.classList.add("dark-mode");
+		}
+		updateLogo(isDark);
+	  };
+	</script>
+	<script>
+	  AOS.init();
+
+	  function toggleTheme() {
+		document.body.classList.toggle("dark-mode");
+		localStorage.setItem("theme", document.body.classList.contains("dark-mode") ? "dark" : "light");
+		updateLogo();
+	  }
+
+	  function updateLogo() {
+		const logo = document.getElementById("site-logo");
+		const isDark = document.body.classList.contains("dark-mode");
+		logo.src = isDark ? "{% static 'images/logo_1.png' %}" : "{% static 'images/logo.png' %}";
+	  }
+
+	  window.onload = function () {
+		const savedTheme = localStorage.getItem("theme");
+		if (savedTheme === "dark") document.body.classList.add("dark-mode");
+		updateLogo();
+	  };
+	</script>
 
 </body>
 </html>

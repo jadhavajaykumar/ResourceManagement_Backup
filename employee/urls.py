@@ -1,4 +1,5 @@
 from django.urls import path
+from employee.views.attendance_views import attendance_c_off_report
 from .views import (
     profile_home, edit_profile,
     employee_dashboard,
@@ -14,4 +15,5 @@ urlpatterns = [
     path('dashboard/', employee_dashboard, name='employee-dashboard'),
     path('my-projects/', my_projects, name='my-projects'),
     path('attendance-report/', attendance_report, name='attendance-report'),
+    path('attendance-c-off-report/', attendance_c_off_report, name='attendance-c-off-report'),
 ]

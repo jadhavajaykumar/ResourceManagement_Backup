@@ -1,6 +1,11 @@
 # manager/urls.py
 
 from django.urls import path
+from manager.views.timesheet_views import approve_c_offs
+from manager.views.c_off_views import c_off_approvals, approve_c_off, reject_c_off
+
+
+
 from manager.views import (
     manager_dashboard,
 
@@ -26,6 +31,7 @@ from manager.views import (
     timesheet_approvals,
     handle_timesheet_action,
     filtered_timesheet_approvals,
+    
     
    
     
@@ -64,9 +70,16 @@ urlpatterns = [
     path('timesheet-approvals/', timesheet_approvals, name='timesheet-approvals'),
     path('handle-timesheet-action/<int:timesheet_id>/<str:action>/', handle_timesheet_action, name='handle-timesheet-action'),
     path('filtered-timesheet-approvals/', filtered_timesheet_approvals, name='filtered-timesheet-approvals'),
+    path('approve-c-offs/', approve_c_offs, name='approve-c-offs'),
+
 
     # Projects
     path('project-tracking/', project_tracking_dashboard, name='project-tracking'),
     path('project-summary/', project_summary_dashboard, name='project-summary'),
     path('project/<int:project_id>/', project_detail, name='project-detail'),
+    
+    # C-Off
+    path('c-off-approvals/', c_off_approvals, name='c-off-approvals'),
+    path('c-off-approvals/<int:application_id>/approve/', approve_c_off, name='approve-c-off'),
+    path('c-off-approvals/<int:application_id>/reject/', reject_c_off, name='reject-c-off'),
 ]

@@ -86,3 +86,4 @@ class LeaveBalance(models.Model):
 
     def __str__(self):
         return f"{self.employee.user.get_full_name()} - C-Off: {self.c_off}"
+

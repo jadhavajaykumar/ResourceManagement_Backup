@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="mb-0">Create Timesheet Entry</h3>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="timesheet-form">
+                        {% csrf_token %}
+                        {{ form|crispy }}
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <div>
+                                <button type="submit" name="save_draft" class="btn btn-secondary">
+                                    Save as Draft
+                                </button>
+                                <button type="submit" name="submit" class="btn btn-primary">
+                                    Submit for Approval
+                                </button>
+                            </div>
+                            <a href="{% url 'timesheet:my-timesheets' %}" class="btn btn-outline-danger">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Time input formatting
+    const timeInputs = document.querySelectorAll('input[type="time"]');
+    timeInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            if (!this.value) return;
+            // Ensure time is in HH:MM format
+            const [hours, minutes] = this.value.split(':');
+            this.value = `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+        });
+    });
+    
+    // Form submission handling
+    const form = document.getElementById('timesheet-form');
+    form.addEventListener('submit', function(e) {
+        const timeFrom = document.getElementById('id_time_from').value;
+        const timeTo = document.getElementById('id_time_to').value;
+        
+        if (timeFrom && timeTo) {
+            if (timeFrom >= timeTo) {
+                alert('End time must be after start time');
+                e.preventDefault();
+                return false;
+            }
+        }
+        return true;
+    });
+});
+</script>
+{% endblock %}
