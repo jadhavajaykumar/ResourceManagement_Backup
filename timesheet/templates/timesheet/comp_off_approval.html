@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container py-4">
+  <h2 class="mb-4 text-primary">Comp-Off Approval Dashboard</h2>
+
+  <!-- Filters -->
+  <form method="get" class="row g-3 mb-4">
+    <div class="col-md-3">
+      <input type="text" name="employee" class="form-control" placeholder="Employee Name" value="{{ request.GET.employee }}">
+    </div>
+    <div class="col-md-3">
+      <input type="date" name="start_date" class="form-control" value="{{ request.GET.start_date }}">
+    </div>
+    <div class="col-md-3">
+      <input type="date" name="end_date" class="form-control" value="{{ request.GET.end_date }}">
+    </div>
+    <div class="col-md-2">
+      <select name="status" class="form-select">
+        <option value="">All Statuses</option>
+        <option value="Pending" {% if request.GET.status == "Pending" %}selected{% endif %}>Pending</option>
+        <option value="Approved" {% if request.GET.status == "Approved" %}selected{% endif %}>Approved</option>
+        <option value="Rejected" {% if request.GET.status == "Rejected" %}selected{% endif %}>Rejected</option>
+      </select>
+    </div>
+    <div class="col-md-1">
+      <button class="btn btn-primary w-100">Filter</button>
+    </div>
+  </form>
+
+  <!-- Applications Table -->
+  <table class="table table-bordered table-hover">
+    <thead class="table-light">
+      <tr>
+        <th>Employee</th>
+        <th>Date Applied</th>
+        <th>Days</th>
+        <th>Reason</th>
+        <th>Status</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for app in applications %}
+      <tr>
+        <td>{{ app.employee.user.get_full_name }}</td>
+        <td>{{ app.date_applied_for }}</td>
+        <td>{{ app.number_of_days }}</td>
+        <td>{{ app.reason|default:"-" }}</td>
+        <td>{{ app.status }}</td>
+        <td>
+          {% if app.status == 'Pending' %}
+          <form method="post" style="display:inline;">
+            {% csrf_token %}
+            <input type="hidden" name="app_id" value="{{ app.id }}">
+            <button name="action" value="approve" class="btn btn-success btn-sm">Approve</button>
+            <button name="action" value="reject" class="btn btn-danger btn-sm">Reject</button>
+          </form>
+          {% else %}
+          <span class="text-muted">No Action</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="6" class="text-center text-muted">No matching applications found.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

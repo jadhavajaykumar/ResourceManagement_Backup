@@ -12,10 +12,10 @@ urlpatterns = [
     path('approve/<int:timesheet_id>/', views.approve_timesheet, name='approve-timesheet'),
     path('export/csv/', views.export_timesheets_csv, name='export-timesheets-csv'),
     path('edit/<int:pk>/', views.edit_timesheet, name='edit-timesheet'),
+    path('delete/<int:timesheet_id>/', views.delete_timesheet, name='delete-timesheet'),
     #path('delete/<int:pk>/', views.delete_timesheet, name='delete-timesheet'),
-    #path('delete/<int:timesheet_id>/', views.delete_timesheet, name='delete_timesheet'),
-    path('delete/<int:timesheet_id>/', views.delete_timesheet, name='delete_timesheet'),
     path('c-off/', my_c_offs, name='my-c-offs'),
     path('apply-c-off/', apply_c_off, name='apply-c-off'),
+    path('comp-off-approvals/', views.comp_off_approval_view, name='comp-off-approvals'),
 
 ]

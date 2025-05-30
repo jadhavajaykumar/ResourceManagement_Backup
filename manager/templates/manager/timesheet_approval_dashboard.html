@@ -36,6 +36,14 @@
           <input type="hidden" name="manager_remark" value="Rejected by manager.">
           <button class="btn btn-danger btn-sm w-100">Reject</button>
         </form>
+		<form method="POST" action="{% url 'manager:mark-absent' %}" style="display:inline;">
+		  {% csrf_token %}
+		  <input type="hidden" name="employee_id" value="{{ ts.employee.id }}">
+		  <input type="hidden" name="date" value="{{ ts.date }}">
+		  <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Mark this employee absent for this date?');">
+			Mark Absent
+		  </button>
+		</form>
       </td>
     </tr>
     {% endfor %}

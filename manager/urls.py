@@ -3,7 +3,10 @@
 from django.urls import path
 from manager.views.timesheet_views import approve_c_offs
 from manager.views.c_off_views import c_off_approvals, approve_c_off, reject_c_off
-
+# Add this at the top
+from manager.views.timesheet_views import mark_employee_absent, timesheet_history_view
+from . import views
+from manager.views.absent_views import mark_absent_dashboard
 
 
 from manager.views import (
@@ -71,6 +74,11 @@ urlpatterns = [
     path('handle-timesheet-action/<int:timesheet_id>/<str:action>/', handle_timesheet_action, name='handle-timesheet-action'),
     path('filtered-timesheet-approvals/', filtered_timesheet_approvals, name='filtered-timesheet-approvals'),
     path('approve-c-offs/', approve_c_offs, name='approve-c-offs'),
+    path('mark-absent/', mark_employee_absent, name='mark-absent'),
+    path('absences/', mark_absent_dashboard, name='mark-absent-dashboard'),
+    path('timesheet-history/', timesheet_history_view, name='timesheet-history'),
+
+
 
 
     # Projects
@@ -82,4 +90,11 @@ urlpatterns = [
     path('c-off-approvals/', c_off_approvals, name='c-off-approvals'),
     path('c-off-approvals/<int:application_id>/approve/', approve_c_off, name='approve-c-off'),
     path('c-off-approvals/<int:application_id>/reject/', reject_c_off, name='reject-c-off'),
+    
+    
+
+
+
+   
+
 ]

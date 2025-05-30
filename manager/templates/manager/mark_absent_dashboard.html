@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-4">
+  <h2>Mark Employee Absent</h2>
+  <form method="post" class="card p-4 shadow-sm">
+    {% csrf_token %}
+    <div class="mb-3">
+      <label for="employee_id">Select Employee:</label>
+      <select class="form-select" name="employee_id" required>
+        {% for emp in employees %}
+        <option value="{{ emp.id }}">{{ emp.user.get_full_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="mb-3">
+      <label for="absent_date">Absent Date:</label>
+      <input type="date" class="form-control" name="absent_date" required>
+    </div>
+    <button type="submit" class="btn btn-danger">Mark Absent</button>
+  </form>
+</div>
+{% endblock %}

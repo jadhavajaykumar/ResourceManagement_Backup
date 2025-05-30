@@ -60,7 +60,9 @@ class Timesheet(models.Model):
     da_rate = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     daily_allowance_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     daily_allowance_currency = models.CharField(max_length=10, null=True, blank=True)
-
+    rejection_reason = models.TextField(blank=True, null=True)
+    rejected_at = models.DateTimeField(blank=True, null=True)
+    
     def clean(self):
         """Custom validation for timesheet entry."""
 
@@ -94,21 +96,6 @@ class Timesheet(models.Model):
 
     def __str__(self):
         return f"{self.employee.user.get_full_name()} - {self.project.name} ({self.date})"
-
-
-class TimesheetEntry(models.Model):
-    employee = models.ForeignKey(EmployeeProfile, on_delete=models.CASCADE)
-    task = models.ForeignKey(Task, on_delete=models.CASCADE, null=True, blank=True)
-    date = models.DateField()
-    hours = models.DecimalField(max_digits=4, decimal_places=2)
-    details = models.TextField()
-
-    def save(self, *args, **kwargs):
-        if not self.details:
-            self.details = f"Timesheet for {self.task.project.name if self.task else ''} on {self.date}"
-        super().save(*args, **kwargs)
-
-
 
 
 

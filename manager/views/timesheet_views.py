@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.db.models import Q
 from django.template.loader import render_to_string
 from django.http import HttpResponse
-
+from decimal import Decimal
 from timesheet.models import Timesheet
 from employee.models import EmployeeProfile
 from project.models import Project
@@ -15,7 +15,14 @@ from accounts.access_control import is_manager_or_admin, is_manager
 from timesheet.models import CompOffApplication, CompOffBalance
 
 from datetime import datetime, timedelta
+from timesheet.models import Timesheet
+from django.db.models import Q
 
+
+
+from timesheet.models import Attendance
+
+from django.http import HttpResponseForbidden
 
 @login_required
 @user_passes_test(is_manager)
@@ -71,10 +78,10 @@ def timesheet_approvals(request):
 @require_POST
 def handle_timesheet_action(request, timesheet_id, action):
     timesheet = get_object_or_404(Timesheet, id=timesheet_id)
-    remark = request.POST.get('manager_remark', '').strip()
+    remark = request.POST.get('Manager_Remark', '').strip()
 
     if not remark:
-        messages.error(request, "Manager remark is required.")
+        messages.error(request, "Manager Remark is required.")
         return redirect('manager:timesheet-approval')
 
     if action == 'approve':
@@ -90,7 +97,10 @@ def handle_timesheet_action(request, timesheet_id, action):
             days_credited = 1.0 if hours >= 4 else 0.5
 
             balance, _ = CompOffBalance.objects.get_or_create(employee=timesheet.employee)
-            balance.balance += days_credited
+          
+
+            balance.balance += Decimal(str(days_credited))
+
             balance.save()
 
         messages.success(request, "Timesheet approved.")
@@ -129,3 +139,61 @@ def approve_c_offs(request):
         return redirect('manager:approve-c-offs')
 
     return render(request, 'manager/approve_c_offs.html', {'applications': pending})
+
+
+
+@login_required
+def mark_employee_absent(request):
+    if not request.user.is_manager:
+        return HttpResponseForbidden()
+
+    if request.method == "POST":
+        emp_id = request.POST.get('employee_id')
+        date_str = request.POST.get('date')
+        date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+
+        employee = get_object_or_404(EmployeeProfile, id=emp_id)
+
+        Attendance.objects.update_or_create(
+            employee=employee,
+            date=date_obj,
+            defaults={'status': 'Absent', 'added_c_off': 0}
+        )
+
+        messages.success(request, f"{employee.user.get_full_name()} marked Absent for {date_obj}")
+        return redirect('manager:attendance-dashboard')  # Adjust as needed
+
+    return redirect('manager:attendance-dashboard')
+
+
+
+@login_required
+def timesheet_history_view(request):
+    if not request.user.is_manager:
+        messages.error(request, "Access denied.")
+        return redirect('dashboard')
+
+    employees = Employee.objects.all()
+    projects = Project.objects.all()
+
+    emp_id = request.GET.get('employee')
+    project_id = request.GET.get('project')
+    start = request.GET.get('start_date')
+    end = request.GET.get('end_date')
+
+    timesheets = Timesheet.objects.all()
+
+    if emp_id:
+        timesheets = timesheets.filter(employee_id=emp_id)
+    if project_id:
+        timesheets = timesheets.filter(project_id=project_id)
+    if start and end:
+        timesheets = timesheets.filter(date__range=[start, end])
+
+    context = {
+        'employees': employees,
+        'projects': projects,
+        'timesheets': timesheets,
+    }
+
+    return render(request, 'manager/timesheet_history.html', context)
