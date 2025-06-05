@@ -6,7 +6,7 @@ from django.db.models import Q
 from django.template.loader import render_to_string
 from django.http import HttpResponse
 from decimal import Decimal
-from timesheet.models import Timesheet
+
 from employee.models import EmployeeProfile
 from project.models import Project
 from accounts.access_control import is_manager_or_admin, is_manager
@@ -15,14 +15,24 @@ from accounts.access_control import is_manager_or_admin, is_manager
 from timesheet.models import CompOffApplication, CompOffBalance
 
 from datetime import datetime, timedelta
-from timesheet.models import Timesheet
+
 from django.db.models import Q
 
 
 
-from timesheet.models import Attendance
+from django.core.exceptions import ValidationError
+
+
+import logging
+
+from timesheet.models import Timesheet, CompOffBalance, Attendance
+#from manager.decorators import is_manager
+
 
 from django.http import HttpResponseForbidden
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 @login_required
 @user_passes_test(is_manager)
@@ -73,46 +83,63 @@ def timesheet_approvals(request):
     return render(request, 'manager/timesheet_approvals.html', context)
 
 
+
+
 @login_required
 @user_passes_test(is_manager)
 @require_POST
 def handle_timesheet_action(request, timesheet_id, action):
-    timesheet = get_object_or_404(Timesheet, id=timesheet_id)
-    remark = request.POST.get('Manager_Remark', '').strip()
+    try:
+        timesheet = get_object_or_404(Timesheet, id=timesheet_id)
+        
+        if timesheet.employee.reporting_manager != request.user:
+            messages.error(request, "You can only approve/reject timesheets for your direct reports.")
+            return redirect('manager:timesheet-approval')
 
-    if not remark:
-        messages.error(request, "Manager Remark is required.")
+        remark = request.POST.get('manager_remark', '').strip()
+
+        if not remark:
+            messages.error(request, "Manager remark is required.")
+            return redirect('manager:timesheet-approval')
+
+        if action == 'approve':
+            timesheet.status = 'Approved'
+            timesheet.manager_remark = remark
+            timesheet.save()
+
+        # Auto-grant C-off only for approval and weekend work
+        if action == 'approve' and timesheet.date.weekday() >= 5:  # 5=Saturday, 6=Sunday
+            try:
+                time_delta = datetime.combine(timesheet.date, timesheet.time_to) - datetime.combine(timesheet.date, timesheet.time_from)
+                hours = time_delta.total_seconds() / 3600
+                days_credited = 1.0 if hours >= 4 else 0.5
+
+                balance, created = CompOffBalance.objects.get_or_create(
+                    employee=timesheet.employee,
+                    defaults={'balance': Decimal(str(days_credited))}
+                )
+                
+                if not created:
+                    balance.balance += Decimal(str(days_credited))
+                    balance.save()
+
+                messages.info(request, f"Comp-off granted: {days_credited} day(s)")
+            except Exception as e:
+                logger.error(f"Error granting comp-off: {str(e)}", exc_info=True)
+                messages.warning(request, "Timesheet approved but comp-off calculation failed.")
+                
+        elif action == 'reject':
+            timesheet.status = 'Rejected'
+            timesheet.manager_remark = remark
+            timesheet.save()        
+
+        messages.success(request, f"Timesheet {action}d successfully.")
         return redirect('manager:timesheet-approval')
-
-    if action == 'approve':
-        timesheet.status = 'Approved'
-        timesheet.manager_remark = remark
-        timesheet.save()
-
-        # Auto-grant C-off if applicable (for Sat/Sun)
-        if timesheet.date.weekday() >= 5:  # 5=Saturday, 6=Sunday
-            time_delta = datetime.combine(timesheet.date, timesheet.time_to) - datetime.combine(timesheet.date, timesheet.time_from)
-            hours = time_delta.total_seconds() / 3600
-
-            days_credited = 1.0 if hours >= 4 else 0.5
-
-            balance, _ = CompOffBalance.objects.get_or_create(employee=timesheet.employee)
-          
-
-            balance.balance += Decimal(str(days_credited))
-
-            balance.save()
-
-        messages.success(request, "Timesheet approved.")
-    elif action == 'reject':
-        timesheet.status = 'Rejected'
-        timesheet.manager_remark = remark
-        timesheet.save()
-        messages.success(request, "Timesheet rejected.")
-    else:
-        messages.error(request, "Invalid action.")
-
-    return redirect('manager:timesheet-approval')
+        
+    except Exception as e:
+        logger.error(f"Error in handle_timesheet_action: {str(e)}", exc_info=True)
+        messages.error(request, "An error occurred while processing your request.")
+        return redirect('manager:timesheet-approval')
 
 
 @login_required

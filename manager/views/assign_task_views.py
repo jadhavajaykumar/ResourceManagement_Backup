@@ -67,10 +67,29 @@ def assign_task(request):
     })
 
 
+from django.contrib.auth.decorators import login_required
+
 @login_required
 def load_tasks(request):
     project_id = request.GET.get('project')
-    tasks = Task.objects.filter(project_id=project_id).order_by('name')
+    employee_id = request.GET.get('employee')
+    
+    if not project_id:
+        return JsonResponse([], safe=False)
+    
+    # Get base tasks
+    tasks = Task.objects.filter(project_id=project_id)
+    
+    # Filter by employee assignment if employee ID is provided
+    if employee_id:
+        try:
+            employee = EmployeeProfile.objects.get(id=employee_id)
+            assigned_tasks = tasks.filter(taskassignment__employee=employee).distinct()
+            if assigned_tasks.exists():
+                tasks = assigned_tasks
+        except EmployeeProfile.DoesNotExist:
+            pass
+    
     return JsonResponse(list(tasks.values('id', 'name')), safe=False)
 
 @login_required

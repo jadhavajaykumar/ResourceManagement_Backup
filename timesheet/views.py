@@ -1,23 +1,25 @@
+import logging
+logger = logging.getLogger(__name__)
+
 from django.shortcuts import render, redirect, get_object_or_404
+from timesheet.utils.slot_utils import generate_time_slots
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 from datetime import datetime, time, timedelta, date
-from .models import Timesheet
 from .forms import TimesheetForm
 from employee.models import EmployeeProfile
-from project.models import Project
+from project.models import Project, Task
 from expenses.models import DailyAllowance
 from timesheet.services.approval_service import approve_or_reject_timesheet
 from timesheet.services.export_service import export_timesheets_to_csv
 from project.services.da_service import calculate_da
 from calendar import monthrange, monthcalendar
 from django.utils.timezone import now
-
+from django.db.models import Prefetch
 from collections import defaultdict
-from calendar import monthrange
-
+from timesheet.utils.calculate_slot_hours import calculate_slot_hours
 from django.utils.timezone import localdate
 from timesheet.utils.styled_calendar import StyledCalendar
 from django.db.models import Min, Max
@@ -25,26 +27,93 @@ from django.db import transaction
 from timesheet.utils.time_utils import get_current_slot
 from .models import CompOffApplication
 from django.db.models import Q
-from timesheet.models import Attendance  # Ensure this import exists
-from employee.models import LeaveBalance  # ✅ ensure this is imported
-from timesheet.utils.calendar_utils import get_timesheet_calendar_data  # You already use this
+from timesheet.models import Attendance, Timesheet, TimeSlot
+from employee.models import LeaveBalance
+from timesheet.utils.calendar_utils import get_timesheet_calendar_data
+from timesheet.utils.calculate_attendance import calculate_attendance
+from timesheet.utils.get_calendar_entries import get_calendar_entries
+from manager.models import TaskAssignment
+from employee.models import AuditLog
+from .services.timesheet_service import process_timesheet_save
+import json
+import math
+from django.contrib import messages
+from datetime import datetime, timedelta, date as date_class, time as time_class
+from django.http import JsonResponse  # if not already imported
+
+@login_required
+def generate_timeslots(request):
+    logger.info("Generate timeslots view called")
+    if request.method == 'POST':
+        form = TimesheetForm(request.POST, employee=request.user.employeeprofile)
+        
+        if form.is_valid():
+            shift_start = form.cleaned_data['shift_start']
+            shift_end = form.cleaned_data['shift_end']
+            date = form.cleaned_data['date']
+            
+            time_slots = generate_time_slots(shift_start, shift_end, date)
+            total_hours = sum(slot['hours'] for slot in time_slots)
+            
+            serialized_slots = []
+            for slot in time_slots:
+                serialized_slots.append({
+                    'from_time': slot['from_time'].strftime('%H:%M'),
+                    'to_time': slot['to_time'].strftime('%H:%M'),
+                    'hours': slot['hours']
+                })
+            
+            return JsonResponse({
+                'success': True,
+                'time_slots': serialized_slots,
+                'total_hours': total_hours,
+                'slot_count': len(time_slots)
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'errors': form.errors
+            })
+    
+    return JsonResponse({'success': False, 'error': 'Invalid request'})
 
 
 
+@login_required
+def resubmit_timesheet(request, pk):
+    employee = request.user.employeeprofile
+    timesheet = get_object_or_404(Timesheet, id=pk, employee=employee)
+    
+    if timesheet.status != 'Rejected':
+        messages.error(request, "Only rejected timesheets can be resubmitted.")
+        return redirect('timesheet:my-timesheets')
 
+    if request.method == 'POST':
+        form = TimesheetForm(request.POST, instance=timesheet, employee=employee)
+        if form.is_valid():
+            updated_entry = form.save(commit=False)
+            updated_entry.status = 'Pending'
+            updated_entry.manager_remark = ''
+            updated_entry.save()
+            
+            messages.success(request, "Timesheet resubmitted for approval.")
+            return redirect('timesheet:my-timesheets')
+    else:
+        form = TimesheetForm(instance=timesheet, employee=employee)
 
-
-
+    return render(request, 'timesheet/resubmit_timesheet.html', {
+        'form': form,
+        'original_entry': timesheet
+    })
 
 @login_required 
 def comp_off_approval_view(request):
     if not request.user.is_manager:
         messages.error(request, "Access denied.")
-        return redirect('dashboard')  # Adjust to your actual dashboard URL
+        return redirect('dashboard')
 
     applications = CompOffApplication.objects.select_related('employee__user').all()
 
-    # Filters
     name = request.GET.get('employee')
     status = request.GET.get('status')
     start = request.GET.get('start_date')
@@ -65,23 +134,16 @@ def comp_off_approval_view(request):
         application = get_object_or_404(CompOffApplication, id=app_id)
 
         if action == 'approve':
-            # Get or create leave balance
             leave_balance, _ = LeaveBalance.objects.get_or_create(employee=application.employee)
-
             if leave_balance.c_off >= application.number_of_days:
-                # Deduct from balance
                 leave_balance.c_off -= application.number_of_days
                 leave_balance.save()
-
-                # Approve application
                 application.status = 'Approved'
                 application.save()
-
                 messages.success(request, f"Approved application for {application.employee}")
             else:
                 messages.error(request, "Insufficient C-Off balance to approve request.")
                 return redirect('timesheet:comp-off-approvals')
-
         elif action == 'reject':
             application.status = 'Rejected'
             application.save()
@@ -93,45 +155,38 @@ def comp_off_approval_view(request):
         'applications': applications,
     })
 
-
-
-
 def merge_timesheets_for_employee(employee, project, date):
-    entries = Timesheet.objects.filter(
+    # Get all approved timesheets for the employee on that date
+    timesheets = Timesheet.objects.filter(
         employee=employee,
-        project=project,
         date=date,
-        status='Approved'
-    )
+        status='Approved',
+        time_slots__project=project
+    ).distinct()
 
-    if entries.count() <= 1:
-        return  # Nothing to merge
+    # Filter only those timesheets which have slots with the specified project
+    timesheets_with_project = timesheets.filter(time_slots__project=project).distinct()
+
+    if timesheets_with_project.count() <= 1:
+        return
 
     with transaction.atomic():
-        earliest = entries.aggregate(Min('time_from'))['time_from__min']
-        latest = entries.aggregate(Max('time_to'))['time_to__max']
-        combined_description = "\n".join(f"• {entry.task_description.strip()}" for entry in entries)
+        # Gather all slots from all those timesheets
+        all_slots = TimeSlot.objects.filter(timesheet__in=timesheets_with_project, project=project)
 
-        # Keep the first entry, delete others
-        primary = entries.first()
-        entries.exclude(id=primary.id).delete()
+        earliest = all_slots.aggregate(Min('time_from'))['time_from__min']
+        latest = all_slots.aggregate(Max('time_to'))['time_to__max']
+        combined_description = "\n".join(f"• {slot.description.strip()}" for slot in all_slots if slot.description)
 
+        # Keep the first timesheet, delete others
+        primary = timesheets_with_project.first()
+        timesheets_with_project.exclude(id=primary.id).delete()
+
+        # Update the primary timesheet
         primary.time_from = earliest
         primary.time_to = latest
         primary.task_description = combined_description
         primary.save()
-
-#from .utils import get_current_slot, get_timesheet_calendar_data
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -139,87 +194,51 @@ def merge_timesheets_for_employee(employee, project, date):
 @login_required
 def my_timesheets(request):
     employee = request.user.employeeprofile
+    assigned_projects = Project.objects.filter(taskassignment__employee=employee).distinct()
+
     today = timezone.now().date()
     year = int(request.GET.get('year', today.year))
     month = int(request.GET.get('month', today.month))
 
-    # Get detailed day status map
+    # Calendar setup
     day_status_map = get_timesheet_calendar_data(employee, year, month)
-
-    # Generate styled calendar
     calendar = StyledCalendar(day_status_map)
     styled_calendar_html = calendar.formatmonth(year, month)
-
-    # Default timeslot
     default_from, default_to = get_current_slot()
 
-    if request.method == 'POST':
-        form = TimesheetForm(request.POST, employee=employee)
-        if form.is_valid():
-            entry = form.save(commit=False)
-            entry.employee = employee
+    # Initialize variables
+    show_slots = False
+    time_slots = []
+    total_hours = 0.0
 
-            # Additional server-side future date check
-            if entry.date > today:
-                form.add_error('date', "Cannot submit timesheets for future dates")
-            elif Attendance.objects.filter(employee=employee, date=entry.date, status='Absent').exists():
-                form.add_error(None, f"You were marked absent on {entry.date}. Timesheet cannot be submitted.")
-            else:
-                if entry.is_billable is None:
-                    entry.is_billable = False
+    # Form initialization - simplified
+    form = TimesheetForm(
+        employee=employee,
+        initial={'date': today, 'shift_start': default_from, 'shift_end': default_to}
+    )
 
-                try:
-                    entry.full_clean()
-                    entry.save()
-
-                    da_amount, currency = calculate_da(entry)
-                    if da_amount:
-                        DailyAllowance.objects.update_or_create(
-                            timesheet=entry,
-                            defaults={
-                                'employee': employee,
-                                'project': entry.project,
-                                'date': entry.date,
-                                'da_amount': da_amount,
-                                'currency': currency or 'INR',
-                                'forwarded_to_accountant': False,
-                                'approved': False,
-                                'is_extended': False,
-                            }
-                        )
-
-                    messages.success(request, "Timesheet submitted successfully.")
-                    return redirect('timesheet:my-timesheets')
-                except ValidationError as e:
-                    form.add_error(None, e.message_dict.get('__all__', ['Invalid submission'])[0])
-    else:
-        form = TimesheetForm(
-            employee=employee,
-            initial={
-                'date': today,
-                'time_from': default_from,
-                'time_to': default_to,
-            }
-        )
-
-    timesheets = Timesheet.objects.filter(employee=employee).order_by('-date', 'time_from')
+    # Get timesheet entries for accordion
+    timesheets = Timesheet.objects.filter(employee=employee).order_by('-date').prefetch_related(
+        Prefetch('time_slots', queryset=TimeSlot.objects.select_related('project', 'task'))
+    )
+    
+    # Group by week
     weekly_grouped = defaultdict(list)
     for entry in timesheets:
         week_num = entry.date.isocalendar()[1]
         week_year = entry.date.year
-        label = f"Week {week_num}, {week_year}"
-        weekly_grouped[label].append(entry)
-
+        weekly_grouped[f"Week {week_num}, {week_year}"].append(entry)
+    
     return render(request, 'timesheet/my_timesheets.html', {
         'form': form,
         'weekly_grouped': dict(weekly_grouped),
         'styled_calendar_html': styled_calendar_html,
         'calendar_year': year,
         'calendar_month': month,
+        'assigned_projects': assigned_projects,
+        'employee_id': employee.id
+        
     })
-
-# ... [Keep all other existing view functions unchanged] ...
-
 
 
 
@@ -262,51 +281,28 @@ def edit_timesheet(request, pk):
         'form': form,
         'timesheet': timesheet
     })
-
- 
-    
     
 @login_required
 def delete_timesheet(request, timesheet_id):
-    """
-    Handles deletion of timesheet entries with proper validation and error handling
-    Args:
-        request: HttpRequest object
-        timesheet_id: ID of the timesheet to delete
-    Returns:
-        Redirect to my-timesheets view with appropriate message
-    """
     try:
-        # Get the timesheet or return 404
         timesheet = get_object_or_404(
             Timesheet,
             id=timesheet_id,
-            employee=request.user.employeeprofile  # Ensure user owns the timesheet
+            employee=request.user.employeeprofile
         )
 
-        # Check if timesheet is approved
         if timesheet.status == 'Approved':
             messages.error(request, "Cannot delete an approved timesheet.")
             return redirect('timesheet:my-timesheets')
 
-        # Check if timesheet is locked
         if timesheet.is_locked:
             messages.error(request, "Cannot delete a locked timesheet.")
             return redirect('timesheet:my-timesheets')
 
-        # Check if timesheet is pending approval
-        if timesheet.status == 'Pending':
-            # Optional: Add notification to manager about cancellation
-            pass
-
-        # All checks passed - delete the timesheet
         with transaction.atomic():
-            # Delete any related records first if needed
             DailyAllowance.objects.filter(timesheet=timesheet).delete()
             timesheet.delete()
-            
         messages.success(request, "Timesheet deleted successfully.")
-        
     except PermissionDenied:
         messages.error(request, "You don't have permission to delete this timesheet.")
     except Exception as e:
@@ -314,7 +310,6 @@ def delete_timesheet(request, timesheet_id):
         messages.error(request, "An error occurred while deleting the timesheet.")
 
     return redirect('timesheet:my-timesheets')    
-
 
 @login_required
 def apply_c_off(request):
@@ -336,5 +331,75 @@ def apply_c_off(request):
         form = CompOffApplicationForm()
 
     return render(request, 'timesheet/apply_c_off.html', {'form': form, 'balance': balance})
-
-
+    
+@login_required
+def submit_timesheet(request):
+    if request.method == 'POST':
+        employee = request.user.employeeprofile
+        
+        try:
+            with transaction.atomic():
+                # Create base timesheet entry
+                timesheet = Timesheet.objects.create(
+                    employee=employee,
+                    date=request.POST.get('date'),
+                    shift_start=request.POST.get('shift_start'),
+                    shift_end=request.POST.get('shift_end'),
+                    is_billable='is_billable' in request.POST
+                )
+                
+                # Process time slots
+                slot_count = int(request.POST.get('slot_count', 0))
+                total_hours = 0.0
+                
+                for i in range(1, slot_count + 1):
+                    project_id = request.POST.get(f'slot_project_{i}')
+                    task_id = request.POST.get(f'slot_task_{i}')
+                    description = request.POST.get(f'slot_description_{i}')
+                    time_from = request.POST.get(f'slot_from_{i}')
+                    time_to = request.POST.get(f'slot_to_{i}')
+                    
+                    if not all([project_id, time_from, time_to]):
+                        continue
+                        
+                    hours = calculate_slot_hours(time_from, time_to)
+                    total_hours += hours
+                    
+                    # Handle date for overnight shifts
+                    date = datetime.strptime(request.POST.get('date'), '%Y-%m-%d').date()
+                    from_dt = datetime.combine(date, datetime.strptime(time_from, '%H:%M').time())
+                    to_dt = datetime.combine(date, datetime.strptime(time_to, '%H:%M').time())
+                    
+                    if to_dt < from_dt:
+                        to_dt += timedelta(days=1)
+                    
+                    slot_date = from_dt.date()
+                    
+                    # Create time slot
+                    TimeSlot.objects.create(
+                        timesheet=timesheet,
+                        time_from=time_from,
+                        time_to=time_to,
+                        hours=hours,
+                        slot_date=slot_date,
+                        project_id=project_id,
+                        task_id=task_id or None,
+                        description=description
+                    )
+                
+                # Update total hours
+                timesheet.total_hours = total_hours
+                timesheet.save()
+                
+                # Process for approval
+                process_timesheet_save(timesheet)
+                
+                messages.success(request, "Timesheet submitted successfully!")
+                return redirect('timesheet:my-timesheets')
+                
+        except Exception as e:
+            logger.error(f"Error saving timesheet: {str(e)}")
+            messages.error(request, f"Error saving timesheet: {str(e)}")
+            return redirect('timesheet:my-timesheets')
+    
+    return redirect('timesheet:my-timesheets')    

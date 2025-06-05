@@ -1,66 +1,112 @@
-# timesheet/services/timesheet_service.py
-
-from datetime import datetime
-from employee.models import AuditLog, LeaveBalance
-from timesheet.models import Attendance
+from datetime import datetime, timedelta
+from django.core.exceptions import ValidationError
+from employee.models import AuditLog
+from timesheet.models import Attendance, TimeSlot
 from project.services.da_service import calculate_da
-
-
+import logging
+logger = logging.getLogger(__name__)
 def calculate_total_hours(timesheet):
-    """Compute total hours worked from time_from and time_to."""
-    start = datetime.combine(timesheet.date, timesheet.time_from)
-    end = datetime.combine(timesheet.date, timesheet.time_to)
-    return (end - start).total_seconds() / 3600
+    """Calculate total hours from all time slots"""
+    if hasattr(timesheet, 'time_slots') and timesheet.time_slots.exists():
+        total_hours = sum(float(slot.hours) for slot in timesheet.time_slots.all())
+    else:
+        raise ValidationError("No time slots provided")
 
+    if total_hours <= 0:
+        raise ValidationError("Invalid time duration - must be positive")
+    if total_hours > 24:
+        raise ValidationError("Shift duration cannot exceed 24 hours")
+
+    return round(total_hours, 2)
 
 def update_attendance(timesheet, total_hours):
-    """Update attendance and comp-off for office-based entries."""
+    """Update attendance for the start date only"""
     is_weekend = timesheet.date.weekday() >= 5
-    status = 'Absent'
-    comp_off = 0
+    attendance_date = timesheet.date  # Always use start date
 
+    # Adjust attendance logic based on total hours
     if total_hours >= 8:
         status = 'Present'
     elif total_hours >= 4:
         status = 'Half Day' if not is_weekend else 'Present'
-        comp_off = 1 if is_weekend else 0
     else:
         status = 'Absent' if not is_weekend else 'Half Day'
-        comp_off = 0.5 if is_weekend else 0
 
     Attendance.objects.update_or_create(
         employee=timesheet.employee,
-        date=timesheet.date,
+        date=attendance_date,
         defaults={'status': status}
     )
 
-    if comp_off > 0:
-        leave_balance, _ = LeaveBalance.objects.get_or_create(employee=timesheet.employee)
-        leave_balance.c_off += comp_off
-        leave_balance.save()
-
-
 def log_audit(timesheet):
     """Log audit entry for submitted timesheet."""
+    project_names = ", ".join(
+        {slot.project.name for slot in timesheet.time_slots.all()}
+    )
     AuditLog.objects.create(
         user=timesheet.employee.user,
         action="Timesheet Submitted",
-        details=f"Timesheet for {timesheet.project.name} on {timesheet.date}"
+        details=f"Timesheet for {project_names} on {timesheet.date}"
     )
 
+# timesheet/services/timesheet_service.py
+# ... existing imports ...
+
+# timesheet/services/timesheet_service.py
+
+# timesheet/services/timesheet_service.py
+
+# timesheet/services/timesheet_service.py
+# ... existing imports ...
 
 def process_timesheet_save(timesheet):
     """Core business logic for timesheet saving."""
-    total_hours = calculate_total_hours(timesheet)
-    timesheet.total_hours = total_hours  # Optional: if total_hours is stored
+    try:
+        total_hours = calculate_total_hours(timesheet)
+        timesheet.total_hours = total_hours
+        timesheet.save()
 
-    # Calculate and assign DA
-    da_amount, da_currency = calculate_da(timesheet)
-    timesheet.daily_allowance_amount = da_amount
-    timesheet.daily_allowance_currency = da_currency
+        # Get time slots through the correct relation
+        slots = list(timesheet.time_slots.all())
 
-    # Only update attendance for office entries
-    if getattr(timesheet.project, 'location', '') == 'Office':
-        update_attendance(timesheet, total_hours)
+        # Ensure slot_date is recorded
+        for slot in slots:
+            if not slot.slot_date:
+                slot.slot_date = timesheet.date
+                slot.save(update_fields=['slot_date'])
 
-    log_audit(timesheet)
+        # Calculate DA with error handling
+        if slots:
+            try:
+                first_slot = slots[0]
+                da_amount, da_currency = calculate_da(first_slot)
+                timesheet.daily_allowance_amount = da_amount
+                timesheet.daily_allowance_currency = da_currency
+                timesheet.save()
+            except Exception as da_error:
+                logger.error(f"DA calculation error: {da_error}")
+
+        # Check for office slots using safe access
+        has_office_slot = False
+        for slot in slots:
+            try:
+                if (slot.project and 
+                    slot.project.location_type and 
+                    slot.project.location_type.name == 'Office'):
+                    has_office_slot = True
+                    break
+            except Exception as e:
+                logger.error(f"Error checking office slot: {e}")
+        
+        if has_office_slot:
+            try:
+                update_attendance(timesheet, total_hours)
+            except Exception as att_error:
+                logger.error(f"Attendance update error: {att_error}")
+
+        log_audit(timesheet)
+        
+    except Exception as e:
+        logger.exception("Critical error in process_timesheet_save")
+        raise ValidationError(f"System error: {e}")
+

@@ -1,5 +1,5 @@
 from datetime import time, datetime
-
+from datetime import datetime
 # Time slot definitions (you may move this to utils.py if preferred)
 TIME_SLOTS = [
     (time(9, 0), time(11, 0)),
@@ -16,6 +16,14 @@ def get_current_slot():
         if start <= now <= end:
             return start, end
     return time(9, 0), time(11, 0)  # default fallback
+    
+
+
+def get_slot_date(timesheet_date, from_time):
+    """Returns the real calendar date for the slot start."""
+    from_dt = datetime.combine(timesheet_date, from_time)
+    return from_dt.date()
+    
 
 
 def merge_timesheet_entries(entries):

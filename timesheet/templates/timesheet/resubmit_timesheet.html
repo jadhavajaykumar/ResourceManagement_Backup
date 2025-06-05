@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block content %}
+<div class="container py-4">
+    <h2>Resubmit Rejected Timesheet</h2>
+    
+    <div class="alert alert-info">
+        <h5>Manager's Remark:</h5>
+        <p>{{ original_entry.manager_remark }}</p>
+        <p class="mt-2"><strong>Please correct the following entry:</strong></p>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {% for error in form.non_field_errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="row g-3">
+            <!-- Form fields same as before -->
+            <div class="col-md-4">
+                <label class="form-label">Project</label>
+                {{ form.project|add_class:"form-select" }}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Task</label>
+                {{ form.task|add_class:"form-select" }}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Date</label>
+                {{ form.date|add_class:"form-control" }}
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Time From</label>
+                {{ form.time_from|add_class:"form-control" }}
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Time To</label>
+                {{ form.time_to|add_class:"form-control" }}
+            </div>
+            <div class="col-md-12">
+                <label class="form-label">Description</label>
+                {{ form.task_description|add_class:"form-control" }}
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-send-check"></i> Resubmit for Approval
+            </button>
+            <a href="{% url 'timesheet:my-timesheets' %}" class="btn btn-secondary">
+                <i class="bi bi-x-circle"></i> Cancel
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Disable future dates in date picker
+    const dateField = document.getElementById('id_date');
+    if (dateField) {
+        const today = new Date().toISOString().split('T')[0];
+        dateField.setAttribute('max', today);
+        
+        dateField.addEventListener('change', function() {
+            if (this.value > today) {
+                alert('You cannot select future dates');
+                this.value = today;
+            }
+        });
+    }
+
+    // Time validation
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const timeFrom = document.getElementById('id_time_from').value;
+            const timeTo = document.getElementById('id_time_to').value;
+            
+            if (timeFrom && timeTo && timeFrom >= timeTo) {
+                alert('End time must be after start time');
+                e.preventDefault();
+            }
+        });
+    }
+    
+    // Project-task dynamic loading
+    const projectSelect = document.getElementById('id_project');
+    const taskSelect = document.getElementById('id_task');
+
+    if (projectSelect && taskSelect) {
+        projectSelect.addEventListener('change', function() {
+            const projectId = this.value;
+            fetch(`/api/get-tasks-by-project/?project_id=${projectId}`)
+                .then(response => response.json())
+                .then(data => {
+                    taskSelect.innerHTML = '';
+                    if (data.tasks && data.tasks.length > 0) {
+                        data.tasks.forEach(task => {
+                            const option = document.createElement('option');
+                            option.value = task.id;
+                            option.text = task.name;
+                            taskSelect.appendChild(option);
+                        });
+                    } else {
+                        const option = document.createElement('option');
+                        option.text = 'No tasks available';
+                        taskSelect.appendChild(option);
+                    }
+                });
+        });
+    }
+});
+</script>
+{% endblock %}

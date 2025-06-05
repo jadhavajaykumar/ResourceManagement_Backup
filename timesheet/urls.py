@@ -17,5 +17,7 @@ urlpatterns = [
     path('c-off/', my_c_offs, name='my-c-offs'),
     path('apply-c-off/', apply_c_off, name='apply-c-off'),
     path('comp-off-approvals/', views.comp_off_approval_view, name='comp-off-approvals'),
-
+    path('resubmit-timesheet/<int:pk>/', views.resubmit_timesheet, name='resubmit-timesheet'),
+    path('generate-timeslots/', views.generate_timeslots, name='generate-timeslots'),
+    path('submit-timesheet/', views.submit_timesheet, name='submit-timesheet'),
 ]

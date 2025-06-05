@@ -1,55 +1,76 @@
 {% extends 'base.html' %}
-{% block title %}Timesheet Approvals{% endblock %}
-{% block content %}
-<h2 class="mb-4 text-primary">Timesheet Approval Dashboard</h2>
+{% load static %}
 
-{% if timesheets %}
-<table class="table table-striped">
-  <thead class="table-dark">
-    <tr>
-      <th>Employee</th>
-      <th>Project</th>
-      <th>Task</th>
-      <th>Date</th>
-      <th>Time</th>
-      <th>Description</th>
-      <th>Action</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for t in timesheets %}
-    <tr>
-      <td>{{ t.employee.user.get_full_name }}</td>
-      <td>{{ t.project.name }}</td>
-      <td>{{ t.task.name }}</td>
-      <td>{{ t.date }}</td>
-      <td>{{ t.time_from }} – {{ t.time_to }}</td>
-      <td>{{ t.task_description }}</td>
-      <td>
-        <form method="post" action="{% url 'manager:handle-timesheet-action' t.id 'approve' %}" class="mb-2">
-          {% csrf_token %}
-          <textarea name="manager_remark" class="form-control mb-1" placeholder="Manager remark" required></textarea>
-          <button class="btn btn-success btn-sm w-100">Approve</button>
-        </form>
-        <form method="post" action="{% url 'manager:handle-timesheet-action' t.id 'reject' %}">
-          {% csrf_token %}
-          <input type="hidden" name="manager_remark" value="Rejected by manager.">
-          <button class="btn btn-danger btn-sm w-100">Reject</button>
-        </form>
-		<form method="POST" action="{% url 'manager:mark-absent' %}" style="display:inline;">
-		  {% csrf_token %}
-		  <input type="hidden" name="employee_id" value="{{ ts.employee.id }}">
-		  <input type="hidden" name="date" value="{{ ts.date }}">
-		  <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Mark this employee absent for this date?');">
-			Mark Absent
-		  </button>
-		</form>
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-{% else %}
-<div class="alert alert-info">No pending timesheets to approve.</div>
-{% endif %}
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4">Timesheet Approvals</h2>
+    
+    {% if messages %}
+    <div class="mb-4">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="timesheetTable">
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th>Date</th>
+                            <th>Project</th>
+                            <th>Time</th>
+                            <th>Description</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for timesheet in timesheets %}
+                        <tr>
+                            <td>{{ timesheet.employee.user.get_full_name }}</td>
+                            <td>{{ timesheet.date|date:"M d, Y" }}</td>
+                            <td>{{ timesheet.project.name }}</td>
+                            <td>{{ timesheet.time_from|time:"H:i" }} - {{ timesheet.time_to|time:"H:i" }}</td>
+                            <td>{{ timesheet.task_description|truncatechars:50 }}</td>
+                            <td>
+                                <span class="badge bg-{% if timesheet.status == 'Approved' %}success{% elif timesheet.status == 'Pending' %}warning{% else %}danger{% endif %}">
+                                    {{ timesheet.status }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if timesheet.status == 'Pending' %}
+                                <div class="d-flex gap-2">
+                                    <form method="post" action="{% url 'manager:handle-timesheet-action' timesheet.id 'approve' %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <div class="input-group mb-2">
+                                            <input type="text" class="form-control form-control-sm" name="manager_remark" placeholder="Remark" required>
+                                            <button type="submit" class="btn btn-sm btn-success">Approve</button>
+                                        </div>
+                                    </form>
+                                    <form method="post" action="{% url 'manager:handle-timesheet-action' timesheet.id 'reject' %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <div class="input-group mb-2">
+                                            <input type="text" class="form-control form-control-sm" name="manager_remark" placeholder="Remark" required>
+                                            <button type="submit" class="btn btn-sm btn-danger">Reject</button>
+                                        </div>
+                                    </form>
+                                </div>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center">No pending timesheets for approval</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
