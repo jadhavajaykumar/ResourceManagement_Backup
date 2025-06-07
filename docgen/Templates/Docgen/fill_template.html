@@ -1,6 +1,5 @@
 {% extends 'base.html' %}
 {% load static %}
-{% load docgen_filters %}
 {% block content %}
 <div class="container mt-5">
     <h2 class="mb-4">Fill Template: {{ template.name }}</h2>
@@ -15,32 +14,30 @@
                 </div>
             {% endfor %}
 
-            <!-- Excel specific fields (static inputs) -->
-            <hr>
-            <h5>Excel Table Inputs (Will update the linked Excel inside the Word)</h5>
-			<div class="mb-3 col-md-6">
-                <label class="form-label" for="Old_Gross">Old Gross Salary</label>
-                <input type="number" class="form-control" name="Old_Gross" id="Old_Gross" required>
-            </div>
-            <div class="mb-3 col-md-6">
-                <label class="form-label" for="New_Gross">New Gross Salary</label>
-                <input type="number" class="form-control" name="New_Gross" id="New_Gross" required>
-            </div>
-			<div class="mb-3 col-md-6">
-                <label class="form-label" for="Emp_Id">Employee ID</label>
-                <input type="text" class="form-control" name="Emp_Id" id="Emp_Id" required>
-            </div>
-			
-			<div class="mb-3 col-md-6">
-                <label class="form-label" for="Emp_Name">Employee Name</label>
-                <input type="text" class="form-control" name="Emp_Name" id="Emp_Name" required>
-            </div>
-			<div class="mb-3 col-md-6">
-                <label class="form-label" for="Emp_Grade">Employee Grade</label>
-                <input type="text" class="form-control" name="Emp_Grade" id="Emp_Grade" required>
-            </div>
-			
-            
+            {% if needs_excel %}
+                <hr>
+                <h5>Excel Table Inputs (Will update the linked Excel inside the Word)</h5>
+                <div class="mb-3 col-md-6">
+                    <label class="form-label" for="Old_Gross">Old Gross Salary</label>
+                    <input type="number" class="form-control" name="Old_Gross" id="Old_Gross" required>
+                </div>
+                <div class="mb-3 col-md-6">
+                    <label class="form-label" for="New_Gross">New Gross Salary</label>
+                    <input type="number" class="form-control" name="New_Gross" id="New_Gross" required>
+                </div>
+                <div class="mb-3 col-md-6">
+                    <label class="form-label" for="Emp_Id">Employee ID</label>
+                    <input type="text" class="form-control" name="Emp_Id" id="Emp_Id" required>
+                </div>
+                <div class="mb-3 col-md-6">
+                    <label class="form-label" for="Emp_Name">Employee Name</label>
+                    <input type="text" class="form-control" name="Emp_Name" id="Emp_Name" required>
+                </div>
+                <div class="mb-3 col-md-6">
+                    <label class="form-label" for="Emp_Grade">Employee Grade</label>
+                    <input type="text" class="form-control" name="Emp_Grade" id="Emp_Grade" required>
+                </div>
+            {% endif %}
         </div>
 
         <button type="submit" class="btn btn-primary">Fill & Generate</button>
@@ -48,5 +45,4 @@
     </form>
 </div>
 <a href="{% url 'manager:manager-dashboard' %}" class="btn btn-secondary mt-3">Back to Dashboard</a>
-
 {% endblock %}

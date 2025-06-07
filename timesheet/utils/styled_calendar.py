@@ -14,6 +14,7 @@ class StyledCalendar(HTMLCalendar):
         day_data = self.status_map.get(dt, {})
         status = day_data.get('status', 'no_entry')
         hours = day_data.get('hours', '')
+        da = day_data.get('da', None)
 
         css_class = {
             'approved': 'bg-success text-white',
@@ -26,14 +27,19 @@ class StyledCalendar(HTMLCalendar):
             'no_entry': 'bg-light text-muted',
         }.get(status, 'bg-light')
 
-        hours_badge = f'<div class="badge bg-dark text-white mt-1">{hours}</div>' if hours else ''
+        hours_badge = f'<div class="badge bg-dark text-white mt-1">{hours} hrs</div>' if hours else ''
+        currency_symbol = '₹' if str(da).isnumeric() else ''
+        da_badge = f'<div class="badge bg-secondary text-white mt-1">DA: {currency_symbol}{da}</div>' if da else ''
+
         
+
         return f'''
         <td class="calendar-day {css_class}">
             <div class="d-flex flex-column">
                 <strong>{day}</strong>
                 <small class="text-capitalize">{status.replace("_", " ")}</small>
                 {hours_badge}
+                {da_badge}
             </div>
         </td>
         '''
@@ -53,7 +59,7 @@ class StyledCalendar(HTMLCalendar):
             .calendar-day {{
                 padding: 8px;
                 border-radius: 8px;
-                min-height: 80px;
+                min-height: 90px;
                 font-size: 0.85rem;
                 vertical-align: top;
             }}

@@ -9,25 +9,41 @@ from accounts.utils import get_dashboard_redirect_url
 
 logger = logging.getLogger(__name__)
 
+
+
+
 def custom_login(request):
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
+
+        logger.info(f"Login attempt for: {username}")
         user = authenticate(request, username=username, password=password)
-        
+
         if user is not None:
+            if not user.is_active:
+                messages.error(request, "Your account is inactive.")
+                logger.warning(f"Inactive account login attempt: {username}")
+                return render(request, 'accounts/login.html')
+
             login(request, user)
-            
-            # Ensure profile exists
-            from employee.models import EmployeeProfile
-            EmployeeProfile.objects.get_or_create(
-                user=user,
-                defaults={'role': 'Manager' if user.is_staff else 'Employee'}
-            )
-            
+
+            # Ensure profile exists and update role if necessary
+            profile, created = EmployeeProfile.objects.get_or_create(user=user)
+            if created or (user.is_staff and profile.role != 'Manager'):
+                profile.role = 'Manager' if user.is_staff else 'Employee'
+                profile.save()
+
+            logger.info(f"User '{user.username}' logged in with role '{profile.role}'")
             return redirect(get_dashboard_redirect_url(user))
-            
+        else:
+            logger.warning(f"Authentication failed for user: {username}")
+            messages.error(request, "Invalid username or password.")
+
     return render(request, 'accounts/login.html')
+
+
+    
 
 
 @login_required

@@ -8,7 +8,6 @@ from django.contrib import messages
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 from datetime import datetime, time, timedelta, date
-from .forms import TimesheetForm
 from employee.models import EmployeeProfile
 from project.models import Project, Task
 from expenses.models import DailyAllowance
@@ -37,9 +36,10 @@ from employee.models import AuditLog
 from .services.timesheet_service import process_timesheet_save
 import json
 import math
-from django.contrib import messages
+from django.forms import modelformset_factory
 from datetime import datetime, timedelta, date as date_class, time as time_class
 from django.http import JsonResponse  # if not already imported
+from .forms import TimesheetForm, TimeSlotForm
 
 @login_required
 def generate_timeslots(request):
@@ -79,32 +79,55 @@ def generate_timeslots(request):
 
 
 
+
 @login_required
 def resubmit_timesheet(request, pk):
     employee = request.user.employeeprofile
     timesheet = get_object_or_404(Timesheet, id=pk, employee=employee)
-    
+
     if timesheet.status != 'Rejected':
         messages.error(request, "Only rejected timesheets can be resubmitted.")
         return redirect('timesheet:my-timesheets')
 
+    TimeSlotFormSet = modelformset_factory(
+        TimeSlot,
+        form=TimeSlotForm,
+        extra=0,
+        can_delete=True
+    )
+
     if request.method == 'POST':
         form = TimesheetForm(request.POST, instance=timesheet, employee=employee)
-        if form.is_valid():
+        formset = TimeSlotFormSet(request.POST, queryset=timesheet.time_slots.all(), form_kwargs={'employee': employee})
+
+        if form.is_valid() and formset.is_valid():
             updated_entry = form.save(commit=False)
             updated_entry.status = 'Pending'
             updated_entry.manager_remark = ''
             updated_entry.save()
-            
+
+            time_slots = formset.save(commit=False)
+            for slot in time_slots:
+                slot.timesheet = updated_entry
+                slot.save()
+
+            for deleted_form in formset.deleted_objects:
+                deleted_form.delete()
+
             messages.success(request, "Timesheet resubmitted for approval.")
             return redirect('timesheet:my-timesheets')
+        else:
+            print("Form or formset invalid")
     else:
         form = TimesheetForm(instance=timesheet, employee=employee)
+        formset = TimeSlotFormSet(queryset=timesheet.time_slots.all(), form_kwargs={'employee': employee})
 
     return render(request, 'timesheet/resubmit_timesheet.html', {
         'form': form,
+        'formset': formset,
         'original_entry': timesheet
     })
+
 
 @login_required 
 def comp_off_approval_view(request):
@@ -254,6 +277,8 @@ def export_timesheets_csv(request):
     timesheets = Timesheet.objects.filter(employee=employee).order_by('-date')
     return export_timesheets_to_csv(timesheets)
 
+
+
 @login_required
 def edit_timesheet(request, pk):
     employee = request.user.employeeprofile
@@ -263,24 +288,55 @@ def edit_timesheet(request, pk):
         messages.error(request, "You cannot edit an approved timesheet.")
         return redirect('timesheet:my-timesheets')
 
+    TimeSlotFormSet = modelformset_factory(TimeSlot, form=TimeSlotForm, extra=0, can_delete=True)
+
     if request.method == 'POST':
         form = TimesheetForm(request.POST, instance=timesheet, employee=employee)
-        if form.is_valid():
+        formset = TimeSlotFormSet(request.POST, queryset=timesheet.time_slots.all(),
+                                  form_kwargs={'employee': employee})
+
+        if form.is_valid() and formset.is_valid():
             try:
-                updated_entry = form.save(commit=False)
-                updated_entry.full_clean()
-                updated_entry.save()
-                messages.success(request, "Timesheet updated.")
-                return redirect('timesheet:my-timesheets')
+                with transaction.atomic():
+                    timesheet = form.save(commit=False)
+                    if timesheet.status == 'Rejected':
+                        timesheet.status = 'Pending'
+                    timesheet.full_clean()
+                    timesheet.save()
+
+                    time_slots = formset.save(commit=False)
+                    for slot in time_slots:
+                        slot.timesheet = timesheet
+                        slot.employee = employee
+                        slot.save()
+
+                    for deleted in formset.deleted_objects:
+                        deleted.delete()
+
+                    messages.success(request, "Timesheet and time slots updated successfully.")
+                    return redirect('timesheet:my-timesheets')
             except ValidationError as e:
                 form.add_error(None, e.message_dict.get('__all__', ['Invalid submission'])[0])
+        else:
+            # 🔴 Add debug print or logging
+            print("Form valid:", form.is_valid())
+            print("Formset valid:", formset.is_valid())
+            print("Form errors:", form.errors)
+            print("Formset errors:", formset.errors)
+
+            messages.error(request, "Please correct the errors below.")
+
+
     else:
         form = TimesheetForm(instance=timesheet, employee=employee)
+        formset = TimeSlotFormSet(queryset=timesheet.time_slots.all(), form_kwargs={'employee': employee})
 
     return render(request, 'timesheet/edit_timesheet.html', {
         'form': form,
+        'formset': formset,
         'timesheet': timesheet
     })
+
     
 @login_required
 def delete_timesheet(request, timesheet_id):

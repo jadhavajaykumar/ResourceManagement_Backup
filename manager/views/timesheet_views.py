@@ -6,31 +6,18 @@ from django.db.models import Q
 from django.template.loader import render_to_string
 from django.http import HttpResponse
 from decimal import Decimal
-
 from employee.models import EmployeeProfile
 from project.models import Project
 from accounts.access_control import is_manager_or_admin, is_manager
-
 # Import C-off models
 from timesheet.models import CompOffApplication, CompOffBalance
-
 from datetime import datetime, timedelta
-
 from django.db.models import Q
-
-
-
 from django.core.exceptions import ValidationError
-
-
 import logging
-
 from timesheet.models import Timesheet, CompOffBalance, Attendance
 #from manager.decorators import is_manager
-
-
 from django.http import HttpResponseForbidden
-
 # Set up logging
 logger = logging.getLogger(__name__)
 
@@ -68,9 +55,11 @@ def filtered_timesheet_approvals(request):
 @login_required
 @user_passes_test(is_manager)
 def timesheet_approval_dashboard(request):
-    timesheets = Timesheet.objects.select_related('employee__user', 'project', 'task') \
-                                  .filter(status='Pending') \
-                                  .order_by('-date', 'time_from')
+    #timesheets = Timesheet.objects.select_related('employee__user', 'project', 'task') \
+                                 # .filter(status='Pending') \
+                                 # .order_by('-date', 'shift_start')
+    timesheets = Timesheet.objects.select_related('employee').prefetch_related('time_slots').order_by('-date', 'shift_start')
+                              
     return render(request, 'manager/timesheet_approval_dashboard.html', {'timesheets': timesheets})
 
 
@@ -81,9 +70,6 @@ def timesheet_approvals(request):
         return HttpResponse(html_snippet)
     context = {'timesheets': pending_ts, 'current_page': 'timesheets'}
     return render(request, 'manager/timesheet_approvals.html', context)
-
-
-
 
 @login_required
 @user_passes_test(is_manager)

@@ -87,7 +87,15 @@
 {% endblock %}
 
 {% block scripts %}
+
+
 <script>
+  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+  const ajaxLoadTasksUrl = "{% url 'manager:ajax-load-tasks' %}";
+</script>
+
+<script>
+const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 document.addEventListener("DOMContentLoaded", function () {
   const projectSelect = document.getElementById("id_project");
   const taskSelect = document.getElementById("id_task");
@@ -121,7 +129,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
   projectSelect.addEventListener("change", function () {
     const projectId = this.value;
-    const url = "{% url 'manager:ajax-load-tasks' %}?project=" + projectId;
+    //const url = "{% url 'manager:ajax-load-tasks' %}?project=" + projectId;
+	const url = `${ajaxLoadTasksUrl}?project=${projectId}`;
+
     fetch(url)
       .then(res => res.json())
       .then(data => {
@@ -142,7 +152,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
     fetch("{% url 'manager:assign-task' %}", {
       method: "POST",
-      headers: {'X-CSRFToken': '{{ csrf_token }}'},
+     // headers: {'X-CSRFToken': '{{ csrf_token }}'},
+	  headers: { 'X-CSRFToken': csrfToken }
+
       body: formData
     })
     .then(res => res.json())
@@ -165,7 +177,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
       fetch("{% url 'manager:assign-task' %}", {
         method: "POST",
-        headers: {'X-CSRFToken': '{{ csrf_token }}'},
+       // headers: {'X-CSRFToken': '{{ csrf_token }}'},
+		headers: { 'X-CSRFToken': csrfToken }
         body: formData
       })
       .then(res => res.json())

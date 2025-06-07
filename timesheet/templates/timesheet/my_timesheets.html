@@ -105,63 +105,79 @@
     </div>
 
     {% if weekly_grouped %}
-    <div class="card">
-        <div class="card-header bg-primary text-white">My Timesheet Entries</div>
-        <div class="card-body">
-            <div class="accordion" id="accordionTimesheets">
-                {% for week_label, entries in weekly_grouped.items %}
-                <div class="accordion-item">
-                    <h2 class="accordion-header">
-                        <button class="accordion-button collapsed" data-bs-toggle="collapse" data-bs-target="#collapse-{{ forloop.counter }}">
-                            {{ week_label }} — {{ entries|length }} Entries
-                        </button>
-                    </h2>
-                    <div id="collapse-{{ forloop.counter }}" class="accordion-collapse collapse" data-bs-parent="#accordionTimesheets">
-                        <div class="accordion-body p-0">
-                            <table class="table table-striped mb-0">
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Shift</th>
-                                        <th>Hours</th>
-                                        <th>Projects</th>
-                                        <th>Status</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for entry in entries %}
-                                    <tr>
-                                        <td>{{ entry.date|date:"M d, Y" }}</td>
-                                        <td>{{ entry.shift_start|time:"H:i" }}–{{ entry.shift_end|time:"H:i" }}</td>
-                                        <td>{{ entry.total_hours|floatformat:2 }} hrs</td>
-                                        <td>
-                                            {% for slot in entry.time_slots.all %}
-                                                {{ slot.project.name }}{% if not forloop.last %}, {% endif %}
-                                            {% endfor %}
-                                        </td>
-                                        <td>
-                                            <span class="badge {% if entry.status == 'Approved' %}bg-success{% elif entry.status == 'Rejected' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
-                                                {{ entry.status }}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            {% if entry.status == 'Rejected' %}
-                                                <a href="{% url 'timesheet:resubmit-timesheet' entry.id %}" class="btn btn-sm btn-primary">Resubmit</a>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
+	<div class="card">
+		<div class="card-header bg-primary text-white">My Timesheet Entries</div>
+		<div class="card-body">
+			<div class="accordion" id="accordionTimesheets">
+				{% for week_label, entries in weekly_grouped.items %}
+				<div class="accordion-item">
+					<h2 class="accordion-header">
+						<button class="accordion-button collapsed" data-bs-toggle="collapse" data-bs-target="#collapse-{{ forloop.counter }}">
+							{{ week_label }} — {{ entries|length }} Entries
+						</button>
+					</h2>
+					<div id="collapse-{{ forloop.counter }}" class="accordion-collapse collapse" data-bs-parent="#accordionTimesheets">
+						<div class="accordion-body p-0">
+							<table class="table table-striped mb-0">
+								<thead>
+									<tr>
+										<th>Date</th>
+										<th>Shift</th>
+										<th>Hours</th>
+										<th>Project</th>
+										<th>Task</th>
+										<th>Description</th>
+										<th>Status</th>
+										<th>Actions</th>
+									</tr>
+								</thead>
+								<tbody>
+									{% for entry in entries %}
+										{% for slot in entry.time_slots.all %}
+											<tr>
+												{% if forloop.first %}
+													<td rowspan="{{ entry.time_slots.count }}">{{ entry.date|date:"M d, Y" }}</td>
+													<td rowspan="{{ entry.time_slots.count }}">
+														{{ entry.shift_start|time:"H:i" }}–{{ entry.shift_end|time:"H:i" }}
+													</td>
+												{% endif %}
+												<td>{{ slot.get_duration_hours|floatformat:2 }} hrs</td>
+												<td>{{ slot.project.name }}</td>
+												<td>{{ slot.task.name }}</td>
+												<td>{{ slot.description }}</td>
+												{% if forloop.first %}
+													<td rowspan="{{ entry.time_slots.count }}">
+														<span class="badge {% if entry.status == 'Approved' %}bg-success{% elif entry.status == 'Rejected' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+															{{ entry.status }}
+														</span>
+													</td>
+													<td rowspan="{{ entry.time_slots.count }}">
+														{% if entry.status == 'Rejected' %}
+															<!--<a href="{% url 'timesheet:resubmit-timesheet' entry.id %}" class="btn btn-sm btn-primary mb-1">Resubmit</a>-->
+															<a href="{% url 'timesheet:edit-timesheet' entry.id %}" class="btn btn-sm btn-info mb-1">Edit</a>
+															<a href="{% url 'timesheet:delete-timesheet' entry.id %}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this entry?');">Delete</a>
+														{% elif entry.status == 'Pending' %}
+															<a href="{% url 'timesheet:edit-timesheet' entry.id %}" class="btn btn-sm btn-info mb-1">Edit</a>
+															<a href="{% url 'timesheet:delete-timesheet' entry.id %}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this entry?');">Delete</a>
+														{% endif %}
+													</td>
+
+												{% endif %}
+											</tr>
+										{% endfor %}
+									{% endfor %}
+								</tbody>
+							</table>
+
+						</div>
+					</div>
+				</div>
+				{% endfor %}
+			</div>
+		</div>
+	</div>
+	{% endif %}
+  
 </div>
 {% endblock %}
 

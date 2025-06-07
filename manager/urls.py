@@ -61,6 +61,7 @@ urlpatterns = [
     # Tasks
     path('assign-task/', assign_task, name='assign-task'),
     path('load-tasks/', load_tasks, name='load-tasks'),
+    path('ajax/load-tasks/', load_tasks, name='ajax-load-tasks'),
     path('load-assignments-ajax/', load_assignments_ajax, name='load-assignments-ajax'),
 
     # Expenses

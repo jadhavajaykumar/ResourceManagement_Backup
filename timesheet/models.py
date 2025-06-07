@@ -52,9 +52,18 @@ class TimeSlot(models.Model):
         ordering = ['time_from']
 
     def clean(self):
-        """Validate individual time slot"""
+        if self.time_from is None or self.time_to is None:
+            return  # skip validation if values are missing
+
         if self.time_to <= self.time_from:
-            raise ValidationError("End time must be after start time in time slot")
+            raise ValidationError("End time must be after start time.")
+            
+    def get_duration_hours(self):
+        start = datetime.combine(datetime.today(), self.time_from)
+        end = datetime.combine(datetime.today(), self.time_to)
+        if self.time_to <= self.time_from:
+            end += timedelta(days=1)
+        return (end - start).total_seconds() / 3600        
 
 class Timesheet(models.Model):
     STATUS_CHOICES = [

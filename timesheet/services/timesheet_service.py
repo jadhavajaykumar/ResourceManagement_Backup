@@ -3,7 +3,9 @@ from django.core.exceptions import ValidationError
 from employee.models import AuditLog
 from timesheet.models import Attendance, TimeSlot
 from project.services.da_service import calculate_da
+from timesheet.models import CompensatoryOff, CompOffBalance
 import logging
+
 logger = logging.getLogger(__name__)
 def calculate_total_hours(timesheet):
     """Calculate total hours from all time slots"""
@@ -79,6 +81,9 @@ def process_timesheet_save(timesheet):
         if slots:
             try:
                 first_slot = slots[0]
+                logger.info(f"Calculating DA for {timesheet.date} with total_hours={total_hours}")
+                logger.info(f"First slot project: {first_slot.project}, slot_date: {first_slot.slot_date}")
+
                 da_amount, da_currency = calculate_da(first_slot)
                 timesheet.daily_allowance_amount = da_amount
                 timesheet.daily_allowance_currency = da_currency
@@ -90,22 +95,51 @@ def process_timesheet_save(timesheet):
         has_office_slot = False
         for slot in slots:
             try:
-                if (slot.project and 
-                    slot.project.location_type and 
-                    slot.project.location_type.name == 'Office'):
+                if (
+                    slot.project and
+                    slot.project.location_type and
+                    slot.project.location_type.name == 'Office'
+                ):
                     has_office_slot = True
                     break
             except Exception as e:
                 logger.error(f"Error checking office slot: {e}")
-        
+
         if has_office_slot:
             try:
                 update_attendance(timesheet, total_hours)
             except Exception as att_error:
                 logger.error(f"Attendance update error: {att_error}")
 
-        log_audit(timesheet)
+        # ✅ C-Off logic: inside main try block
         
+
+        # Ensure it's a date object if it's a string
+        if isinstance(timesheet.date, str):
+            timesheet.date = datetime.strptime(timesheet.date, "%Y-%m-%d").date()
+
+        weekday = timesheet.date.weekday()
+
+        if weekday in [5, 6]:  # Saturday = 5, Sunday = 6
+            credited_days = 1.0 if total_hours >= 4 else 0.5 if total_hours > 0 else 0.0
+
+            if credited_days > 0:
+                if not CompensatoryOff.objects.filter(timesheet=timesheet).exists():
+                    CompensatoryOff.objects.create(
+                        employee=timesheet.employee,
+                        date_earned=timesheet.date,
+                        hours_logged=total_hours,
+                        approved=False,
+                        credited_days=credited_days,
+                        timesheet=timesheet
+                    )
+
+                    balance, _ = CompOffBalance.objects.get_or_create(employee=timesheet.employee)
+                    balance.balance += credited_days
+                    balance.save()
+
+        log_audit(timesheet)
+
     except Exception as e:
         logger.exception("Critical error in process_timesheet_save")
         raise ValidationError(f"System error: {e}")

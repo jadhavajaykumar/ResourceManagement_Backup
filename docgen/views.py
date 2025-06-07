@@ -111,32 +111,33 @@ def update_excel_file(input_values, excel_path):
 def fill_template(request, template_id):
     template = get_object_or_404(DocumentTemplate, id=template_id)
     docx_path = template.template_file.path
-    excel_template_path = os.path.join(settings.MEDIA_ROOT, 'excel_templates', 'salary_template.xlsx')
+
+    # Identify if template needs Excel inputs
+    needs_excel = 'revision' in template.name.lower()
 
     placeholders = extract_placeholders(docx_path)
 
     if request.method == 'POST':
-        # Dynamic Word placeholders filled from form
         filled_data = {key: request.POST.get(key, '') for key in placeholders}
 
-        # Static Excel-specific fields
-        Old_Gross = float(request.POST.get('Old_Gross', 0))
-        New_Gross = float(request.POST.get('New_Gross', 0))
-        Emp_Id = request.POST.get('Emp_Id', '')
-        Emp_Name = request.POST.get('Emp_Name', '')
-        Emp_Grade = request.POST.get('Emp_Grade', '')
-        
+        if needs_excel:
+            # Collect Excel fields only if needed
+            Old_Gross = float(request.POST.get('Old_Gross', 0))
+            New_Gross = float(request.POST.get('New_Gross', 0))
+            Emp_Id = request.POST.get('Emp_Id', '')
+            Emp_Name = request.POST.get('Emp_Name', '')
+            Emp_Grade = request.POST.get('Emp_Grade', '')
 
-        # Update Excel
-        update_excel_file({
-            'Old_Gross': Old_Gross,
-            'New_Gross': New_Gross,
-            'Emp_Id': Emp_Id,
-            'Emp_Name': Emp_Name,
-            'Emp_Grade': Emp_Grade,
+            excel_template_path = os.path.join(settings.MEDIA_ROOT, 'excel_templates', 'salary_template.xlsx')
+            update_excel_file({
+                'Old_Gross': Old_Gross,
+                'New_Gross': New_Gross,
+                'Emp_Id': Emp_Id,
+                'Emp_Name': Emp_Name,
+                'Emp_Grade': Emp_Grade,
             }, excel_template_path)
 
-        # Replace placeholders in Word (text only)
+        # Replace placeholders in Word
         doc = DocxDocument(docx_path)
         for paragraph in doc.paragraphs:
             for key, value in filled_data.items():
@@ -170,7 +171,9 @@ def fill_template(request, template_id):
     return render(request, 'docgen/fill_template.html', {
         'template': template,
         'placeholders': placeholders,
-    })   
+        'needs_excel': needs_excel
+    })
+   
 
 
 

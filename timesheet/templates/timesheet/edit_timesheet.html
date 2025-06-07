@@ -21,32 +21,97 @@
       </div>
     {% endif %}
 
-    <div class="row g-3">
+    <h5 class="text-primary mb-3">Timesheet Details</h5>
+    <div class="row g-3 mb-4">
       <div class="col-md-4">
-        <label for="id_project">Project:</label>
-        {{ form.project|add_class:"form-select" }}
-      </div>
-      <div class="col-md-4">
-        <label for="id_task">Task:</label>
-        {{ form.task|add_class:"form-select" }}
-      </div>
-      <div class="col-md-4">
-        <label for="id_date">Date:</label>
+        <label for="{{ form.date.id_for_label }}">Date:</label>
         {{ form.date|add_class:"form-control" }}
       </div>
-      <div class="col-md-3">
-        <label for="id_time_from">Time From:</label>
-        {{ form.time_from|add_class:"form-control" }}
+      <div class="col-md-4">
+        <label for="{{ form.shift_start.id_for_label }}">Shift Start:</label>
+        {{ form.shift_start|add_class:"form-control" }}
+      </div>
+      <div class="col-md-4">
+        <label for="{{ form.shift_end.id_for_label }}">Shift End:</label>
+        {{ form.shift_end|add_class:"form-control" }}
       </div>
       <div class="col-md-3">
-        <label for="id_time_to">Time To:</label>
-        {{ form.time_to|add_class:"form-control" }}
-      </div>
-      <div class="col-md-12">
-        <label for="id_task_description">Task Description:</label>
-        {{ form.task_description|add_class:"form-control" }}
+        <label for="{{ form.is_billable.id_for_label }}">Billable:</label><br>
+        {{ form.is_billable }}
       </div>
     </div>
+
+    <hr>
+	{% if formset.non_form_errors %}
+	  <div class="alert alert-danger">
+		{% for error in formset.non_form_errors %}
+		  <p>{{ error }}</p>
+		{% endfor %}
+	  </div>
+	{% endif %}
+
+
+    <h5 class="text-primary mb-3">Time Slots</h5>
+    {{ formset.management_form }}
+    <div class="table-responsive mb-4">
+      <table class="table table-bordered align-middle">
+        <thead class="table-light">
+		  <tr>
+			<th>Project</th>
+			<th>Task</th>
+			<th>Description</th>
+			<th>From</th>
+			<th>To</th>
+			<th>Delete?</th>
+		  </tr>
+		</thead>
+		<tbody>
+		  {% for slot_form in formset %}
+		  <tr>
+			{{ slot_form.id }} 
+			<td>
+			  {{ slot_form.project|add_class:"form-select" }}
+			  {% for error in slot_form.project.errors %}
+				<div class="text-danger small">{{ error }}</div>
+			  {% endfor %}
+			</td>
+			{{ slot_form.id }} 
+			<td>
+			  {{ slot_form.task|add_class:"form-select" }}
+			  {% for error in slot_form.task.errors %}
+				<div class="text-danger small">{{ error }}</div>
+			  {% endfor %}
+			</td>
+			{{ slot_form.id }} 
+			<td>
+			  {{ slot_form.description|add_class:"form-control" }}
+			  {% for error in slot_form.description.errors %}
+				<div class="text-danger small">{{ error }}</div>
+			  {% endfor %}
+			</td>
+			{{ slot_form.id }} 
+			<td>
+			  {{ slot_form.time_from|add_class:"form-control" }}
+			  {% for error in slot_form.time_from.errors %}
+				<div class="text-danger small">{{ error }}</div>
+			  {% endfor %}
+			</td>
+			{{ slot_form.id }} 
+			<td>
+			  {{ slot_form.time_to|add_class:"form-control" }}
+			  {% for error in slot_form.time_to.errors %}
+				<div class="text-danger small">{{ error }}</div>
+			  {% endfor %}
+			</td>
+			<td>{{ slot_form.DELETE }}</td>
+		  </tr>
+		  {% endfor %}
+		</tbody>
+
+
+      </table>
+    </div>
+
     <div class="mt-4">
       <button type="submit" class="btn btn-primary">
         <i class="bi bi-save me-1"></i> Save Changes
