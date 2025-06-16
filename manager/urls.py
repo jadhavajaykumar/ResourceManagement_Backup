@@ -7,6 +7,7 @@ from manager.views.c_off_views import c_off_approvals, approve_c_off, reject_c_o
 from manager.views.timesheet_views import mark_employee_absent, timesheet_history_view
 from . import views
 from manager.views.absent_views import mark_absent_dashboard
+from manager.views import task_views
 
 
 from manager.views import (
@@ -61,6 +62,7 @@ urlpatterns = [
     # Tasks
     path('assign-task/', assign_task, name='assign-task'),
     path('load-tasks/', load_tasks, name='load-tasks'),
+    #path('load-tasks/', task_views.load_tasks, name='load-tasks'),
     path('ajax/load-tasks/', load_tasks, name='ajax-load-tasks'),
     path('load-assignments-ajax/', load_assignments_ajax, name='load-assignments-ajax'),
 

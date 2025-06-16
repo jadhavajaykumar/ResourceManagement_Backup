@@ -3,7 +3,14 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from ..models import ExpenseType
-from accounts.access_control import is_manager_or_admin
+from accounts.access_control import is_manager_or_admin, is_manager
+
+from django.db.models import ProtectedError
+
+# expenses/views/expense_type_settings.py
+
+from ..models import ExpenseType, GlobalExpenseSettings, EmployeeExpenseGrace
+from employee.models import EmployeeProfile
 
 
 @login_required
@@ -23,28 +30,19 @@ def edit_expense_type(request, type_id):
 
     return render(request, 'expenses/edit_expense_type.html', {'type': expense_type})
 
+
+
 @login_required
-@user_passes_test(is_manager_or_admin)
-def delete_expense_type(request, type_id):
-    expense_type = get_object_or_404(ExpenseType, id=type_id)
-    expense_type.delete()
-    messages.success(request, f"Expense type '{expense_type.name}' deleted successfully.")
-    return redirect('expenses:expense-settings')
+@user_passes_test(is_manager)
+def delete_expense_type(request, expense_type_id):
+    expense_type = get_object_or_404(ExpenseType, id=expense_type_id)
+    try:
+        expense_type.delete()
+        messages.success(request, "Expense type deleted successfully.")
+    except ProtectedError:
+        messages.error(request, "Cannot delete this expense type because it is linked to existing expenses.")
+    return redirect('expenses:expense-type-settings')
 
-
-
-from ..models import ExpenseType, EmployeeExpenseGrace
-from employee.models import EmployeeProfile
-from expenses.models import GlobalExpenseSettings
-
-# expenses/views/expense_type_settings.py
-
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.contrib import messages
-from ..models import ExpenseType, GlobalExpenseSettings, EmployeeExpenseGrace
-from employee.models import EmployeeProfile
-from accounts.access_control import is_manager_or_admin
 
 @login_required
 @user_passes_test(is_manager_or_admin)

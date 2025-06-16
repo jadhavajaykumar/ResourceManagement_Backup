@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     'crispy_bootstrap5',
     'employee.apps.EmployeeConfig',    # Use the AppConfig class
     'docgen',
+    'utils',
 ]
 
 GRAPH_MODELS = {

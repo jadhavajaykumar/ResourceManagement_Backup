@@ -41,6 +41,22 @@ from datetime import datetime, timedelta, date as date_class, time as time_class
 from django.http import JsonResponse  # if not already imported
 from .forms import TimesheetForm, TimeSlotForm
 
+
+# timesheet/views.py
+
+@login_required
+def load_tasks_for_employee(request):
+    project_id = request.GET.get('project')
+    employee = request.user.employeeprofile
+
+    if not project_id:
+        return JsonResponse([], safe=False)
+
+    # Filter tasks assigned to this employee
+    tasks = Task.objects.filter(project_id=project_id, taskassignment__employee=employee).distinct()
+    return JsonResponse(list(tasks.values('id', 'name')), safe=False)
+
+
 @login_required
 def generate_timeslots(request):
     logger.info("Generate timeslots view called")
@@ -214,54 +230,106 @@ def merge_timesheets_for_employee(employee, project, date):
 
 
 
+
+
+
+
 @login_required
 def my_timesheets(request):
     employee = request.user.employeeprofile
+
+    # ✅ Fix: use working project assignment logic
     assigned_projects = Project.objects.filter(taskassignment__employee=employee).distinct()
 
     today = timezone.now().date()
     year = int(request.GET.get('year', today.year))
     month = int(request.GET.get('month', today.month))
 
-    # Calendar setup
     day_status_map = get_timesheet_calendar_data(employee, year, month)
+    from timesheet.utils.styled_calendar import StyledCalendar
     calendar = StyledCalendar(day_status_map)
     styled_calendar_html = calendar.formatmonth(year, month)
-    default_from, default_to = get_current_slot()
 
-    # Initialize variables
-    show_slots = False
-    time_slots = []
-    total_hours = 0.0
+    default_from = datetime.strptime("09:00", "%H:%M").time()
+    default_to = datetime.strptime("18:00", "%H:%M").time()
 
-    # Form initialization - simplified
     form = TimesheetForm(
+        request.POST or None,
         employee=employee,
         initial={'date': today, 'shift_start': default_from, 'shift_end': default_to}
     )
 
-    # Get timesheet entries for accordion
-    timesheets = Timesheet.objects.filter(employee=employee).order_by('-date').prefetch_related(
-        Prefetch('time_slots', queryset=TimeSlot.objects.select_related('project', 'task'))
-    )
-    
-    # Group by week
+    show_slots = False
+    time_slots = []
+    total_hours = 0.0
+
+    if request.method == 'POST':
+        if 'slot_count' not in request.POST:
+            try:
+                shift_start = datetime.strptime(request.POST.get('shift_start'), "%H:%M").time()
+                shift_end = datetime.strptime(request.POST.get('shift_end'), "%H:%M").time()
+                form.fields['shift_start'].initial = shift_start
+                form.fields['shift_end'].initial = shift_end
+                show_slots = True
+            except Exception:
+                pass
+        else:
+            if form.is_valid():
+                timesheet = form.save(commit=False)
+                timesheet.employee = employee
+                timesheet.save()
+
+                slot_count = int(request.POST.get('slot_count', 0))
+                for i in range(1, slot_count + 1):
+                    project_id = request.POST.get(f'slot_project_{i}')
+                    task_id = request.POST.get(f'slot_task_{i}')
+                    from_time = request.POST.get(f'slot_from_{i}')
+                    to_time = request.POST.get(f'slot_to_{i}')
+                    desc = request.POST.get(f'slot_description_{i}')
+
+                    if not project_id or not from_time or not to_time:
+                        continue
+
+                    slot = TimeSlot.objects.create(
+                        timesheet=timesheet,
+                        employee=employee,
+                        project_id=project_id,
+                        task_id=task_id,
+                        time_from=from_time,
+                        time_to=to_time,
+                        description=desc,
+                        slot_date=timesheet.date
+                    )
+                    slot.hours = slot.get_duration_hours()
+                    slot.save()
+
+                from timesheet.services.timesheetservice import process_timesheet_save
+                process_timesheet_save(timesheet)
+
+                return redirect('timesheet:my-timesheets')
+
+    # ✅ Group entries weekly
+    timesheet_entries = Timesheet.objects.filter(employee=employee).prefetch_related('time_slots').order_by('-date')
     weekly_grouped = defaultdict(list)
-    for entry in timesheets:
-        week_num = entry.date.isocalendar()[1]
-        week_year = entry.date.year
-        weekly_grouped[f"Week {week_num}, {week_year}"].append(entry)
-    
-    return render(request, 'timesheet/my_timesheets.html', {
+    for entry in timesheet_entries:
+        iso_year, iso_week, _ = entry.date.isocalendar()
+        label = f"Week {iso_week} ({iso_year})"
+        weekly_grouped[label].append(entry)
+
+    context = {
         'form': form,
-        'weekly_grouped': dict(weekly_grouped),
         'styled_calendar_html': styled_calendar_html,
-        'calendar_year': year,
         'calendar_month': month,
+        'calendar_year': year,
+        'show_slots': show_slots,
         'assigned_projects': assigned_projects,
-        'employee_id': employee.id
-        
-    })
+        'weekly_grouped': dict(weekly_grouped),
+        'employee_id': employee.id,
+    }
+
+    return render(request, 'timesheet/my_timesheets.html', context)
+
+
 
 
 

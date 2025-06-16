@@ -2,9 +2,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.contrib.auth import get_user_model
-
-
-from django.db import models
+from django.utils.timezone import now
 from employee.models import EmployeeProfile
 
 User = get_user_model()
@@ -190,3 +188,16 @@ class GlobalDASettings(models.Model):
 
     def __str__(self):
         return f"DA Rates: Local ₹{self.local_da}, Domestic ₹{self.domestic_da}, International ₹{self.international_da}"
+
+
+
+
+class DailyAllowanceLog(models.Model):
+    da_entry = models.ForeignKey('DailyAllowance', on_delete=models.CASCADE, related_name='logs')
+    action = models.CharField(max_length=50)  # e.g., 'Created', 'Updated', 'Rejected'
+    performed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    remark = models.TextField(blank=True)
+    timestamp = models.DateTimeField(default=now)
+
+    def __str__(self):
+        return f"[{self.timestamp.strftime('%Y-%m-%d %H:%M')}] {self.action} by {self.performed_by}"

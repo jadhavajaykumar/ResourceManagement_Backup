@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
+
 from django.contrib import messages
 from .forms import ExpenseForm
 from .models import Expense
@@ -9,10 +9,22 @@ from django.db.models import Q
 from datetime import datetime
 from .models import SystemSettings
 from .forms import GracePeriodForm
-from django.contrib.auth.decorators import user_passes_test
+
 from django.views.decorators.http import require_http_methods
 from .models import ExpenseType
 
+
+from django.contrib.auth.decorators import login_required, user_passes_test
+
+from .forms import CountryDASettingForm
+from .models import CountryDARate
+
+# ✅ Access control: Only managers and admins
+def is_manager_or_admin(user):
+    return user.is_authenticated and (user.is_superuser or user.groups.filter(name__in=['Manager', 'Admin']).exists())
+    
+#def is_manager_or_admin(user):
+   # return user.is_superuser or (hasattr(user, 'employee_profile') and user.employee_profile.role in ['Manager', 'Admin'])    
 
 def delete_expense(request, expense_id):
     profile = EmployeeProfile.objects.get(user=request.user)
@@ -111,8 +123,7 @@ def approve_expense(request, expense_id):
 
 
 
-def is_manager_or_admin(user):
-    return user.is_superuser or (hasattr(user, 'employee_profile') and user.employee_profile.role in ['Manager', 'Admin'])
+
 
 @login_required
 @user_passes_test(is_manager_or_admin)
@@ -242,15 +253,7 @@ def edit_expense_type(request, type_id):
         'type': new_expense_type
     })
 
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.contrib import messages
-from .forms import CountryDASettingForm
-from .models import CountryDARate
 
-# ✅ Access control: Only managers and admins
-def is_manager_or_admin(user):
-    return user.is_authenticated and (user.is_superuser or user.groups.filter(name__in=['Manager', 'Admin']).exists())
 
 # ✅ Manage all Country DA Rates (Add or View)
 @login_required

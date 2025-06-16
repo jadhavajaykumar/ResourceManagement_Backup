@@ -2,139 +2,192 @@ from django.views.decorators.http import require_POST
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
-from django.db.models import Q
+from django.db.models import Prefetch
 from django.template.loader import render_to_string
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseForbidden
 from decimal import Decimal
+from datetime import datetime
+import logging
+from collections import defaultdict
 from employee.models import EmployeeProfile
 from project.models import Project
-from accounts.access_control import is_manager_or_admin, is_manager
-# Import C-off models
-from timesheet.models import CompOffApplication, CompOffBalance
-from datetime import datetime, timedelta
-from django.db.models import Q
-from django.core.exceptions import ValidationError
+from timesheet.models import Timesheet, TimeSlot, CompOffApplication, CompOffBalance, Attendance
+from accounts.access_control import is_manager
+
+
 import logging
-from timesheet.models import Timesheet, CompOffBalance, Attendance
-#from manager.decorators import is_manager
-from django.http import HttpResponseForbidden
-# Set up logging
+
+from project.services.da_utils import generate_da_for_timesheet  # ✅ DA generation utility
+
+
 logger = logging.getLogger(__name__)
+
+
+def get_reportee_queryset(manager):
+    return EmployeeProfile.objects.filter(reporting_manager=manager)
+
 
 @login_required
 @user_passes_test(is_manager)
 def filtered_timesheet_approvals(request):
-    timesheets = Timesheet.objects.select_related('employee__user', 'project', 'task').all()
+    employees = get_reportee_queryset(request.user)
+    timesheets = Timesheet.objects.select_related('employee__user')\
+        .prefetch_related(Prefetch('time_slots', queryset=TimeSlot.objects.select_related('project', 'task')))\
+        .filter(employee__in=employees)
 
-    start_date = request.GET.get('start_date')
-    end_date = request.GET.get('end_date')
-    project_id = request.GET.get('project')
-    employee_id = request.GET.get('employee')
-    status = request.GET.get('status')
-
-    if start_date:
-        timesheets = timesheets.filter(date__gte=start_date)
-    if end_date:
-        timesheets = timesheets.filter(date__lte=end_date)
-    if project_id:
-        timesheets = timesheets.filter(project_id=project_id)
-    if employee_id:
-        timesheets = timesheets.filter(employee_id=employee_id)
-    if status:
+    # Filters
+    if (start := request.GET.get('start_date')):
+        timesheets = timesheets.filter(date__gte=start)
+    if (end := request.GET.get('end_date')):
+        timesheets = timesheets.filter(date__lte=end)
+    if (proj := request.GET.get('project')):
+        timesheets = timesheets.filter(project_id=proj)
+    if (emp := request.GET.get('employee')):
+        timesheets = timesheets.filter(employee_id=emp)
+    if (status := request.GET.get('status')):
         timesheets = timesheets.filter(status=status)
 
     context = {
         'timesheets': timesheets,
         'projects': Project.objects.all(),
-        'employees': EmployeeProfile.objects.all(),
+        'employees': employees,
         'current_page': 'timesheet-approvals'
     }
     return render(request, 'manager/timesheet_filtered_dashboard.html', context)
 
 
+
+
+
 @login_required
 @user_passes_test(is_manager)
 def timesheet_approval_dashboard(request):
-    #timesheets = Timesheet.objects.select_related('employee__user', 'project', 'task') \
-                                 # .filter(status='Pending') \
-                                 # .order_by('-date', 'shift_start')
-    timesheets = Timesheet.objects.select_related('employee').prefetch_related('time_slots').order_by('-date', 'shift_start')
-                              
-    return render(request, 'manager/timesheet_approval_dashboard.html', {'timesheets': timesheets})
+    employees = get_reportee_queryset(request.user)
+
+    timesheets = Timesheet.objects.select_related(
+        'employee__user'
+    ).prefetch_related(
+        Prefetch('time_slots', queryset=TimeSlot.objects.select_related('project', 'task'))
+    ).filter(employee__in=employees).order_by('-date', 'shift_start')
+
+    grouped_timesheets = defaultdict(list)
+    pending_flags = {}
+
+    for ts in timesheets:
+        grouped_timesheets[ts.employee].append(ts)
+        if ts.status == 'Pending':
+            pending_flags[ts.employee.id] = True
+
+    # ✅ NEW: Load DA records linked to timesheets
+    from expenses.models import DailyAllowance
+    da_map = {
+        da.timesheet_id: da
+        for da in DailyAllowance.objects.filter(timesheet__in=timesheets)
+    }
+
+    return render(request, 'manager/timesheet_approval_dashboard.html', {
+        'grouped_timesheets': dict(grouped_timesheets),
+        'pending_flags': pending_flags,
+        'da_map': da_map,  # ✅ Pass DA map to template
+        'current_page': 'timesheet-approval',
+    })
 
 
+
+
+
+
+@login_required
+@user_passes_test(is_manager)
 def timesheet_approvals(request):
-    pending_ts = Timesheet.objects.filter(status='SUBMITTED')  # all pending timesheets
-    if request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest':
-        html_snippet = render_to_string('manager/partials/timesheet_table_rows.html', {'timesheets': pending_ts})
+    employees = get_reportee_queryset(request.user)
+    timesheets = Timesheet.objects.filter(status='SUBMITTED', employee__in=employees)\
+        .select_related('employee__user')\
+        .prefetch_related(Prefetch('time_slots', queryset=TimeSlot.objects.select_related('project', 'task')))
+
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        html_snippet = render_to_string('manager/partials/timesheet_table_rows.html', {'timesheets': timesheets})
         return HttpResponse(html_snippet)
-    context = {'timesheets': pending_ts, 'current_page': 'timesheets'}
+
+    context = {'timesheets': timesheets, 'current_page': 'timesheets'}
     return render(request, 'manager/timesheet_approvals.html', context)
+
+
+
+
+
 
 @login_required
 @user_passes_test(is_manager)
 @require_POST
 def handle_timesheet_action(request, timesheet_id, action):
-    try:
-        timesheet = get_object_or_404(Timesheet, id=timesheet_id)
-        
-        if timesheet.employee.reporting_manager != request.user:
-            messages.error(request, "You can only approve/reject timesheets for your direct reports.")
-            return redirect('manager:timesheet-approval')
+    timesheet = get_object_or_404(Timesheet, id=timesheet_id)
 
-        remark = request.POST.get('manager_remark', '').strip()
+    if timesheet.employee.reporting_manager != request.user:
+        messages.error(request, "You can only approve/reject timesheets for your direct reports.")
+        return redirect('manager:timesheet-approval')
 
-        if not remark:
-            messages.error(request, "Manager remark is required.")
-            return redirect('manager:timesheet-approval')
+    remark = request.POST.get('manager_remark', '').strip()
+    if not remark:
+        messages.error(request, "Manager remark is required.")
+        return redirect('manager:timesheet-approval')
 
-        if action == 'approve':
-            timesheet.status = 'Approved'
-            timesheet.manager_remark = remark
-            timesheet.save()
+    if action == 'approve':
+        timesheet.status = 'Approved'
+        timesheet.manager_remark = remark
+        timesheet.save()
 
-        # Auto-grant C-off only for approval and weekend work
-        if action == 'approve' and timesheet.date.weekday() >= 5:  # 5=Saturday, 6=Sunday
+        # ✅ Trigger DA generation logic
+        print("⏳ Calling generate_da_for_timesheet...")
+        try:
+            generate_da_for_timesheet(timesheet)
+            print("✅ DA generation completed.")
+        except Exception as e:
+            logger.error(f"DA generation failed for Timesheet ID {timesheet.id}: {str(e)}", exc_info=True)
+            messages.warning(request, "Timesheet approved, but DA generation failed.")
+
+        # ✅ Comp-off logic for weekends using related TimeSlot entries
+        if timesheet.date.weekday() >= 5:
             try:
-                time_delta = datetime.combine(timesheet.date, timesheet.time_to) - datetime.combine(timesheet.date, timesheet.time_from)
-                hours = time_delta.total_seconds() / 3600
+                #total_seconds = sum(
+                    #(datetime.combine(slot.date, slot.time_to) - datetime.combine(slot.date, slot.time_from)).total_seconds()
+                    #for slot in timesheet.time_slots.all()
+                #)
+                total_seconds = sum(
+                    (datetime.combine(slot.date, slot.time_to) - datetime.combine(slot.date, slot.time_from)).total_seconds()
+                    for slot in timesheet.time_slots.all()
+                    if slot.date and slot.time_from and slot.time_to  # ✅ Ensure all fields are present
+)
+                hours = total_seconds / 3600
                 days_credited = 1.0 if hours >= 4 else 0.5
 
-                balance, created = CompOffBalance.objects.get_or_create(
-                    employee=timesheet.employee,
-                    defaults={'balance': Decimal(str(days_credited))}
-                )
-                
-                if not created:
-                    balance.balance += Decimal(str(days_credited))
-                    balance.save()
-
+                balance, _ = CompOffBalance.objects.get_or_create(employee=timesheet.employee)
+                credited_days = Decimal(str(credited_days))  # ensure Decimal
+                balance.balance += credited_days
+                balance.save()
                 messages.info(request, f"Comp-off granted: {days_credited} day(s)")
             except Exception as e:
-                logger.error(f"Error granting comp-off: {str(e)}", exc_info=True)
-                messages.warning(request, "Timesheet approved but comp-off calculation failed.")
-                
-        elif action == 'reject':
-            timesheet.status = 'Rejected'
-            timesheet.manager_remark = remark
-            timesheet.save()        
+                logger.error(f"Comp-off error: {str(e)}", exc_info=True)
+                messages.warning(request, "Approved but comp-off calculation failed.")
 
-        messages.success(request, f"Timesheet {action}d successfully.")
-        return redirect('manager:timesheet-approval')
-        
-    except Exception as e:
-        logger.error(f"Error in handle_timesheet_action: {str(e)}", exc_info=True)
-        messages.error(request, "An error occurred while processing your request.")
-        return redirect('manager:timesheet-approval')
+    elif action == 'reject':
+        timesheet.status = 'Rejected'
+        timesheet.manager_remark = remark
+        timesheet.save()
+
+    messages.success(request, f"Timesheet {action}d successfully.")
+    return redirect('manager:timesheet-approval')
+
 
 
 @login_required
 @user_passes_test(is_manager)
 def approve_c_offs(request):
-    pending = CompOffApplication.objects.filter(reviewed=False)
+    pending = CompOffApplication.objects.filter(reviewed=False, employee__reporting_manager=request.user)
+
     if request.method == 'POST':
         for app_id in request.POST.getlist('approve'):
-            app = CompOffApplication.objects.get(id=app_id)
+            app = CompOffApplication.objects.get(id=app_id, employee__reporting_manager=request.user)
             app.approved = True
             app.reviewed = True
             app.save()
@@ -144,7 +197,7 @@ def approve_c_offs(request):
             balance.save()
 
         for app_id in request.POST.getlist('reject'):
-            app = CompOffApplication.objects.get(id=app_id)
+            app = CompOffApplication.objects.get(id=app_id, employee__reporting_manager=request.user)
             app.approved = False
             app.reviewed = True
             app.save()
@@ -154,18 +207,17 @@ def approve_c_offs(request):
     return render(request, 'manager/approve_c_offs.html', {'applications': pending})
 
 
-
 @login_required
+@user_passes_test(is_manager)
 def mark_employee_absent(request):
-    if not request.user.is_manager:
-        return HttpResponseForbidden()
-
     if request.method == "POST":
         emp_id = request.POST.get('employee_id')
         date_str = request.POST.get('date')
         date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
 
         employee = get_object_or_404(EmployeeProfile, id=emp_id)
+        if employee.reporting_manager != request.user:
+            return HttpResponseForbidden("Access denied.")
 
         Attendance.objects.update_or_create(
             employee=employee,
@@ -174,39 +226,29 @@ def mark_employee_absent(request):
         )
 
         messages.success(request, f"{employee.user.get_full_name()} marked Absent for {date_obj}")
-        return redirect('manager:attendance-dashboard')  # Adjust as needed
+        return redirect('manager:attendance-dashboard')
 
     return redirect('manager:attendance-dashboard')
 
 
-
 @login_required
+@user_passes_test(is_manager)
 def timesheet_history_view(request):
-    if not request.user.is_manager:
-        messages.error(request, "Access denied.")
-        return redirect('dashboard')
-
-    employees = Employee.objects.all()
+    employees = get_reportee_queryset(request.user)
     projects = Project.objects.all()
 
-    emp_id = request.GET.get('employee')
-    project_id = request.GET.get('project')
-    start = request.GET.get('start_date')
-    end = request.GET.get('end_date')
+    timesheets = Timesheet.objects.filter(employee__in=employees)
 
-    timesheets = Timesheet.objects.all()
-
-    if emp_id:
+    if emp_id := request.GET.get('employee'):
         timesheets = timesheets.filter(employee_id=emp_id)
-    if project_id:
+    if project_id := request.GET.get('project'):
         timesheets = timesheets.filter(project_id=project_id)
-    if start and end:
-        timesheets = timesheets.filter(date__range=[start, end])
+    if start := request.GET.get('start_date'):
+        if end := request.GET.get('end_date'):
+            timesheets = timesheets.filter(date__range=[start, end])
 
-    context = {
+    return render(request, 'manager/timesheet_history.html', {
         'employees': employees,
         'projects': projects,
         'timesheets': timesheets,
-    }
-
-    return render(request, 'manager/timesheet_history.html', context)
+    })

@@ -6,10 +6,10 @@ class CustomUser(AbstractUser):
 
     @property
     def role(self):
-        try:
-            return self.employee_profile.role
-        except AttributeError:
-            return 'Employee'
+        if hasattr(self, 'employeeprofile'):
+            return self.employeeprofile.role
+        return 'Unknown'
+
 
     class Meta:
         permissions = [

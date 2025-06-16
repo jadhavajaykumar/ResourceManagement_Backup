@@ -30,9 +30,17 @@ def custom_login(request):
 
             # Ensure profile exists and update role if necessary
             profile, created = EmployeeProfile.objects.get_or_create(user=user)
-            if created or (user.is_staff and profile.role != 'Manager'):
-                profile.role = 'Manager' if user.is_staff else 'Employee'
-                profile.save()
+
+            # Use URL param role if available
+            login_role = request.GET.get('role', '').capitalize()
+            valid_roles = ['Manager', 'Employee', 'HR', 'Accountant']
+
+            if login_role in valid_roles:
+                profile.role = login_role
+            elif created:
+                profile.role = 'Employee'  # Default fallback
+            profile.save()
+
 
             logger.info(f"User '{user.username}' logged in with role '{profile.role}'")
             return redirect(get_dashboard_redirect_url(user))

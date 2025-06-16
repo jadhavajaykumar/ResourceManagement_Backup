@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Tuple, Optional
 from project.models import DASetting
 from timesheet.models import TimeSlot
+from expenses.models import GlobalDASettings, CountryDASetting
 
 
 def calculate_total_hours(time_from, time_to) -> float:
@@ -35,42 +36,56 @@ def get_domestic_days_worked(employee, project):
     return slots.count()
 
 
-def calculate_da(slot: TimeSlot) -> Tuple[Optional[Decimal], Optional[str]]:
+
+
+
+
+from decimal import Decimal
+
+def calculate_da(slot):
     """
-    Centralized DA logic, now based on a TimeSlot (not Timesheet).
-    Returns: (da_amount, currency)
+    Calculate Daily Allowance based on project type and configuration.
+    Works for Local, Domestic, and International projects.
     """
+
+    timesheet = getattr(slot, 'timesheet', None)
+    if not timesheet:
+        raise ValueError("Timeslot is not linked to a timesheet")
+
     project = slot.project
-    location = project.location_type.name.lower()
-    currency = project.currency or 'INR'
+    location_type = project.location_type.name if project.location_type else None
+    da_type = project.da_type
+    da_rate = project.da_rate_per_unit or Decimal("0.0")
+    weekday = slot.slot_date.weekday()
 
-    if location == 'office':
-        return None, None
+    total_hours = sum(s.hours for s in slot.timesheet.time_slots.filter(project=project))
 
-    if location == 'local':
-        total_day_hours = get_total_local_hours_on_date(slot.employee, slot.slot_date)
-        setting = DASetting.objects.filter(location_type=project.location_type).first()
-        if setting and total_day_hours >= setting.min_hours:
-            return setting.da_amount, currency
-        return None, None
+    # Default currency fallback
+    currency = project.currency or "INR"
 
-    if location == 'domestic':
-        setting = DASetting.objects.filter(location_type=project.location_type).first()
-        if not setting:
-            return None, None
+    if location_type == "Local":
+        # Local project DA: flat rate per day
+        return Decimal("300.00"), currency
 
-        days_worked = get_domestic_days_worked(slot.employee, project)
-        extended_da = Decimal(150) if days_worked >= 60 else Decimal(0)
-        return setting.da_amount + extended_da, currency
+    elif location_type == "Domestic":
+        # Domestic project DA: ₹600 per day
+        return Decimal("600.00"), currency
 
-    if location == 'international':
-        base_da = project.da_rate_per_day or Decimal(0)
-        extended_da = Decimal(0)
+    elif location_type == "International":
+        # Weekend / off-day DA (Sat/Sun)
+        if weekday in [5, 6] and total_hours > 0:
+            return project.off_day_da_rate or Decimal("0.0"), currency
 
-        if project.extended_hours_threshold and slot.hours > project.extended_hours_threshold:
-            extended_da = project.extended_hours_da_rate or Decimal(0)
+        if da_type == "Hourly":
+            return da_rate * Decimal(str(total_hours)), currency
 
-        return base_da + extended_da, currency
+        elif da_type == "Daily":
+            return da_rate, currency
+    print(f"📌 Calculated DA: {da_amount} {currency} for {project.name}")
 
-    return None, None
+    # Default fallback (in case config is incomplete)
+    return Decimal("0.0"), currency
+
+
+
     

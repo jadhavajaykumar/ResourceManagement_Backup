@@ -1,6 +1,9 @@
 # account/access_control.py
 import logging
+from accounts.utils import get_effective_role
+
 logger = logging.getLogger(__name__)
+
 
 
 def is_manager_or_admin(user):
@@ -17,34 +20,48 @@ def is_accountant(user):
         user.employee_profile.role == 'Accountant'
     )
 
+
 def is_manager(user):
+    """Check if user has Manager role."""
+    return _check_role(user, 'Manager')
+
+def is_hr(user):
+    """Check if user has HR role."""
+    return _check_role(user, 'HR')
+
+def is_accountant(user):
+    """Check if user has Accountant role."""
+    return _check_role(user, 'Accountant')
+
+def is_employee(user):
+    """Check if user has Employee role."""
+    return _check_role(user, 'Employee')
+
+def is_director(user):
+    """Check if user has Director role."""
+    return _check_role(user, 'Director')
+
+def is_admin(user):
+    """Check if user is Django admin (superuser)."""
+    if user.is_authenticated and user.is_superuser:
+        logger.info(f"Superuser {user.email} granted Admin access")
+        return True
+    return False
+
+def _check_role(user, expected_role):
     """
-    Enhanced manager check that:
-    1. Handles missing profiles gracefully
-    2. Maintains all existing logging
-    3. Keeps backward compatibility
+    Generic role check with logging.
+    Uses get_effective_role() to avoid direct model access.
     """
     if not user.is_authenticated:
-        logger.debug(f"Unauthenticated user access attempt")
+        logger.debug("Unauthenticated user access attempt")
         return False
-        
-    # Superusers should automatically be managers
-    if user.is_superuser:
-        logger.info(f"Superuser {user.email} granted manager access")
-        return True
-        
+
     try:
-        # Get or create profile for staff users
-        if user.is_staff and not hasattr(user, 'employee_profile'):
-            from employee.models import EmployeeProfile
-            EmployeeProfile.objects.create(user=user, role='Manager')
-            logger.info(f"Created Manager profile for staff user {user.email}")
-        
-        # Original check with enhanced safety
-        is_manager_role = hasattr(user, 'employee_profile') and user.employee_profile.role == 'Manager'
-        logger.info(f"Manager check for {user.email}: role={getattr(user.employee_profile, 'role', 'No profile')}, result={is_manager_role}")
-        return is_manager_role
-        
+        role = get_effective_role(user)
+        has_role = role == expected_role
+        logger.info(f"Role check for {user.email}: expected={expected_role}, actual={role}, result={has_role}")
+        return has_role
     except Exception as e:
-        logger.error(f"Error checking manager status for {user.email}: {str(e)}", exc_info=True)
-        return False  # Fail securely
+        logger.error(f"Error checking role for {user.email}: {str(e)}", exc_info=True)
+        return False

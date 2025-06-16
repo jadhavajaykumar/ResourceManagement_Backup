@@ -4,7 +4,9 @@ from django.contrib.auth.decorators import login_required
 from datetime import date
 from employee.models import EmployeeProfile
 from timesheet.models import Attendance
-
+from django.contrib.auth.decorators import login_required, user_passes_test
+from accounts.access_control import is_manager_or_admin, is_manager
+@user_passes_test(is_manager)
 @login_required
 def mark_absent_dashboard(request):
     if not request.user.is_manager:

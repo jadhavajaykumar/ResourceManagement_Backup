@@ -69,6 +69,7 @@ def assign_task(request):
 
 from django.contrib.auth.decorators import login_required
 
+@user_passes_test(is_manager)
 @login_required
 def load_tasks(request):
     project_id = request.GET.get('project')
@@ -92,6 +93,7 @@ def load_tasks(request):
     
     return JsonResponse(list(tasks.values('id', 'name')), safe=False)
 
+@user_passes_test(is_manager)
 @login_required
 def load_assignments_ajax(request):
     assignments = TaskAssignment.objects.select_related('employee__user', 'project', 'task').order_by('-assigned_date')

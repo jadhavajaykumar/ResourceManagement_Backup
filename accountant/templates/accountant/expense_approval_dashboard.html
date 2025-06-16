@@ -41,84 +41,83 @@
     </div>
   </form>
 
-  <!-- Grouped Display -->
   {% if grouped_data %}
-    {% for key, data in grouped_data.items %}
-      <div class="card mb-4 shadow-sm">
-        <div class="card-header bg-light d-flex justify-content-between align-items-center">
-          <strong>{{ key.date }} – {{ key.employee.user.get_full_name }} – {{ key.project.name }}</strong>
-        </div>
-        <div class="card-body">
-          <table class="table table-bordered mb-0">
-            <thead class="table-light sticky-top bg-light" style="top: 65px;">
-              <tr>
-                <th>Type</th>
-                <th>KMs</th>
-                <th>Amount (₹)</th>
-                <th>Receipt</th>
-                <th>Comments</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for exp in data.expenses %}
-              <tr>
-                <td>{{ exp.new_expense_type.name }}</td>
-                <td>{{ exp.kilometers|default:"-" }}</td>
-                <td>{{ exp.amount }}</td>
-                <td>
-                  {% if exp.receipt %}
-                    <a href="{{ exp.receipt.url }}" target="_blank">View</a>
-                  {% else %}
-                    -
-                  {% endif %}
-                <td style="max-width: 200px; word-wrap: break-word;">
-					{{ exp.comments|default:"-" }}
-					{{ exp.status }}
-                <td>
-                  {% if exp.status == 'Pending' %}
-                    <button class="btn btn-sm btn-success" onclick="openRemarkModal('{{ exp.id }}', 'approve')">✓</button>
-                    <button class="btn btn-sm btn-danger" onclick="openRemarkModal('{{ exp.id }}', 'reject')">✗</button>
-                  {% else %}
-                    <span class="text-muted">{{ exp.status }}</span>
-                  {% endif %}
-                </td>
-              </tr>
-              {% endfor %}
+    <table class="table table-bordered table-hover align-middle shadow-sm">
+      <thead class="table-light sticky-top bg-light" style="top: 65px;">
+        <tr>
+          <th>Date</th>
+          <th>Employee</th>
+          <th>Project</th>
+          <th>Type</th>
+          <th>KMs</th>
+          <th>Amount (₹)</th>
+          <th>Receipt</th>
+          <th style="max-width: 200px;">Comments</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for key, data in grouped_data.items %}
+          {% for exp in data.expenses %}
+            <tr>
+              <td>{{ key.date }}</td>
+              <td>{{ key.employee.user.get_full_name }}</td>
+              <td>{{ key.project.name }}</td>
+              <td>{{ exp.new_expense_type.name }}</td>
+              <td>{{ exp.kilometers|default:"-" }}</td>
+              <td>{{ exp.amount }}</td>
+              <td>
+                {% if exp.receipt %}
+                  <a href="{{ exp.receipt.url }}" target="_blank">View</a>
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+              <td style="max-width: 200px; word-wrap: break-word;">{{ exp.comments|default:"-" }}</td>
+              <td>{{ exp.status }}</td>
+              <td>
+                {% if exp.status == 'Pending' %}
+                  <button class="btn btn-sm btn-success" onclick="openRemarkModal('{{ exp.id }}', 'approve')">✓</button>
+                  <button class="btn btn-sm btn-danger" onclick="openRemarkModal('{{ exp.id }}', 'reject')">✗</button>
+                {% else %}
+                  <span class="text-muted">{{ exp.status }}</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
 
-              {% if data.da %}
-              <tr class="table-warning text-dark align-middle">
-                <td><strong>Daily Allowance</strong></td>
-                <td>-</td>
-                <td>{{ data.da.da_amount }}</td>
-                <td colspan="2">
-                  Auto-calculated for DA (Project: {{ data.da.project.name }}, Location: {{ data.da.project.location_type.name }})
-                </td>
-                <td>
-                  {% if data.da.approved %}
-                    <span class="badge bg-success">Approved</span>
-                  {% else %}
-                    <span class="badge bg-warning text-dark">Pending</span>
-                  {% endif %}
-                </td>
-                <td>
-                  {% if not data.da.approved %}
+          {% if data.da %}
+            <tr class="table-warning text-dark align-middle">
+              <td colspan="3"><strong>{{ key.date }} – {{ key.employee.user.get_full_name }} – {{ key.project.name }}</strong></td>
+              <td><strong>Daily Allowance</strong></td>
+              <td>-</td>
+              <td>{{ data.da.da_amount }}</td>
+              <td colspan="2">
+                Auto-calculated ({{ data.da.project.location_type.name }})
+              </td>
+              <td>
+                {% if data.da.approved %}
+                  <span class="badge bg-success">Approved</span>
+                {% else %}
+                  <span class="badge bg-warning text-dark">Pending</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if not data.da.approved %}
                   <form method="post" action="{% url 'accountant:approve-da' data.da.id %}">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-sm btn-outline-success" title="Approve Daily Allowance">
+                    <button type="submit" class="btn btn-sm btn-outline-success">✓</button>
                   </form>
-                  {% else %}
-                    <span class="text-muted">✓</span>
-                  {% endif %}
-                </td>
-              </tr>
-              {% endif %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    {% endfor %}
+                {% else %}
+                  <span class="text-muted">✓</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
   {% else %}
     <div class="alert alert-info text-center">No records found for selected filters.</div>
   {% endif %}

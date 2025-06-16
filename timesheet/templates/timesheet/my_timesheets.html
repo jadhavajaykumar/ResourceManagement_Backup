@@ -29,12 +29,17 @@
     </form>
 
     <!-- Calendar -->
-    <div class="card mb-4">
-        <div class="card-header bg-primary text-white">
-            Timesheet Calendar — {{ calendar_month|stringformat:"02d" }}/{{ calendar_year }}
-        </div>
-        <div class="card-body">{{ styled_calendar_html|safe }}</div>
-    </div>
+    <!-- Calendar -->
+	<div class="card mb-4">
+		<div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+			<span>Timesheet Calendar — {{ calendar_month|stringformat:"02d" }}/{{ calendar_year }}</span>
+			<small class="text-white">DA shown for Approved entries with currency</small>
+		</div>
+		<div class="card-body">
+			{{ styled_calendar_html|safe }}
+		</div>
+	</div>
+
 
     <!-- Timesheet Submission -->
     <div class="card mb-4">
@@ -274,7 +279,7 @@ $(document).ready(function() {
         if (!projectId) return taskSelect.html('<option value="">Select Task</option>');
 
         $.ajax({
-            url: "{% url 'manager:load-tasks' %}",
+            url: "{% url 'timesheet:load-employee-tasks' %}",
             data: { project: projectId, employee: {{ employee_id }} },
             success: function(data) {
                 taskSelect.html('<option value="">Select Task</option>');

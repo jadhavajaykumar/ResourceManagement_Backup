@@ -20,4 +20,6 @@ urlpatterns = [
     path('resubmit-timesheet/<int:pk>/', views.resubmit_timesheet, name='resubmit-timesheet'),
     path('generate-timeslots/', views.generate_timeslots, name='generate-timeslots'),
     path('submit-timesheet/', views.submit_timesheet, name='submit-timesheet'),
+    path('load-tasks/', views.load_tasks_for_employee, name='load-employee-tasks'),
+
 ]

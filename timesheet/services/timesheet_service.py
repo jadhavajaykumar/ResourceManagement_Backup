@@ -5,7 +5,7 @@ from timesheet.models import Attendance, TimeSlot
 from project.services.da_service import calculate_da
 from timesheet.models import CompensatoryOff, CompOffBalance
 import logging
-
+from decimal import Decimal
 logger = logging.getLogger(__name__)
 def calculate_total_hours(timesheet):
     """Calculate total hours from all time slots"""
@@ -135,7 +135,8 @@ def process_timesheet_save(timesheet):
                     )
 
                     balance, _ = CompOffBalance.objects.get_or_create(employee=timesheet.employee)
-                    balance.balance += credited_days
+                    balance.balance += Decimal(str(credited_days))
+                    
                     balance.save()
 
         log_audit(timesheet)

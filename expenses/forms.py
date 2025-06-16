@@ -51,18 +51,25 @@ class ExpenseForm(forms.ModelForm):
         receipt = cleaned_data.get('receipt')
 
         if expense_type:
-            if expense_type.requires_kilometers and not kilometers:
-                self.add_error('kilometers', f"Kilometers required for {expense_type.name}.")
-            elif expense_type.requires_kilometers:
-                cleaned_data['amount'] = kilometers * expense_type.rate_per_km
+            # Validate kilometers requirement
+            if expense_type.requires_kilometers:
+                if not kilometers:
+                    self.add_error('kilometers', f"Kilometers required for {expense_type.name}.")
+                elif expense_type.rate_per_km is None:
+                    self.add_error('new_expense_type', f"Rate per km not defined for {expense_type.name}.")
+                else:
+                    cleaned_data['amount'] = kilometers * expense_type.rate_per_km
 
+            # Validate receipt requirement
             if expense_type.requires_receipt and not receipt:
                 self.add_error('receipt', f"Receipt required for {expense_type.name}.")
 
+            # Validate manual amount for non-kilometer-based expenses
             if not expense_type.requires_kilometers and not amount:
-                self.add_error('amount', "Amount required.")
+                self.add_error('amount', "Amount is required.")
 
         return cleaned_data
+
 
 
 

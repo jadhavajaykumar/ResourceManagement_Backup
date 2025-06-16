@@ -31,3 +31,12 @@ def get_dashboard_redirect_url(user):
         return reverse(destination)
 
     return destination  # For hardcoded paths like '/admin/'
+
+def is_manager(user):
+    return get_effective_role(user) == 'Manager'
+
+def is_hr(user):
+    return get_effective_role(user) == 'HR'
+
+def is_accountant(user):
+    return get_effective_role(user) == 'Accountant'
