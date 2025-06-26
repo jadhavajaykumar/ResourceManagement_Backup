@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="text-primary mb-4">Settlement Summary</h2>
+
+    <form method="post" id="settlement-form">
+        {% csrf_token %}
+        <table class="table table-bordered table-striped">
+            <thead class="thead-dark">
+                <tr>
+                    <th>Employee</th>
+                    <th>Total Amount</th>
+                    <th>Currency</th>
+                    <th>Payment Date</th>
+                    <th>Settle</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in totals %}
+                <tr>
+                    <td>{{ item.employee }}</td>
+                    <td>{{ item.total|format_currency:item.currency }}</td>
+                    <td>{{ item.currency }}</td>
+                    <td>
+                        <input type="date" name="payment_date_{{ item.employee_id }}" class="form-control" required>
+                    </td>
+                    <td>
+                        <form method="post" action="{% url 'accountmanager:settle-employee' item.employee_id %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="currency" value="{{ item.currency }}">
+                            <input type="date" name="payment_date" class="form-control mb-2" required>
+                            <button type="submit" class="btn btn-success btn-sm">Settle</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </form>
+
+    <div class="mt-3">
+        <a href="{% url 'accountmanager:export-settlement-summary' %}" class="btn btn-primary">Export to Excel</a>
+    </div>
+</div>
+{% endblock %}

@@ -24,8 +24,9 @@ def custom_login(request):
             if not user.is_active:
                 messages.error(request, "Your account is inactive.")
                 logger.warning(f"Inactive account login attempt: {username}")
-                return render(request, 'accounts/login.html')
+                return render(request, 'accounts/login.html')  # Show form again
 
+            # Perform login
             login(request, user)
 
             # Ensure profile exists and update role if necessary
@@ -33,22 +34,26 @@ def custom_login(request):
 
             # Use URL param role if available
             login_role = request.GET.get('role', '').capitalize()
-            valid_roles = ['Manager', 'Employee', 'HR', 'Accountant']
+            valid_roles = ['Manager', 'Employee', 'HR', 'Accountant', 'Account manager', 'Accountmanager']
 
             if login_role in valid_roles:
                 profile.role = login_role
             elif created:
                 profile.role = 'Employee'  # Default fallback
-            profile.save()
 
+            profile.save()
 
             logger.info(f"User '{user.username}' logged in with role '{profile.role}'")
             return redirect(get_dashboard_redirect_url(user))
+
         else:
             logger.warning(f"Authentication failed for user: {username}")
             messages.error(request, "Invalid username or password.")
+            # Fall through to render form below
 
+    # Always render form on GET or failed POST
     return render(request, 'accounts/login.html')
+
 
 
     

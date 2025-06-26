@@ -7,6 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <link rel="stylesheet" type="text/css" href="{% static 'css/style.css' %}">
+  
 
   <!-- Google Font -->
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
@@ -75,8 +76,28 @@
       padding: 1rem;
       text-align: center;
       font-size: 0.875rem;
-      color: #aaa;
+      color: #aaa;  
     }
+	.dark-mode .nav-tabs,
+     .dark-mode .nav-tabs .nav-link {
+      color: #eaeaea !important;
+    }
+
+	  .dark-mode .nav-tabs .nav-link.active {
+		color: #66b2ff !important;
+		background-color: #2d2d2d !important;
+		border-color: #66b2ff !important;
+	  }
+
+	  .nav-tabs .nav-link {
+		color: #2e2e2e !important;
+	  }
+
+	  .nav-tabs .nav-link.active {
+		color: #0d6efd !important;
+		background-color: #e9ecef !important;
+		border-color: #0d6efd !important;
+	  }
   </style>
 </head>
 <body>
@@ -198,6 +219,20 @@
 		updateLogo();
 	  };
 	</script>
+	
+	<script>
+	  window.onload = function () {
+		const savedTheme = localStorage.getItem("theme");
+		const isDark = savedTheme === "dark";
+		if (isDark) {
+		  document.body.classList.add("dark-mode");
+		} else {
+		  document.body.classList.remove("dark-mode");
+		}
+		updateLogo(isDark);
+	  };
+	</script>
+
 	{% block scripts %}{% endblock %}
 </body>
 </html>

@@ -3,7 +3,7 @@ from django.urls import path
 from . import views
 from employee.views.attendance_views import my_c_offs
 from .views import apply_c_off
-
+from .views import delete_employee_timesheet_data
 
 app_name = 'timesheet'
 
@@ -21,5 +21,10 @@ urlpatterns = [
     path('generate-timeslots/', views.generate_timeslots, name='generate-timeslots'),
     path('submit-timesheet/', views.submit_timesheet, name='submit-timesheet'),
     path('load-tasks/', views.load_tasks_for_employee, name='load-employee-tasks'),
+    
+    
+    #To delete the employee timesheets 
+    path('delete-employee-data/<int:employee_id>/', delete_employee_timesheet_data, name='delete-employee-data'),
+
 
 ]

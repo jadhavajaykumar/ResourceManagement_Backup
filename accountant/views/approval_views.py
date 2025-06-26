@@ -2,67 +2,106 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.views.decorators.http import require_POST
 from django.contrib import messages
+from collections import defaultdict
+from utils.currency import format_currency
+
+
 from expenses.models import Expense, DailyAllowance
 from accountant.services.approval_flow import process_expense_action
 from accountant.views.common import is_accountant
-from collections import defaultdict
 
+from django.utils import timezone
 
+from project.models import Project
+from employee.models import EmployeeProfile
 
 @login_required
 @user_passes_test(is_accountant)
 def expense_approval_dashboard(request):
-    expenses = Expense.objects.select_related('employee__user', 'project', 'new_expense_type')
-    das = DailyAllowance.objects.select_related('employee__user', 'project')
+    # Get filters
+    selected_project = request.GET.get('project')
+    from_date = request.GET.get('from_date')
+    to_date = request.GET.get('to_date')
 
-    # Filters
-    project_id = request.GET.get('project')
-    status = request.GET.get('status')
-    start_date = request.GET.get('start_date')
-    end_date = request.GET.get('end_date')
+    # Base querysets
+    expenses = Expense.objects.select_related('project', 'employee').all()
+    allowances = DailyAllowance.objects.select_related('project', 'employee').all()
 
-    if project_id:
-        expenses = expenses.filter(project_id=project_id)
-        das = das.filter(project_id=project_id)
-    if status:
-        expenses = expenses.filter(status=status)
-        if status == "Approved":
-            das = das.filter(approved=True)
-        elif status == "Rejected":
-            das = das.none()
+    # Apply filters
+    if selected_project and selected_project != "all":
+        expenses = expenses.filter(project_id=selected_project)
+        allowances = allowances.filter(project_id=selected_project)
+    if from_date:
+        expenses = expenses.filter(date__gte=from_date)
+        allowances = allowances.filter(date__gte=from_date)
+    if to_date:
+        expenses = expenses.filter(date__lte=to_date)
+        allowances = allowances.filter(date__lte=to_date)
+
+    # Categorize
+    tabbed_expenses = {
+        'pending': [],
+        'approved': [],
+        'reimbursement': [],
+        'settled': []
+    }
+
+    for expense in expenses:
+        entry = {
+            "type": "Expense",
+            "employee": expense.employee,
+            "project": expense.project,
+            "amount": format_currency(expense.amount, getattr(expense, 'currency', 'INR')),
+            "date": expense.date,
+            "status": expense.status,
+            "reimbursed": expense.reimbursed,
+            "new_expense_type": expense.new_expense_type,
+            "id": expense.id,
+        }
+
+        if expense.status == "Pending":
+            tabbed_expenses["pending"].append(entry)
+        elif expense.status == "Approved" and not expense.reimbursed:
+            tabbed_expenses["reimbursement"].append(entry)
+        elif expense.status == "Approved" and expense.reimbursed:
+            tabbed_expenses["settled"].append(entry)
         else:
-            das = das.filter(approved=False)
-    if start_date and end_date:
-        expenses = expenses.filter(date__range=[start_date, end_date])
-        das = das.filter(date__range=[start_date, end_date])
+            tabbed_expenses["approved"].append(entry)
 
-    # Grouping by (date, employee_id, project_id)
-    grouped_data = defaultdict(lambda: {"expenses": [], "da": None})
-    for exp in expenses:
-        key = (exp.date, exp.employee_id, exp.project_id)
-        grouped_data[key]["expenses"].append(exp)
 
-    for da in das:
-        key = (da.date, da.employee_id, da.project_id)
-        grouped_data[key]["da"] = da
+    for da in allowances:
+        entry = {
+            "type": "DA",
+            "employee": da.employee,
+            "project": da.project,
+            "amount": format_currency(da.da_amount, da.currency),
+            "currency": da.currency,
+            "date": da.date,
+            "status": "Approved" if da.approved else "Pending",
+            "reimbursed": da.reimbursed,
+            "id": da.id,
+            "approved": da.approved,
+        }
 
-    # Reformat key for template-friendly access
-    formatted_grouped = {}
-    for key, value in grouped_data.items():
-        date_val, employee_id, project_id = key
-        ref_obj = value["expenses"][0] if value["expenses"] else value["da"]
-        if ref_obj:
-            display_key = type("GroupKey", (object,), {
-                "date": date_val,
-                "employee": ref_obj.employee,
-                "project": ref_obj.project
-            })()
-            formatted_grouped[display_key] = value
+        if not da.approved:
+            tabbed_expenses["pending"].append(entry)
+        elif da.approved and not da.reimbursed:
+            tabbed_expenses["reimbursement"].append(entry)
+        elif da.approved and da.reimbursed:
+            tabbed_expenses["settled"].append(entry)
+        else:
+            tabbed_expenses["approved"].append(entry)
+
+    # Get project list for filters
+    projects = Expense.objects.values('project__id', 'project__name').distinct()
 
     return render(request, 'accountant/expense_approval_dashboard.html', {
-        'grouped_data': formatted_grouped,
-        'projects': Expense.objects.values('project__id', 'project__name').distinct(),
+        'tabbed_expenses': tabbed_expenses,
+        'tab_names': ["pending", "approved", "reimbursement", "settled"],
+        'projects': projects,
     })
+
+
 
 
 @require_POST
@@ -80,8 +119,6 @@ def approve_or_reject_expense(request, expense_id, action):
         process_expense_action(expense, action, remark, request)
 
     return redirect('accountant:expense-approval')
-
-
 
 
 @login_required

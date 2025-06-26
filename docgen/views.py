@@ -203,7 +203,9 @@ def combined_pdf_tools_view(request):
         elif 'convert_submit' in request.POST:
             convert_form = PDFToWordForm(request.POST, request.FILES)
             if convert_form.is_valid():
-                uploaded_pdf = request.FILES['pdf']
+                uploaded_pdf = request.FILES['pdf_file']
+                if not uploaded_pdf.name.lower().endswith('.pdf'):
+                    return HttpResponse("Please upload a PDF file", status=400)
                 temp_pdf_path = 'temp_input.pdf'
                 with open(temp_pdf_path, 'wb') as f:
                     f.write(uploaded_pdf.read())

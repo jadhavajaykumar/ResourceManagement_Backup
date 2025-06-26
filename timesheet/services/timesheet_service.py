@@ -111,37 +111,42 @@ def process_timesheet_save(timesheet):
             except Exception as att_error:
                 logger.error(f"Attendance update error: {att_error}")
 
-        # ✅ C-Off logic: inside main try block
-        
+        # ✅ C-Off logic: apply only on weekends or holidays, and only once
+        try:
+            if isinstance(timesheet.date, str):
+                timesheet.date = datetime.strptime(timesheet.date, "%Y-%m-%d").date()
 
-        # Ensure it's a date object if it's a string
-        if isinstance(timesheet.date, str):
-            timesheet.date = datetime.strptime(timesheet.date, "%Y-%m-%d").date()
+            weekday = timesheet.date.weekday()
+            is_weekend = weekday in [5, 6]
+            is_holiday = Holiday.objects.filter(date=timesheet.date).exists()
 
-        weekday = timesheet.date.weekday()
+            if is_weekend or is_holiday:
+                credited_days = 0.0
+                if total_hours >= 4:
+                    credited_days = 1.0
+                elif total_hours > 0:
+                    credited_days = 0.5
 
-        if weekday in [5, 6]:  # Saturday = 5, Sunday = 6
-            credited_days = 1.0 if total_hours >= 4 else 0.5 if total_hours > 0 else 0.0
+                if credited_days > 0:
+                    if not CompensatoryOff.objects.filter(timesheet=timesheet).exists():
+                        CompensatoryOff.objects.create(
+                            employee=timesheet.employee,
+                            date_earned=timesheet.date,
+                            hours_logged=total_hours,
+                            approved=False,
+                            credited_days=credited_days,
+                            timesheet=timesheet
+                        )
 
-            if credited_days > 0:
-                if not CompensatoryOff.objects.filter(timesheet=timesheet).exists():
-                    CompensatoryOff.objects.create(
-                        employee=timesheet.employee,
-                        date_earned=timesheet.date,
-                        hours_logged=total_hours,
-                        approved=False,
-                        credited_days=credited_days,
-                        timesheet=timesheet
-                    )
+                        # Only create credit record (not balance update — approval pending)
+                        logger.info(f"C-Off created: {credited_days} day(s) for {timesheet.employee} on {timesheet.date}")
 
-                    balance, _ = CompOffBalance.objects.get_or_create(employee=timesheet.employee)
-                    balance.balance += Decimal(str(credited_days))
-                    
-                    balance.save()
+        except Exception as coff_error:
+            logger.error(f"C-Off evaluation error: {coff_error}")
 
+        # Final audit
         log_audit(timesheet)
 
     except Exception as e:
         logger.exception("Critical error in process_timesheet_save")
         raise ValidationError(f"System error: {e}")
-

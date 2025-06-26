@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     'employee.apps.EmployeeConfig',    # Use the AppConfig class
     'docgen',
     'utils',
+    'accountmanager',
 ]
 
 GRAPH_MODELS = {

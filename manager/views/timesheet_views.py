@@ -11,12 +11,8 @@ import logging
 from collections import defaultdict
 from employee.models import EmployeeProfile
 from project.models import Project
-from timesheet.models import Timesheet, TimeSlot, CompOffApplication, CompOffBalance, Attendance
+from timesheet.models import Timesheet, TimeSlot, CompOffApplication, CompOffBalance, Attendance, Holiday
 from accounts.access_control import is_manager
-
-
-import logging
-
 from project.services.da_utils import generate_da_for_timesheet  # ✅ DA generation utility
 
 
@@ -74,6 +70,13 @@ def timesheet_approval_dashboard(request):
     pending_flags = {}
 
     for ts in timesheets:
+        merged_description = "; ".join(
+            slot.description.strip()
+            for slot in ts.time_slots.all()
+            if slot.description
+        )
+        ts.merged_description = merged_description
+
         grouped_timesheets[ts.employee].append(ts)
         if ts.status == 'Pending':
             pending_flags[ts.employee.id] = True
@@ -113,10 +116,6 @@ def timesheet_approvals(request):
     return render(request, 'manager/timesheet_approvals.html', context)
 
 
-
-
-
-
 @login_required
 @user_passes_test(is_manager)
 @require_POST
@@ -146,29 +145,56 @@ def handle_timesheet_action(request, timesheet_id, action):
             logger.error(f"DA generation failed for Timesheet ID {timesheet.id}: {str(e)}", exc_info=True)
             messages.warning(request, "Timesheet approved, but DA generation failed.")
 
-        # ✅ Comp-off logic for weekends using related TimeSlot entries
-        if timesheet.date.weekday() >= 5:
-            try:
-                #total_seconds = sum(
-                    #(datetime.combine(slot.date, slot.time_to) - datetime.combine(slot.date, slot.time_from)).total_seconds()
-                    #for slot in timesheet.time_slots.all()
-                #)
-                total_seconds = sum(
-                    (datetime.combine(slot.date, slot.time_to) - datetime.combine(slot.date, slot.time_from)).total_seconds()
-                    for slot in timesheet.time_slots.all()
-                    if slot.date and slot.time_from and slot.time_to  # ✅ Ensure all fields are present
-)
-                hours = total_seconds / 3600
-                days_credited = 1.0 if hours >= 4 else 0.5
+        # ✅ Comp-off logic for weekends or holidays
+        try:
+            timesheet_date = timesheet.date
+            is_weekend = timesheet_date.weekday() in [5, 6]  # Saturday or Sunday
+            is_holiday = Holiday.objects.filter(date=timesheet_date).exists()
 
-                balance, _ = CompOffBalance.objects.get_or_create(employee=timesheet.employee)
-                credited_days = Decimal(str(credited_days))  # ensure Decimal
-                balance.balance += credited_days
-                balance.save()
-                messages.info(request, f"Comp-off granted: {days_credited} day(s)")
-            except Exception as e:
-                logger.error(f"Comp-off error: {str(e)}", exc_info=True)
-                messages.warning(request, "Approved but comp-off calculation failed.")
+            print(f"🔍 C-OFF Eligibility Check: {timesheet_date} | Weekend={is_weekend}, Holiday={is_holiday}")
+
+            if is_weekend or is_holiday:
+                # Debug time slot values
+                print("📋 Time Slots Data:", list(timesheet.time_slots.values('date', 'time_from', 'time_to')))
+
+                total_seconds = 0
+                for slot in timesheet.time_slots.all():
+                    slot_date = slot.date or timesheet.date  # Fallback to timesheet.date
+                    if slot.time_from and slot.time_to:
+                        try:
+                            time_from = datetime.combine(slot_date, slot.time_from)
+                            time_to = datetime.combine(slot_date, slot.time_to)
+                            total_seconds += (time_to - time_from).total_seconds()
+                        except Exception as inner_e:
+                            logger.warning(f"⚠️ Error in slot time calculation: {inner_e}")
+
+                hours = total_seconds / 3600
+                print(f"🕒 Total Worked Hours on {timesheet_date}: {hours:.2f}")
+
+                if hours >= 4:
+                    credited_days = Decimal("1.0")
+                elif hours > 0:
+                    credited_days = Decimal("0.5")
+                else:
+                    credited_days = Decimal("0.0")
+
+                print(f"✅ Creditable C-OFF: {credited_days} days")
+
+                if credited_days > 0:
+                    balance, created = CompOffBalance.objects.get_or_create(employee=timesheet.employee)
+                    before = balance.balance
+                    balance.balance += credited_days
+                    balance.save()
+
+                    logger.info(
+                        f"[C-OFF BALANCE] {timesheet.employee.user.username} | Date={timesheet_date} | "
+                        f"Worked Hours={hours:.2f} | Credited={credited_days} | Balance: {before} ➜ {balance.balance}"
+                    )
+                    print(f"💾 Saved new balance: {before} ➜ {balance.balance}")
+                    messages.info(request, f"Comp-off granted: {credited_days} day(s)")
+        except Exception as e:
+            logger.error(f"❌ Comp-off calculation error for Timesheet {timesheet.id}: {str(e)}", exc_info=True)
+            messages.warning(request, "Approved but comp-off calculation failed.")
 
     elif action == 'reject':
         timesheet.status = 'Rejected'
@@ -177,6 +203,10 @@ def handle_timesheet_action(request, timesheet_id, action):
 
     messages.success(request, f"Timesheet {action}d successfully.")
     return redirect('manager:timesheet-approval')
+
+
+
+
 
 
 

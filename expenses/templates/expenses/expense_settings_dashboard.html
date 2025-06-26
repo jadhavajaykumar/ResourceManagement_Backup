@@ -161,7 +161,54 @@
             </table>
         </div>
     </div>
-{% endif %}
+
+	{% endif %}
+	{% if request.user.is_superuser %}
+	<!-- SECTION 4: Delete Timesheet, DA, C-Off Data -->
+	<!-- SECTION: Delete Timesheet, DA, C-Off Data -->
+	<div class="card shadow-sm mt-5">
+		<div class="card-header bg-danger text-white">
+			<h5 class="mb-0">Delete Timesheet, DA, C-Off Records</h5>
+		</div>
+		<div class="card-body">
+			<form method="get" action="{% url 'timesheet:delete-employee-data' 0 %}" onsubmit="event.preventDefault(); redirectToDeletion();">
+				<div class="row g-3 align-items-center">
+					<div class="col-md-8">
+						<label class="form-label">Select Employee</label>
+						<select id="employeeDeleteSelect" class="form-select" required>
+							<option value="">-- Select Employee --</option>
+							{% for emp in employees %}
+								<option value="{{ emp.id }}">{{ emp.user.get_full_name }}</option>
+							{% endfor %}
+						</select>
+					</div>
+					<div class="col-md-4 text-end">
+						<button type="submit" class="btn btn-danger mt-2">
+							Delete Data
+						</button>
+					</div>
+				</div>
+			</form>
+		</div>
+	</div>
+
+	<!-- Script: Redirect to Delete View -->
+	<script>
+	function redirectToDeletion() {
+		const empId = document.getElementById('employeeDeleteSelect').value;
+		if (!empId) {
+			alert("Please select an employee.");
+			return;
+		}
+
+		const urlTemplate = "{% url 'timesheet:delete-employee-data' 0 %}";
+		const targetUrl = urlTemplate.replace("0", empId);
+		window.location.href = targetUrl;
+	}
+	</script>
+	{% endif %}
+
+
 
 
 </div>

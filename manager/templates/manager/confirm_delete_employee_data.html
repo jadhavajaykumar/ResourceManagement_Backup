@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h2>Delete Records for {{ employee.user.get_full_name }}</h2>
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-group">
+      <label>Start Date:</label>
+      <input type="date" name="start_date" class="form-control" required value="{{ start_date }}">
+    </div>
+    <div class="form-group">
+      <label>End Date:</label>
+      <input type="date" name="end_date" class="form-control" required value="{{ end_date }}">
+    </div>
+
+    <button type="submit" class="btn btn-danger mt-3">Delete Timesheets, DA, C-Off</button>
+ 
+	<a href="{% url 'expenses:expense-settings' %}" class="btn btn-secondary mt-3">Cancel</a>
+
+	
+  </form>
+{% endblock %}

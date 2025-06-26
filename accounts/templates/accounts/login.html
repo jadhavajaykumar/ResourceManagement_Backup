@@ -121,7 +121,7 @@
         <div class="role-text">Login as {{ request.GET.role|title }}</div>
     {% endif %}
 
-    <div class="role-buttons">
+   <!-- <div class="role-buttons">
         <a href="{% url 'accounts:login' %}?role=Employee" 
            class="{% if request.GET.role == 'Employee' %}active-role{% endif %}">
            Employee
@@ -138,7 +138,13 @@
            class="{% if request.GET.role == 'Accountant' %}active-role{% endif %}">
            Accountant
         </a>
-    </div>
+		<a href="{% url 'accounts:login' %}?role=Account Manager" 
+           class="{% if request.GET.role == 'Account Manager' %}active-role{% endif %}">
+           Account Manager
+        </a>
+		
+
+    </div>-->
 
     <form method="post" action="{% url 'accounts:login' %}">
         {% csrf_token %}

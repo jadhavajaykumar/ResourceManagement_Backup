@@ -56,3 +56,62 @@ input[type="file"] {
 .bg-danger  { background-color: #f8d7da !important; }
 .bg-primary { background-color: #cce5ff !important; }
 .bg-orange  { background-color: #ffe0b2 !important; }
+
+/* Tabs text color fix for light and dark themes */
+.nav-tabs .nav-link {
+  color: #2e2e2e; /* default for light mode */
+}
+
+.dark-mode .nav-tabs .nav-link {
+  color: #eaeaea; /* default for dark mode */
+}
+
+.nav-tabs .nav-link.active {
+  font-weight: 600;
+  border-bottom: 3px solid #0d6efd;
+  background-color: transparent;
+  color: #0d6efd;
+}
+
+.dark-mode .nav-tabs .nav-link.active {
+  color: #66b2ff;
+  border-color: #66b2ff;
+}
+
+.tab-content {
+  background-color: #ffffff;
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.dark-mode .tab-content {
+  background-color: #2b2b2b;
+}
+
+
+/* === Tabs Visual Fix for Theme Toggle === */
+.nav-tabs .nav-link {
+  color: #2e2e2e;
+  background-color: transparent;
+  border: none;
+}
+
+.nav-tabs .nav-link.active {
+  color: #0d6efd;
+  background-color: #e9ecef;
+  border: none;
+  font-weight: 600;
+}
+
+.dark-mode .nav-tabs .nav-link {
+  color: #eaeaea;
+  background-color: transparent;
+  border: none;
+}
+
+.dark-mode .nav-tabs .nav-link.active {
+  color: #66b2ff;
+  background-color: #2d2d2d;
+  border: none;
+  font-weight: 600;
+}

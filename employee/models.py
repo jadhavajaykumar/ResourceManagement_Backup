@@ -15,6 +15,7 @@ class EmployeeProfile(models.Model):
         ('Accountant', 'Accountant'),
         ('Director', 'Director'),
         ('Admin', 'Admin'),
+        ('Account Manager', 'Account Manager'),
     )
     EMPLOYMENT_TYPES = [
         ('Permanent', 'Permanent'),

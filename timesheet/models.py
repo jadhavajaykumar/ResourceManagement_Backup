@@ -17,12 +17,14 @@ class Attendance(models.Model):
         ('Present', 'Present'),
         ('Half Day', 'Half Day'),
         ('Absent', 'Absent'),
+        ('Holiday', 'Holiday'),
     ]
 
-    employee = models.ForeignKey('employee.EmployeeProfile', on_delete=models.CASCADE)
+    employee = models.ForeignKey('employee.EmployeeProfile', on_delete=models.CASCADE, null=True, blank=True)
     date = models.DateField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES)
     added_c_off = models.DecimalField(max_digits=3, decimal_places=1, default=0.0)
+    description = models.CharField(max_length=255, blank=True, null=True)
 
     class Meta:
         unique_together = ('employee', 'date')
@@ -123,7 +125,7 @@ class Timesheet(models.Model):
         super().save(*args, **kwargs)
 
 class CompensatoryOff(models.Model):
-    employee = models.ForeignKey('employee.EmployeeProfile', on_delete=models.CASCADE)
+    employee = models.ForeignKey('employee.EmployeeProfile', on_delete=models.CASCADE, null=True, blank=True)
     date_earned = models.DateField()
     hours_logged = models.DecimalField(max_digits=4, decimal_places=2)
     approved = models.BooleanField(default=False)
@@ -131,11 +133,11 @@ class CompensatoryOff(models.Model):
     timesheet = models.OneToOneField('timesheet.Timesheet', on_delete=models.CASCADE)
 
 class CompOffBalance(models.Model):
-    employee = models.OneToOneField('employee.EmployeeProfile', on_delete=models.CASCADE)
+    employee = models.OneToOneField('employee.EmployeeProfile', on_delete=models.CASCADE, null=True, blank=True)
     balance = models.DecimalField(max_digits=4, decimal_places=1, default=0.0)
 
 class CompOffApplication(models.Model):
-    employee = models.ForeignKey(EmployeeProfile, on_delete=models.CASCADE)
+    employee = models.ForeignKey(EmployeeProfile, on_delete=models.CASCADE, null=True, blank=True)
     date_applied_for = models.DateField()
     number_of_days = models.DecimalField(max_digits=3, decimal_places=1)
     status = models.CharField(max_length=20, choices=[
@@ -146,3 +148,23 @@ class CompOffApplication(models.Model):
 
     def __str__(self):
         return f"{self.employee.user.username} — {self.date_applied_for} ({self.number_of_days} days)"
+ #Mark Holiday on Employe Calendar       
+# timesheet/models.py (or wherever Holiday is defined)
+
+
+
+class Holiday(models.Model):
+    date = models.DateField()
+    description = models.CharField(max_length=255, default="General Holiday")
+    employees = models.ManyToManyField(EmployeeProfile, blank=True)
+
+    class Meta:
+        unique_together = ('date', 'description')
+
+    def __str__(self):
+        return f"{self.date} - {self.description}"
+
+
+
+
+        

@@ -8,7 +8,7 @@ from manager.views.timesheet_views import mark_employee_absent, timesheet_histor
 from . import views
 from manager.views.absent_views import mark_absent_dashboard
 from manager.views import task_views
-
+from manager.views.holiday_views import manage_holidays
 
 from manager.views import (
     manager_dashboard,
@@ -80,7 +80,7 @@ urlpatterns = [
     path('mark-absent/', mark_employee_absent, name='mark-absent'),
     path('absences/', mark_absent_dashboard, name='mark-absent-dashboard'),
     path('timesheet-history/', timesheet_history_view, name='timesheet-history'),
-
+    path('manage-holidays/', manage_holidays, name='manage-holidays'),
     
 
 

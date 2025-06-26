@@ -54,87 +54,92 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for timesheet in timesheets %}
-                                        {% with slot=timesheet.time_slots.first %}
-                                        <tr>
-                                            <td>{{ timesheet.date|date:"M d, Y" }}</td>
-                                            <td>
-                                                {% if slot and slot.project %}
-                                                    {{ slot.project.name }}
-                                                {% else %}
-                                                    -
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                {% if slot and slot.task %}
-                                                    {{ slot.task.name }}
-                                                {% else %}
-                                                    -
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                {% if slot %}
-                                                    {{ slot.description|truncatechars:50 }}
-                                                {% else %}
-                                                    -
-                                                {% endif %}
-                                            </td>
-                                            <td>{{ timesheet.shift_start|time:"H:i" }} - {{ timesheet.shift_end|time:"H:i" }}</td>
-                                            <td>{{ timesheet.get_total_hours }}</td>
-                                            <td>
-											  {% with da_record=da_map|get_item:timesheet.id %}
-												{% if da_record %}
-												  <span class="text-success fw-bold">
-													{{ da_record.da_amount|currency_display:da_record.currency }}
-													{% if da_record.is_extended %}
-													  <span title="Includes extra hours" class="text-warning">⚡</span>
-													{% endif %}
-												  </span>
+									{% for timesheet in timesheets %}
+										{% with slot=timesheet.time_slots.first %}
+										<tr>
+											<td>{{ timesheet.date|date:"M d, Y" }}</td>
+											<td>
+												{% if slot and slot.project %}
+													{{ slot.project.name }}
 												{% else %}
-												  <span class="text-muted">—</span>
+													-
 												{% endif %}
-											  {% endwith %}
+											</td>
+											<td>
+												{% if slot and slot.task %}
+													{{ slot.task.name }}
+												{% else %}
+													-
+												{% endif %}
+											</td>
+											<td>
+												{% if timesheet.time_slots.all %}
+													<ul style="padding-left: 18px; margin: 0;">
+														{% for slot in timesheet.time_slots.all %}
+															{% if slot.description %}
+																<li>{{ slot.description }}</li>
+															{% endif %}
+														{% endfor %}
+													</ul>
+												{% else %}
+													-
+												{% endif %}
 											</td>
 
+											<td>{{ timesheet.shift_start|time:"H:i" }} - {{ timesheet.shift_end|time:"H:i" }}</td>
+											<td>{{ timesheet.get_total_hours }}</td>
+											<td>
+												{% with da_record=da_map|get_item:timesheet.id %}
+													{% if da_record %}
+														<span class="text-success fw-bold">
+															{{ da_record.da_amount|currency_display:da_record.currency }}
+															{% if da_record.is_extended %}
+																<span title="Includes extra hours" class="text-warning">⚡</span>
+															{% endif %}
+														</span>
+													{% else %}
+														<span class="text-muted">—</span>
+													{% endif %}
+												{% endwith %}
+											</td>
+											<td>
+												<span class="badge bg-{% if timesheet.status == 'Approved' %}success
+													{% elif timesheet.status == 'Pending' %}warning
+													{% else %}danger{% endif %}">
+													{{ timesheet.status }}
+												</span>
+											</td>
+											<td>
+												{% if timesheet.status == 'Pending' %}
+												<form method="post" action="{% url 'manager:handle-timesheet-action' timesheet.id 'approve' %}">
+													{% csrf_token %}
+													<div class="input-group mb-2">
+														<input type="text" name="manager_remark" class="form-control form-control-sm"
+															   placeholder="Remark" required>
+														<button type="submit" class="btn btn-sm btn-success">Approve</button>
+													</div>
+												</form>
+												<form method="post" action="{% url 'manager:handle-timesheet-action' timesheet.id 'reject' %}">
+													{% csrf_token %}
+													<div class="input-group">
+														<input type="text" name="manager_remark" class="form-control form-control-sm"
+															   placeholder="Remark" required>
+														<button type="submit" class="btn btn-sm btn-danger">Reject</button>
+													</div>
+												</form>
+												{% else %}
+													-
+												{% endif %}
+											</td>
+										</tr>
+										{% endwith %}
+									{% empty %}
+										<tr>
+											<td colspan="9" class="text-center">No timesheets for this employee.</td>
+										</tr>
+									{% endfor %}
+								</tbody>
 
-
-                                            <td>
-                                                <span class="badge bg-{% if timesheet.status == 'Approved' %}success
-                                                    {% elif timesheet.status == 'Pending' %}warning
-                                                    {% else %}danger{% endif %}">
-                                                    {{ timesheet.status }}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                {% if timesheet.status == 'Pending' %}
-                                                <form method="post" action="{% url 'manager:handle-timesheet-action' timesheet.id 'approve' %}">
-                                                    {% csrf_token %}
-                                                    <div class="input-group mb-2">
-                                                        <input type="text" name="manager_remark" class="form-control form-control-sm"
-                                                               placeholder="Remark" required>
-                                                        <button type="submit" class="btn btn-sm btn-success">Approve</button>
-                                                    </div>
-                                                </form>
-                                                <form method="post" action="{% url 'manager:handle-timesheet-action' timesheet.id 'reject' %}">
-                                                    {% csrf_token %}
-                                                    <div class="input-group">
-                                                        <input type="text" name="manager_remark" class="form-control form-control-sm"
-                                                               placeholder="Remark" required>
-                                                        <button type="submit" class="btn btn-sm btn-danger">Reject</button>
-                                                    </div>
-                                                </form>
-                                                {% else %}
-                                                    -
-                                                {% endif %}
-                                            </td>
-                                        </tr>
-                                        {% endwith %}
-                                    {% empty %}
-                                        <tr>
-                                            <td colspan="9" class="text-center">No timesheets for this employee.</td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
                             </table>
                         </div>
                     </div>

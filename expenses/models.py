@@ -60,6 +60,7 @@ class Expense(models.Model):
     comments = models.TextField(blank=True)
 
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='Pending')
+    reimbursed = models.BooleanField(default=False)  # ✅ ADD THIS
     final_status = models.CharField(max_length=20, choices=FINAL_STATUS_CHOICES, default='Pending')
 
     accountant_remark = models.TextField(blank=True, null=True)
@@ -70,6 +71,8 @@ class Expense(models.Model):
     manager_reviewed_at = models.DateTimeField(blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
+  
+    forwarded_to_accountmanager = models.BooleanField(default=False)
 
     def clean(self):
         if hasattr(self, 'expense_type') and self.expense_type in ['travel-bike', 'travel-personal-car']:
@@ -128,8 +131,11 @@ class DailyAllowance(models.Model):
     currency = models.CharField(max_length=10)
     is_extended = models.BooleanField(default=False)
     approved = models.BooleanField(default=False)
+    reimbursed = models.BooleanField(default=False)  # ✅ ADD THIS
     forwarded_to_accountant = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    forwarded_to_accountmanager = models.BooleanField(default=False)
+
 
 class CountryDASetting(models.Model):
     country = models.CharField(max_length=100, unique=True)

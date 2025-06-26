@@ -16,7 +16,11 @@ urlpatterns = [
     path('accounts/', include('accounts.urls')),
     path('employee/', include('employee.urls')),
     path('project/', include('project.urls')),
-    path('timesheet/', include('timesheet.urls')),
+    #path('timesheet/', include('timesheet.urls')),
+    # main urls.py
+    path("timesheet/", include(("timesheet.urls", "timesheet"), namespace="timesheet")),
+    path("accountmanager/", include("accountmanager.urls")),
+
     path('expenses/', include('expenses.urls')),
     path('manager/', include('manager.urls')),
     path('docgen/', include('docgen.urls')),

@@ -2,6 +2,17 @@ from datetime import date
 from calendar import HTMLCalendar
 from utils.currency import format_currency
 from decimal import Decimal, InvalidOperation
+from timesheet.models import Holiday
+from datetime import date
+
+
+def formatday(self, day, weekday, theyear, themonth):
+    ...
+    is_holiday = Holiday.objects.filter(date=dt).exists()
+    if is_holiday:
+        css_class = 'bg-secondary text-white'
+        status = 'holiday'
+    ...
 
 class StyledCalendar(HTMLCalendar):
     def __init__(self, status_map):
@@ -11,6 +22,14 @@ class StyledCalendar(HTMLCalendar):
     def formatday(self, day, weekday, theyear, themonth):
         if day == 0:
             return '<td class="bg-light calendar-day"></td>'
+            
+        dt = date(theyear, themonth, day)
+                                                               
+        is_holiday = Holiday.objects.filter(date=dt).exists()
+        if is_holiday:
+            css_class = 'bg-secondary text-white'
+            status = 'holiday'
+           
 
         dt = date(theyear, themonth, day)
         day_data = self.status_map.get(dt, {})
@@ -18,6 +37,7 @@ class StyledCalendar(HTMLCalendar):
         hours = day_data.get('hours', '')
         da = day_data.get('da', None)
         currency = day_data.get('currency', '')
+        coff_earned = day_data.get('coff_earned', False)  # ✅ Add this line
 
         # 🔄 Override status if it's weekend and hours are logged
         if weekday in (5, 6):  # Saturday=5, Sunday=6
@@ -53,16 +73,20 @@ class StyledCalendar(HTMLCalendar):
         
                 # ✅ C-Off badge logic (only weekends)
         coff_badge = ''
-        try:
-            if weekday in (5, 6) and float(hours) > 0:
-                if float(hours) < 4:
-                    coff_badge = '<div class="badge bg-info text-white mt-1">0.5 C-Off</div>'
-                else:
-                    coff_badge = '<div class="badge bg-info text-white mt-1">1 C-Off</div>'
-        except (TypeError, ValueError):
-            pass
+        if coff_earned:  # ✅ Only show if manager-approved
+            try:
+                if weekday in (5, 6) and float(hours) > 0:
+                    if float(hours) < 4:
+                        coff_badge = '<div class="badge bg-info text-white mt-1">0.5 C-Off</div>'
+                    else:
+                        coff_badge = '<div class="badge bg-info text-white mt-1">1 C-Off</div>'
+            except (TypeError, ValueError):
+                pass
 
+        holiday_badge = '<div class="badge bg-warning text-dark mt-1">Holiday</div>' if is_holiday else ''
+        
 
+    
         return f'''
         <td class="calendar-day {css_class}">
             <div class="d-flex flex-column">
