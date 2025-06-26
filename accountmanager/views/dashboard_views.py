@@ -179,62 +179,80 @@ def reimbursement_dashboard(request):
 
     
     # Tab 3: Settled
+    # Tab 3: Settled History
     settled_expenses = Expense.objects.select_related('employee__user', 'project').filter(status="Approved", reimbursed=True)
     settled_das = DailyAllowance.objects.select_related('employee__user', 'project').filter(approved=True, reimbursed=True)
 
-    # Build settled_data first
+    settled_employee_ids = set(e.employee.id for e in settled_expenses) | set(d.employee.id for d in settled_das)
+
+    employee_map = {
+        emp.id: emp for emp in EmployeeProfile.objects.select_related('user').filter(id__in=settled_employee_ids)
+    }
+
     settled_data = defaultdict(list)
     for e in settled_expenses:
         emp = e.employee
-        if emp:
-            settled_data[emp.id].append({
-                "type": "Expense",
-                "employee": emp,
-                "project": e.project,
-                "amount": format_currency(e.amount, getattr(e, 'currency', 'INR')),
-                "date": e.date,
-            })
+        settled_data[emp.id].append({
+            "type": "Expense",
+            "employee": emp,
+            "project": e.project,
+            "amount": format_currency(e.amount, getattr(e, 'currency', 'INR')),
+            "date": e.date,
+        })
 
     for d in settled_das:
         emp = d.employee
-        if emp:
-            settled_data[emp.id].append({
-                "type": "DA",
-                "employee": emp,
-                "project": d.project,
-                "amount": format_currency(d.da_amount, d.currency),
-                "date": d.date,
-            })
+        settled_data[emp.id].append({
+            "type": "DA",
+            "employee": emp,
+            "project": d.project,
+            "amount": format_currency(d.da_amount, d.currency),
+            "date": d.date,
+        })
 
-    # Now safely access settled_data keys
-    settled_employee_ids = list(settled_data.keys())
-
-    # Build employee_map only for valid IDs
-    employee_qs = EmployeeProfile.objects.select_related('user').filter(id__in=settled_employee_ids)
-    employee_map = {emp.id: emp for emp in employee_qs}
-
-    # Remove entries with missing employee_map data
+    # ✅ Filter out employees not in employee_map
     settled_data = {
         emp_id: entries
         for emp_id, entries in settled_data.items()
         if emp_id in employee_map
     }
 
-        
-    #employee_map[emp.id] = emp   
-    # Build employee_map for all relevant employees
-    print("Settled Employees Loaded:", list(employee_map.keys()))
-    print("Final Settled Data Keys (filtered):", list(settled_data.keys()))
+    # ✅ Now build settled_merged safely
+    settled_merged = {}
+    for emp_id, entries in settled_data.items():
+        total_amount = 0.0
+        currency_symbol = "₹"
+        for entry in entries:
+            amt_str = entry["amount"]
+            if amt_str and len(amt_str) > 1:
+                currency_symbol = amt_str[0]
+                try:
+                    amt = float(amt_str[1:].replace(",", ""))
+                    total_amount += amt
+                except Exception as e:
+                    print(f"Error parsing amount {amt_str} for employee {emp_id}: {e}")
+        settled_merged[emp_id] = {
+            "employee": employee_map[emp_id],
+            "total": f"{currency_symbol}{total_amount:,.2f}",
+            "entries": entries,
+        }
 
-    
-    print("Settled data keys (employee IDs):", list(settled_data.keys()))
-    print("Employee map keys:", list(employee_map.keys()))
+
+   # import pprint
+    #pprint.pprint(dict(settled_merged))
+    #print("Merged Keys:", list(settled_merged.keys()))
+
+
 
     return render(request, 'accountmanager/reimbursement_dashboard.html', {
         'reimbursement_entries': reimbursement_entries,
         'employee_summaries': grouped_summary,
         'settled_data': settled_data,
         'employee_map': employee_map,
+        
+        'settled_merged': settled_merged,
+        
+        'active_tab': request.GET.get("tab", "tab1"),
     })
 
 
