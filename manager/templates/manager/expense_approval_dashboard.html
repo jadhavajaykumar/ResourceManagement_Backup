@@ -5,6 +5,22 @@
 		<!--<a href="{% url 'accounts:profile' %}" class="btn btn-outline-dark">
             <i class="bi bi-house me-2"></i>Dashboard
         </a>-->
+	<!--Advance request approval-->	
+	{% for adv in advance_requests %}
+	  <tr class="table-info">
+		<td>{{ adv.employee.user.get_full_name }}</td>
+		<td>{{ adv.project.name }}</td>
+		<td>₹{{ adv.amount }}</td>
+		<td><strong>Advance Request</strong></td>
+		<td>{{ adv.date_requested }}</td>
+		<td>Pending</td>
+		<td>-</td>
+		<td>
+		  <a href="{% url 'manager:approve-advance' adv.id %}" class="btn btn-sm btn-success">Approve</a>
+		</td>
+	  </tr>
+	{% endfor %}
+	
 
   <table class="table table-striped table-hover">
     <thead>

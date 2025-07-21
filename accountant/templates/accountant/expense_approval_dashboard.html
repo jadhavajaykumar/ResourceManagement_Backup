@@ -31,6 +31,17 @@
     </div>
   </form>
 
+  <!-- Export -->
+  <div class="mb-3 text-end">
+    <form method="get" id="exportForm" action="">
+      <input type="hidden" name="project" value="{{ request.GET.project }}">
+      <input type="hidden" name="from_date" value="{{ request.GET.from_date }}">
+      <input type="hidden" name="to_date" value="{{ request.GET.to_date }}">
+      <button type="submit" class="btn btn-outline-success">Export Excel</button>
+	  <a href="{% url 'accountant:export-advance-summary' %}" class="btn btn-outline-info ms-2">Export Advance Summary</a>
+    </form>
+  </div>
+
   <!-- Tabs -->
   <ul class="nav nav-tabs mb-3" id="approvalTabs" role="tablist">
     {% for tab in tab_names %}
@@ -42,6 +53,7 @@
     {% endfor %}
   </ul>
 
+  <!-- Tab Content -->
   <div class="tab-content" id="approvalTabContent">
     {% for tab in tab_names %}
       <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" id="{{ tab }}-tab-pane" role="tabpanel">
@@ -76,7 +88,13 @@
                           <button class="btn btn-sm btn-success" onclick="openRemarkModal('{{ row.id }}', 'approve')">✓</button>
                           <button class="btn btn-sm btn-danger" onclick="openRemarkModal('{{ row.id }}', 'reject')">✗</button>
                         {% else %}
-                          -
+                          <div class="small text-muted">
+                            {% if row.advance_used %}
+                              <span class="badge bg-info text-dark">Adv #{{ row.advance_used }}</span>
+                            {% else %}
+                              <span class="badge bg-secondary">No Advance</span>
+                            {% endif %}
+                          </div>
                         {% endif %}
                       </td>
                     </tr>
@@ -97,6 +115,28 @@
                           </form>
                         {% else %}
                           <span class="text-muted">✓</span>
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% elif row.type == "Advance" %}
+                    <tr class="table-info text-dark">
+                      <td>{{ row.employee.user.get_full_name }}</td>
+                      <td>{{ row.project.name }}</td>
+                      <td>{{ row.amount }}</td>
+                      <td><strong>Advance Request</strong></td>
+                      <td>{{ row.date }}</td>
+                      <td>
+                        Manager: {% if row.approved_by_manager %}✓{% else %}✗{% endif %}<br>
+                        Accountant: {% if row.approved_by_accountant %}✓{% else %}✗{% endif %}
+                      </td>
+                      <td>-</td>
+                      <td>
+                        {% if row.approved_by_manager and not row.approved_by_accountant %}
+                          <a href="{% url 'accountant:accountant_approve_advance' row.id %}" class="btn btn-sm btn-success">Approve</a>
+                        {% elif row.approved_by_accountant %}
+                          <span class="text-muted">Approved</span>
+                        {% else %}
+                          <span class="text-muted">Pending Manager</span>
                         {% endif %}
                       </td>
                     </tr>
@@ -136,11 +176,22 @@
 </div>
 
 <script>
-function openRemarkModal(expenseId, action) {
-  const form = document.getElementById('remarkForm');
-  form.action = `/accountant/expenses/${expenseId}/${action}/`;
-  document.querySelector('#remarkForm textarea').value = "";
-  new bootstrap.Modal(document.getElementById('remarkModal')).show();
-}
+  function updateExportLink() {
+    const activeTab = document.querySelector('.nav-link.active').id.replace('-tab', '');
+    const exportForm = document.getElementById('exportForm');
+    exportForm.action = `/accountant/export/${activeTab}/`;
+  }
+
+  updateExportLink();
+  document.querySelectorAll('.nav-link').forEach(btn => {
+    btn.addEventListener('click', () => setTimeout(updateExportLink, 200));
+  });
+
+  function openRemarkModal(expenseId, action) {
+    const form = document.getElementById('remarkForm');
+    form.action = `/accountant/expenses/${expenseId}/${action}/`;
+    document.querySelector('#remarkForm textarea').value = "";
+    new bootstrap.Modal(document.getElementById('remarkModal')).show();
+  }
 </script>
 {% endblock %}

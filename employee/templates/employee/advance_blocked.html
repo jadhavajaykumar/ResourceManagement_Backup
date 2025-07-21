@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="alert alert-warning">
+    <h5>Advance Request Blocked</h5>
+    <p>Your previous advance of ₹{{ advance.amount|floatformat:2 }} is not fully utilized yet.</p>
+    
+    <p>Expenses submitted: ₹{{ advance.amount|subtract:balance|floatformat:2 }}</p>
+    <p>Remaining balance: ₹{{ balance|floatformat:2 }}</p>
+    
+    <p>Linked expenses:</p>
+    <ul>
+      {% for expense in advance.used_expenses.all %}
+        <li>
+          ₹{{ expense.amount|floatformat:2 }} on {{ expense.date }} 
+          (Status: {{ expense.status }})
+        </li>
+      {% empty %}
+        <li>No expenses linked to this advance</li>
+      {% endfor %}
+    </ul>
+    
+    <p>You can raise a new request after this advance is fully utilized.</p>
+  </div>
+</div>
+{% endblock %}

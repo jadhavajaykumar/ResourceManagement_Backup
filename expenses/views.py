@@ -13,12 +13,12 @@ from .forms import GracePeriodForm
 from django.views.decorators.http import require_http_methods
 from .models import ExpenseType
 
-
+from expenses.models import AdvanceRequest
 from django.contrib.auth.decorators import login_required, user_passes_test
 
 from .forms import CountryDASettingForm
 from .models import CountryDARate
-
+from expenses.utils.expense_grouping import group_expenses_by_date_and_project  # adjust path as needed
 # ✅ Access control: Only managers and admins
 def is_manager_or_admin(user):
     return user.is_authenticated and (user.is_superuser or user.groups.filter(name__in=['Manager', 'Admin']).exists())
@@ -38,37 +38,7 @@ def delete_expense(request, expense_id):
     
     return redirect('expenses:employee-expenses')
 
-@login_required
-def employee_expenses(request):
-    profile = EmployeeProfile.objects.get(user=request.user)
-    new_expense_types = ExpenseType.objects.all()
 
-    expenses = Expense.objects.filter(employee=profile).select_related('project').order_by('-date')
-
-    if request.method == 'GET':
-        # filter logic...
-        form = ExpenseForm(employee=profile)
-
-    elif request.method == 'POST':
-        form = ExpenseForm(request.POST, request.FILES, employee=profile)
-        if form.is_valid():
-            expense = form.save(commit=False)
-            expense.employee = profile
-            expense.save()
-            messages.success(request, "Expense submitted successfully.")
-            return redirect('expenses:employee-expenses')
-    else:
-        form = ExpenseForm(employee=profile)
-
-    # use select_related for optimization
-    projects = profile.expense_set.select_related('project').values('project__id', 'project__name').distinct()
-
-    return render(request, 'expenses/my_expenses.html', {
-        'form': form,
-        'expenses': expenses,
-        'expense_types': new_expense_types,
-        'projects': projects,
-    })
 
 
 @login_required

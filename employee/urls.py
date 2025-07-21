@@ -4,7 +4,8 @@ from .views import (
     profile_home, edit_profile,
     employee_dashboard,
     my_projects,
-    attendance_report
+    attendance_report,
+    advance_views
 )
 
 app_name = 'employee'
@@ -16,4 +17,7 @@ urlpatterns = [
     path('my-projects/', my_projects, name='my-projects'),
     path('attendance-report/', attendance_report, name='attendance-report'),
     path('attendance-c-off-report/', attendance_c_off_report, name='attendance-c-off-report'),
+    path('raise-advance/', advance_views.raise_advance_request, name='raise-advance'),
+    #path('raise-advance/', advance_views.raise_advance_request, name='raise-advance'),
+    path('my-advance-requests/', advance_views.list_advance_requests, name='advance-requests'),
 ]

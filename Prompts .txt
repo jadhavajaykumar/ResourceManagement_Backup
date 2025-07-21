@@ -1,0 +1,337 @@
+timesheet/forms.py,
+'from django import forms
+from django.core.exceptions import ValidationError
+from django.utils import timezone
+from .models import Timesheet
+from project.models import Project, Task
+from manager.models import TaskAssignment
+
+class TimesheetForm(forms.ModelForm):
+    class Meta:
+        model = Timesheet
+        fields = ['project', 'task', 'date', 'time_from', 'time_to', 'task_description']
+        widgets = {
+            'date': forms.DateInput(attrs={'type': 'date'}),
+            'time_from': forms.TimeInput(attrs={'type': 'time'}),
+            'time_to': forms.TimeInput(attrs={'type': 'time'}),
+            'task_description': forms.Textarea(attrs={'rows': 2}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.employee = kwargs.pop('employee', None)  # Store employee from kwargs
+        super().__init__(*args, **kwargs)
+
+        if self.employee:
+            assigned_project_ids = TaskAssignment.objects.filter(employee=self.employee).values_list('project_id', flat=True)
+            assigned_task_ids = TaskAssignment.objects.filter(employee=self.employee).values_list('task_id', flat=True)
+
+            self.fields['project'].queryset = Project.objects.filter(id__in=assigned_project_ids)
+            self.fields['task'].queryset = Task.objects.filter(id__in=assigned_task_ids)
+
+    def clean_date(self):
+        date = self.cleaned_data['date']
+        if date > timezone.now().date():
+            raise ValidationError("You cannot submit timesheets for future dates.")
+        return date
+
+    def clean(self):
+        cleaned_data = super().clean()
+        time_from = cleaned_data.get('time_from')
+        time_to = cleaned_data.get('time_to')
+        date = cleaned_data.get('date')
+        
+        if time_from and time_to and date and self.employee:
+            # Create temporary timesheet for validation
+            temp = Timesheet(
+                date=date,
+                time_from=time_from,
+                time_to=time_to,
+                employee=self.employee
+            )
+            try:
+                temp.clean()  # This will use our new validation
+            except ValidationError as e:
+                raise ValidationError(e.message)
+        
+        return cleaned_data'.
+		
+		
+		
+timesheet/views.py,
+'@login_required
+def my_timesheets(request):
+    employee = request.user.employeeprofile
+    today = timezone.now().date()
+    year = int(request.GET.get('year', today.year))
+    month = int(request.GET.get('month', today.month))
+
+    # Get detailed day status map
+    day_status_map = get_timesheet_calendar_data(employee, year, month)
+
+    # Generate styled calendar
+    calendar = StyledCalendar(day_status_map)
+    styled_calendar_html = calendar.formatmonth(year, month)
+
+    # Default timeslot
+    default_from, default_to = get_current_slot()
+
+    if request.method == 'POST':
+        form = TimesheetForm(request.POST, employee=employee)  # Pass employee here
+        if form.is_valid():
+            entry = form.save(commit=False)
+            entry.employee = employee
+
+            # Additional server-side future date check
+            if entry.date > today:
+                form.add_error('date', "Cannot submit timesheets for future dates")
+            elif Attendance.objects.filter(employee=employee, date=entry.date, status='Absent').exists():
+                form.add_error(None, f"You were marked absent on {entry.date}. Timesheet cannot be submitted.")
+            else:
+                if entry.is_billable is None:
+                    entry.is_billable = False
+
+                try:
+                    entry.full_clean()
+                    entry.save()
+
+                    da_amount, currency = calculate_da(entry)
+                    if da_amount:
+                        DailyAllowance.objects.update_or_create(
+                            timesheet=entry,
+                            defaults={
+                                'employee': employee,
+                                'project': entry.project,
+                                'date': entry.date,
+                                'da_amount': da_amount,
+                                'currency': currency or 'INR',
+                                'forwarded_to_accountant': False,
+                                'approved': False,
+                                'is_extended': False,
+                            }
+                        )
+
+                    messages.success(request, "Timesheet submitted successfully.")
+                    return redirect('timesheet:my-timesheets')
+                except ValidationError as e:
+                    form.add_error(None, e.message_dict.get('__all__', ['Invalid submission'])[0])
+    else:
+        form = TimesheetForm(
+            employee=employee,  # Pass employee here
+            initial={
+                'date': today,
+                'time_from': default_from,
+                'time_to': default_to,
+            }
+        )
+
+    timesheets = Timesheet.objects.filter(employee=employee).order_by('-date', 'time_from')
+    weekly_grouped = defaultdict(list)
+    for entry in timesheets:
+        week_num = entry.date.isocalendar()[1]
+        week_year = entry.date.year
+        label = f"Week {week_num}, {week_year}"
+        weekly_grouped[label].append(entry)
+
+    return render(request, 'timesheet/my_timesheets.html', {
+        'form': form,
+        'weekly_grouped': dict(weekly_grouped),
+        'styled_calendar_html': styled_calendar_html,
+        'calendar_year': year,
+        'calendar_month': month,
+    })'.
+
+
+JavaScript in my_timesheet.html,
+'document.addEventListener('DOMContentLoaded', function() {
+    // Existing date validation code remains the same
+    
+    // Updated time validation
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const timeFrom = document.getElementById('id_time_from').value;
+            const timeTo = document.getElementById('id_time_to').value;
+            const date = document.getElementById('id_date').value;
+            
+            if (timeFrom && timeTo && date) {
+                const from = new Date(`${date}T${timeFrom}`);
+                let to = new Date(`${date}T${timeTo}`);
+                
+                // Handle night shift (timeTo < timeFrom)
+                if (to < from) {
+                    to = new Date(to.getTime() + 86400000); // Add 24 hours
+                }
+                
+                const totalHours = (to - from) / 3600000; // ms to hours
+                
+                if (totalHours <= 0) {
+                    alert('Time duration must be positive');
+                    e.preventDefault();
+                } else if (totalHours > 12) {
+                    alert('Shift duration cannot exceed 12 hours');
+                    e.preventDefault();
+                }
+            }
+        });
+    }
+    
+    // Rest of your existing JavaScript remains the same
+});'.
+
+
+timesheet/utils/get_calendar_entries.py,
+'from datetime import datetime, timedelta
+from calendar import monthrange
+from collections import defaultdict
+from django.utils import timezone
+from timesheet.models import Timesheet
+
+def get_calendar_entries(employee, year, month):
+    """Group all hours by the start date"""
+    _, last_day = monthrange(year, month)
+    start_date = datetime(year, month, 1).date()
+    end_date = datetime(year, month, last_day).date()
+    
+    entries = Timesheet.objects.filter(
+        employee=employee,
+        date__gte=start_date - timedelta(days=1),  # Include previous day for night shifts
+        date__lte=end_date,
+        status='Approved'
+    )
+    
+    calendar_data = defaultdict(float)
+    for entry in entries:
+        display_date = entry.date  # Always use the start date
+        calendar_data[display_date] += entry.get_duration_hours()
+    
+    return dict(calendar_data)'.
+
+timesheet/services/timesheet_service.py,
+'from datetime import datetime
+from employee.models import AuditLog, LeaveBalance
+from timesheet.models import Attendance
+from project.services.da_service import calculate_da
+
+def calculate_total_hours(timesheet):
+    """Use the model's method to calculate hours"""
+    return timesheet.get_duration_hours()
+
+def update_attendance(timesheet, total_hours):
+    """Update attendance for the start date only"""
+    is_weekend = timesheet.date.weekday() >= 5
+    attendance_date = timesheet.date  # Always use start date
+    
+    if total_hours >= 8:
+        status = 'Present'
+    elif total_hours >= 4:
+        status = 'Half Day' if not is_weekend else 'Present'
+    else:
+        status = 'Absent' if not is_weekend else 'Half Day'
+    
+    Attendance.objects.update_or_create(
+        employee=timesheet.employee,
+        date=attendance_date,
+        defaults={'status': status}
+    )
+
+def log_audit(timesheet):
+    """Log audit entry for submitted timesheet."""
+    AuditLog.objects.create(
+        user=timesheet.employee.user,
+        action="Timesheet Submitted",
+        details=f"Timesheet for {timesheet.project.name} on {timesheet.date}"
+    )
+
+def process_timesheet_save(timesheet):
+    """Core business logic for timesheet saving."""
+    total_hours = calculate_total_hours(timesheet)
+    timesheet.total_hours = total_hours
+
+    # Calculate and assign DA
+    da_amount, da_currency = calculate_da(timesheet)
+    timesheet.daily_allowance_amount = da_amount
+    timesheet.daily_allowance_currency = da_currency
+
+    # Only update attendance for office entries
+    if getattr(timesheet.project, 'location', '') == 'Office':
+        update_attendance(timesheet, total_hours)
+
+    log_audit(timesheet)'.
+
+timesheet/models.py,
+'from django.db import models
+from django.core.exceptions import ValidationError
+from django.utils import timezone
+from datetime import datetime, timedelta
+
+class Timesheet(models.Model):
+    STATUS_CHOICES = [
+        ('Pending', 'Pending'),
+        ('Approved', 'Approved'),
+        ('Rejected', 'Rejected'),
+    ]
+
+    employee = models.ForeignKey('employee.EmployeeProfile', on_delete=models.CASCADE, related_name='timesheets')
+    project = models.ForeignKey('project.Project', on_delete=models.CASCADE)
+    task = models.ForeignKey('project.Task', on_delete=models.SET_NULL, null=True, blank=True)
+    date = models.DateField(default=timezone.now)
+    time_from = models.TimeField()
+    time_to = models.TimeField()
+    task_description = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')
+    is_locked = models.BooleanField(default=False)
+    is_billable = models.BooleanField(default=False)
+    da_rate = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    daily_allowance_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    daily_allowance_currency = models.CharField(max_length=10, null=True, blank=True)
+    rejection_reason = models.TextField(blank=True, null=True)
+    rejected_at = models.DateTimeField(blank=True, null=True)
+
+    def get_duration_hours(self):
+        """Calculate duration in hours, handling night shifts properly"""
+        if self.time_to < self.time_from:  # Night shift
+            end_datetime = datetime.combine(self.date + timedelta(days=1), self.time_to)
+        else:
+            end_datetime = datetime.combine(self.date, self.time_to)
+            
+        start_datetime = datetime.combine(self.date, self.time_from)
+        duration = end_datetime - start_datetime
+        return duration.total_seconds() / 3600
+
+    def clean(self):
+        """Validate timesheet entry with night shift support"""
+        if not self.time_from or not self.time_to:
+            raise ValidationError("Both 'time from' and 'time to' are required.")
+
+        duration_hours = self.get_duration_hours()
+        if duration_hours <= 0:
+            raise ValidationError("Time duration must be positive")
+        if duration_hours > 12:
+            raise ValidationError("Shift duration cannot exceed 12 hours")
+
+        if self.employee_id:
+            from utils.grace_period import get_allowed_grace_days, is_within_grace
+            grace_days = get_allowed_grace_days(self.employee)
+            if not is_within_grace(self.date, grace_days):
+                raise ValidationError(
+                    f"Submission deadline passed (grace period: {grace_days} days). Contact manager."
+                )
+
+    def save(self, *args, **kwargs):
+        """Delegates logic to service before saving."""
+        if not self.employee_id:
+            super().save(*args, **kwargs)
+            return
+
+        self.clean()
+
+        from timesheet.services.timesheet_service import process_timesheet_save
+        process_timesheet_save(self)
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.employee.user.get_full_name()} - {self.project.name} ({self.date})"'.
+
+		
+		

@@ -1,0 +1,23 @@
+{# expenses/tabs/da.html #}
+{% if da_entries %}
+<table class="table table-bordered table-sm">
+    <thead class="table-light">
+        <tr>
+            <th>Date</th>
+            <th>Project</th>
+            <th>DA Amount</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for da in da_entries %}
+        <tr>
+            <td>{{ da.date }}</td>
+            <td>{{ da.project.name }}</td>
+            <td>{{ da.da_amount }}</td>
+            <td>{% if da.approved %}Approved{% else %}Pending{% endif %}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}<p>No Daily Allowance entries.</p>{% endif %}

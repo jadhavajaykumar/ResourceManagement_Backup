@@ -1,0 +1,92 @@
+{% load static %}
+<div class="container mt-3">
+
+    <!-- Advance Summary -->
+    {% if latest_advance %}
+    <div class="card mb-3">
+        <div class="card-header">
+            <strong>Advance Received</strong>
+        </div>
+        <div class="card-body">
+            <p><strong>Amount:</strong> ₹{{ latest_advance.amount }}</p>
+            <p><strong>Settlement Date:</strong> {{ latest_advance.settlement_date }}</p>
+            <p><strong>Current Balance:</strong> ₹{{ current_balance }}</p>
+
+            <h6>Linked Expenses:</h6>
+            {% if latest_advance.expense_set.all %}
+                <ul>
+                    {% for exp in latest_advance.expense_set.all %}
+                        <li>{{ exp.date }} - {{ exp.project.name }} - ₹{{ exp.amount }} - {{ exp.status }}</li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>No expenses linked to this advance.</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Advance Request Form -->
+    {% if allow_new_advance %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <strong>Request New Advance</strong>
+        </div>
+        <div class="card-body">
+            <form method="post" action="{% url 'expenses:employee-expenses' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="purpose" class="form-label">Purpose</label>
+                    <input type="text" name="purpose" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label for="amount" class="form-label">Amount</label>
+                    <input type="number" name="amount" step="0.01" class="form-control" required>
+                </div>
+                <button type="submit" name="advance_request" class="btn btn-primary">Submit Advance Request</button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Request History Table -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="mb-0">Advance Request History</h5>
+        <a href="{% url 'expenses:export_expense_tab' 'Advance Requests' %}" class="btn btn-sm btn-outline-success">
+            Export to Excel
+        </a>
+    </div>
+
+    {% if advance_entries %}
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped table-sm">
+            <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>Purpose</th>
+                    <th>Amount</th>
+                    <th>Date Requested</th>
+                    <th>Settlement Date</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for adv in advance_entries %}
+                <tr>
+                    <td>{{ adv.id }}</td>
+                    <td>{{ adv.purpose }}</td>
+                    <td>₹{{ adv.amount }}</td>
+                    <td>{{ adv.date_requested }}</td>
+                    <td>{{ adv.settlement_date|default:"-" }}</td>
+                    <td>
+                        {% if adv.settled_by_account_manager %}Settled{% else %}In Process{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        <p>No advance requests found.</p>
+    {% endif %}
+</div>

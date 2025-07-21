@@ -4,8 +4,10 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from ..models import ExpenseType
 from accounts.access_control import is_manager_or_admin, is_manager
-
+from django.views.decorators.http import require_POST
 from django.db.models import ProtectedError
+from django.http import JsonResponse
+
 
 # expenses/views/expense_type_settings.py
 
@@ -34,6 +36,7 @@ def edit_expense_type(request, type_id):
 
 @login_required
 @user_passes_test(is_manager)
+@require_POST
 def delete_expense_type(request, expense_type_id):
     expense_type = get_object_or_404(ExpenseType, id=expense_type_id)
     try:
@@ -41,33 +44,44 @@ def delete_expense_type(request, expense_type_id):
         messages.success(request, "Expense type deleted successfully.")
     except ProtectedError:
         messages.error(request, "Cannot delete this expense type because it is linked to existing expenses.")
-    return redirect('expenses:expense-type-settings')
+    return redirect('expenses:expense-settings')
+    
+    
 
 
 @login_required
 @user_passes_test(is_manager_or_admin)
 def expense_settings_dashboard(request):
     if request.method == 'POST':
+        # Add New Expense Type
         if 'add_type' in request.POST:
+            name = request.POST.get('name')
+            requires_km = 'requires_kilometers' in request.POST
+            requires_receipt = 'requires_receipt' in request.POST
+            rate = request.POST.get('rate') or None
+            max_cap = request.POST.get('max_amount_allowed') or None
+
             ExpenseType.objects.create(
-                name=request.POST.get('name'),
-                requires_kilometers='requires_kilometers' in request.POST,
-                requires_receipt='requires_receipt' in request.POST,
-                rate_per_km=request.POST.get('rate') or None,
+                name=name,
+                requires_kilometers=requires_km,
+                requires_receipt=requires_receipt,
+                rate_per_km=rate,
+                max_amount_allowed=max_cap if max_cap else None,
                 created_by=request.user
             )
             messages.success(request, "Expense type added.")
 
+        # Update Global Grace Period
         elif 'update_grace' in request.POST:
             days = int(request.POST.get('expense_grace_days'))
             GlobalExpenseSettings.objects.update_or_create(
                 id=1,
                 defaults={'days': days}
             )
-            # Reset all custom grace periods to global value
             EmployeeExpenseGrace.objects.all().update(days=days)
             messages.success(request, f"Global grace period set to {days} days and applied to all employees.")
 
+        # Set Employee-Specific Grace Period
         elif 'update_employee_grace' in request.POST:
             emp_id = request.POST.get('employee_id')
             days = int(request.POST.get('employee_grace_days'))
@@ -78,6 +92,7 @@ def expense_settings_dashboard(request):
             )
             messages.success(request, f"Custom grace period of {days} days set for {employee.user.get_full_name()}.")
 
+        # Delete Expense Type
         elif 'delete_type_id' in request.POST:
             expense_type = get_object_or_404(ExpenseType, id=request.POST.get('delete_type_id'))
             expense_type.delete()
@@ -99,7 +114,6 @@ def expense_settings_dashboard(request):
         grace_obj = EmployeeExpenseGrace.objects.filter(employee=selected_employee).first()
         employee_grace_period = grace_obj.days if grace_obj else grace_days
 
-    # Custom employees with non-default grace
     custom_grace_employees = EmployeeExpenseGrace.objects.exclude(days=grace_days).select_related("employee__user")
 
     return render(request, 'expenses/expense_settings_dashboard.html', {
@@ -110,5 +124,18 @@ def expense_settings_dashboard(request):
         'employee_grace_period': employee_grace_period,
         'custom_grace_employees': custom_grace_employees,
     })
+    
+    
+
+
+@login_required
+def get_expense_type_details(request, type_id):
+    expense_type = get_object_or_404(ExpenseType, id=type_id)
+    return JsonResponse({
+        'requires_kilometers': expense_type.requires_kilometers,
+        'requires_receipt': expense_type.requires_receipt,
+        'requires_travel_locations': expense_type.requires_travel_locations,
+    })
+    
 
 

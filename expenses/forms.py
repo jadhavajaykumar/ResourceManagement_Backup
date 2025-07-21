@@ -1,8 +1,13 @@
 from django import forms
 from datetime import date, timedelta
+from manager.models import TaskAssignment
+from project.models import Project
+from project.models import Project  # ✅ imported
+
+
 from .models import (
     Expense, ExpenseType, SystemSettings,
-    EmployeeExpenseSetting, CountryDASetting
+    EmployeeExpenseSetting, CountryDASetting, AdvanceRequest
 )
 from employee.models import EmployeeProfile
 from project.services.assignment import get_assigned_projects
@@ -13,7 +18,17 @@ from utils.grace_period import get_allowed_grace_days, is_within_grace
 class ExpenseForm(forms.ModelForm):
     class Meta:
         model = Expense
-        fields = ['project', 'new_expense_type', 'date', 'kilometers', 'amount', 'receipt', 'comments']
+        fields = [
+            'project',
+            'new_expense_type',
+            'date',
+            'kilometers',
+            'amount',
+            'receipt',
+            'comments',
+            'from_location',
+            'to_location'
+        ]
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date'}),
             'new_expense_type': forms.Select(attrs={'class': 'form-control'}),
@@ -24,6 +39,10 @@ class ExpenseForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         self.fields['new_expense_type'].queryset = ExpenseType.objects.all()
+
+        self.fields['from_location'].widget = forms.TextInput(attrs={'placeholder': 'From'})
+        self.fields['to_location'].widget = forms.TextInput(attrs={'placeholder': 'To'})
+
         if self.employee:
             self.fields['project'].queryset = get_assigned_projects(self.employee)
 
@@ -49,26 +68,46 @@ class ExpenseForm(forms.ModelForm):
         kilometers = cleaned_data.get('kilometers')
         amount = cleaned_data.get('amount')
         receipt = cleaned_data.get('receipt')
+        from_location = cleaned_data.get('from_location')
+        to_location = cleaned_data.get('to_location')
 
         if expense_type:
-            # Validate kilometers requirement
+            # ✅ Validate kilometers requirement
             if expense_type.requires_kilometers:
                 if not kilometers:
                     self.add_error('kilometers', f"Kilometers required for {expense_type.name}.")
                 elif expense_type.rate_per_km is None:
                     self.add_error('new_expense_type', f"Rate per km not defined for {expense_type.name}.")
                 else:
-                    cleaned_data['amount'] = kilometers * expense_type.rate_per_km
+                    calculated_amount = kilometers * expense_type.rate_per_km
+                    cleaned_data['amount'] = calculated_amount
+                    amount = calculated_amount  # update for cap check
 
-            # Validate receipt requirement
+            # ✅ Validate receipt requirement
             if expense_type.requires_receipt and not receipt:
                 self.add_error('receipt', f"Receipt required for {expense_type.name}.")
 
-            # Validate manual amount for non-kilometer-based expenses
+            # ✅ Validate amount for non-kilometer-based expenses
             if not expense_type.requires_kilometers and not amount:
                 self.add_error('amount', "Amount is required.")
 
+            # ✅ Validate travel location fields
+            if expense_type.requires_travel_locations:
+                if not from_location:
+                    self.add_error('from_location', "From location is required for this expense type.")
+                if not to_location:
+                    self.add_error('to_location', "To location is required for this expense type.")
+
+            # ✅ Validate max cap if defined
+            if expense_type.max_amount_allowed is not None and amount is not None:
+                if amount > expense_type.max_amount_allowed:
+                    self.add_error('amount', f"Amount exceeds cap of ₹{expense_type.max_amount_allowed} for this expense type.")
+
         return cleaned_data
+
+
+
+
 
 
 
@@ -106,3 +145,18 @@ class CountryDASettingForm(forms.ModelForm):
             'da_rate_per_hour': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'extra_hour_rate': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
         }
+
+
+
+# ---------------------- Advance request Form ----------------------
+class AdvanceRequestForm(forms.ModelForm):
+    class Meta:
+        model = AdvanceRequest
+        fields = ['project', 'amount', 'purpose']
+
+    def __init__(self, *args, **kwargs):
+        employee = kwargs.pop('employee')
+        super().__init__(*args, **kwargs)
+         # ✅ Correct assignment logic using TaskAssignment
+        assigned_projects = Project.objects.filter(taskassignment__employee=employee).distinct()
+        self.fields['project'].queryset = assigned_projects

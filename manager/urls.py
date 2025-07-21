@@ -9,6 +9,7 @@ from . import views
 from manager.views.absent_views import mark_absent_dashboard
 from manager.views import task_views
 from manager.views.holiday_views import manage_holidays
+from manager.views import advance_views
 
 from manager.views import (
     manager_dashboard,
@@ -70,6 +71,8 @@ urlpatterns = [
     path('expense-approval/', expense_approval_dashboard, name='expense-approval'),
     path('expense-approvals/', expense_approvals, name='expense-approvals'),
     path('handle-expense-action/<int:expense_id>/<str:action>/', handle_expense_action, name='handle-expense-action'),
+    path('approve-advances/', advance_views.approve_advances, name='approve-advances'),
+    path('approve-advance/<int:advance_id>/', advance_views.approve_advance, name='approve-advance'),
 
     # Timesheets
     path('timesheet-approval/', timesheet_approval_dashboard, name='timesheet-approval'),

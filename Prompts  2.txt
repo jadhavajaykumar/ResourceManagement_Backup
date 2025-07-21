@@ -1,0 +1,688 @@
+project/models.py
+from django.db import models
+
+class ProjectType(models.Model):
+    name = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.name
+
+class LocationType(models.Model):
+    name = models.CharField(max_length=100)
+
+class ProjectStatus(models.Model):
+    name = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.name
+
+class Project(models.Model):
+    name = models.CharField(max_length=255)
+    customer_name = models.CharField(max_length=255)
+    start_date = models.DateField()
+    end_date = models.DateField(blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
+    status_type = models.CharField(max_length=100, null=True, blank=True)
+    project_type = models.CharField(max_length=100, null=True, blank=True)
+    location_type = models.ForeignKey(LocationType, on_delete=models.SET_NULL, null=True)
+    country = models.CharField(max_length=100, blank=True, null=True)
+    currency = models.CharField(max_length=10, blank=True, null=True)
+    rate_type = models.CharField(max_length=10, choices=[('Hourly', 'Hourly'), ('Daily', 'Daily')], blank=True, null=True)
+    rate_value = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+    budget = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True)
+    da_rate_per_day = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    extended_hours_threshold = models.IntegerField(blank=True, null=True)
+    extended_hours_da_rate = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    
+    PROJECT_TYPE_CHOICES = [
+        ('Turnkey', 'Turnkey (Fixed Budget & Duration)'),
+        ('Service', 'Service (Daily Rate Billing)'),
+    ]
+    type = models.CharField(max_length=20, choices=PROJECT_TYPE_CHOICES, default='Turnkey')
+    # For Turnkey
+    budget = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+
+    # For Service
+    daily_rate = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+
+    def __str__(self):
+        return self.name
+
+class DASetting(models.Model):
+    location_type = models.ForeignKey(LocationType, on_delete=models.CASCADE)
+    min_hours = models.IntegerField(default=6)
+    da_amount = models.DecimalField(max_digits=8, decimal_places=2)
+
+    def __str__(self):
+        return f'{self.location_type.name} → {self.da_amount}'
+
+class Task(models.Model):
+    project = models.ForeignKey('Project', on_delete=models.CASCADE, related_name='tasks')
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True, null=True)
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    due_date = models.DateField(null=True, blank=True)
+    progress = models.PositiveIntegerField(default=0)
+    is_completed = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.project.name} - {self.name}"
+
+class Subtask(models.Model):
+    task = models.ForeignKey('Task', related_name='subtasks', on_delete=models.CASCADE)
+    name = models.CharField(max_length=200)
+    completed = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.name
+
+class ProjectExpensePolicy(models.Model):
+    project = models.OneToOneField('Project', on_delete=models.CASCADE)
+    allow_transport = models.BooleanField(default=True)
+    allow_accommodation = models.BooleanField(default=False)
+    allow_safety_shoes = models.BooleanField(default=False)
+    safety_shoe_tracker_days = models.PositiveIntegerField(default=365)
+    mobile_recharge_limit = models.DecimalField(max_digits=8, decimal_places=2, default=0.00)
+    domestic_transport_limit = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    international_transport_limit = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+
+    def __str__(self):
+        return f"Expense Policy ({self.project.name})"
+
+class ProjectRequiredSkill(models.Model):
+    project = models.ForeignKey('Project', on_delete=models.CASCADE, related_name='required_skills')
+    main_skill = models.ForeignKey('manager.MainSkill', on_delete=models.CASCADE)
+    subskill = models.ForeignKey('manager.SubSkill', on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"{self.project.name} → {self.main_skill.name} → {self.subskill.name}"
+		
+		
+project/services/assignment.py
+# project/services/assignment.py
+
+from manager.models import TaskAssignment
+from project.models import Project
+
+def get_assigned_projects(employee):
+    """Return a queryset of projects assigned to a given employee."""
+    project_ids = TaskAssignment.objects.filter(
+        employee=employee
+    ).values_list('project_id', flat=True).distinct()
+    
+    return Project.objects.filter(id__in=project_ids)
+	
+	
+project/services/country_service.py
+# project/services/country_service.py
+
+from expenses.models import CountryDARate
+
+def get_country_rate_details(country_id):
+    try:
+        country = CountryDARate.objects.get(id=country_id)
+        return {
+            'da_rate_per_hour': str(country.da_rate_per_hour),
+            'extra_hour_rate': str(country.extra_hour_rate),
+            'currency': country.currency,
+        }
+    except CountryDARate.DoesNotExist:
+        return None
+
+
+project/services/da_service.py
+
+from decimal import Decimal
+from datetime import datetime
+from typing import Tuple, Optional
+from project.models import DASetting
+from timesheet.models import Timesheet
+
+
+def calculate_total_hours(time_from, time_to) -> float:
+    """
+    Calculate total hours between two time values.
+    """
+    return (datetime.combine(datetime.today(), time_to) - datetime.combine(datetime.today(), time_from)).seconds / 3600
+
+
+def calculate_da(timesheet) -> Tuple[Optional[Decimal], Optional[str]]:
+    """
+    Centralized DA calculation logic.
+    Returns: (da_amount, currency)
+    """
+    project = timesheet.project
+    location = project.location_type.name.lower()
+    currency = 'INR'
+
+    total_hours = (
+        timesheet.hours
+        if hasattr(timesheet, 'hours') and timesheet.hours is not None
+        else calculate_total_hours(timesheet.time_from, timesheet.time_to)
+    )
+
+    if location == 'office':
+        return None, None
+
+    if location == 'local':
+        setting = DASetting.objects.filter(location_type=project.location_type).first()
+        if setting and total_hours >= setting.min_hours:
+            return setting.da_amount, currency
+        return None, None
+
+    if location == 'domestic':
+        setting = DASetting.objects.filter(location_type=project.location_type).first()
+        if setting:
+            return setting.da_amount, currency
+        return None, None
+
+    if location == 'international':
+        base_da = project.da_rate_per_day or Decimal(0)
+        extended_da = Decimal(0)
+
+        if project.extended_hours_threshold and total_hours > project.extended_hours_threshold:
+            extended_da = project.extended_hours_da_rate or Decimal(0)
+
+        return base_da + extended_da, project.currency or 'USD'
+
+    return None, None
+
+
+
+def is_weekend_da_eligible(employee, project, current_date):
+    """
+    Check if the employee is eligible for weekend DA based on next week's domestic project entries.
+    """
+    next_week_start = current_date + timedelta(days=(7 - current_date.weekday()))
+    next_week_end = next_week_start + timedelta(days=6)
+
+    entries = Timesheet.objects.filter(
+        employee=employee,
+        date__range=(next_week_start, next_week_end),
+        project__location_type__name='Domestic'
+    )
+    return entries.exists()		
+	
+project/services/earning_service.py
+
+def calculate_earning(timesheet):
+    """
+    Calculate earnings based on project type, location, and timesheet hours.
+    - Service projects can be hourly or daily.
+    - Turnkey projects return zero (budget-based revenue).
+    """
+    project = timesheet.project
+
+    if project.project_type.name.lower() == 'service' and project.location_type.name.lower() == 'international':
+        if project.rate_type == 'Hourly':
+            return timesheet.hours * project.rate_value
+        elif project.rate_type == 'Daily':
+            return project.rate_value
+
+    elif project.project_type.name.lower() == 'turnkey':
+        return 0
+
+    return 0	
+	
+project/services/export_helpers.py
+from project.services.reporting_service import (
+    get_project_profitability,
+    get_employee_da_claims,
+    get_timesheet_earning_report,
+)
+from project.services.export_service import export_to_excel, export_to_pdf
+
+def export_project_profitability_excel(request, project_id):
+    data = get_project_profitability(project_id)
+    report_data = [data]
+    columns = ['project_name', 'total_earnings', 'total_expenses', 'total_da_claimed', 'net_profit', 'expense_percentage', 'profit_percentage']
+    return export_to_excel(report_data, columns, filename='Project_Profitability.xlsx')
+
+def export_da_claims_excel(request, project_id):
+    data = get_employee_da_claims(project_id)
+    columns = ['employee', 'date', 'calculated_da', 'currency']
+    return export_to_excel(data, columns, filename='DA_Claims.xlsx')
+
+def export_timesheet_earnings_excel(request, project_id):
+    data = get_timesheet_earning_report(project_id)
+    columns = ['employee', 'date', 'hours', 'earning', 'da_claimed']
+    return export_to_excel(data, columns, filename='Timesheet_Earnings.xlsx')
+
+def export_project_profitability_pdf(request, project_id):
+    data = [get_project_profitability(project_id)]
+    columns = ['project_name', 'total_earnings', 'total_expenses', 'total_da_claimed', 'net_profit', 'expense_percentage', 'profit_percentage']
+    return export_to_pdf(data, columns, filename='Project_Profitability.pdf')
+
+
+project/services/export_service.py
+import openpyxl
+from openpyxl.utils import get_column_letter
+from django.http import HttpResponse
+
+def export_to_excel(report_data, columns, filename='report.xlsx'):
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Report'
+
+    # Write headers
+    for col_num, column_title in enumerate(columns, 1):
+        ws[f'{get_column_letter(col_num)}1'] = column_title
+
+    # Write data rows
+    for row_num, row_data in enumerate(report_data, 2):
+        for col_num, key in enumerate(columns, 1):
+            ws[f'{get_column_letter(col_num)}{row_num}'] = row_data.get(key, '')
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    wb.save(response)
+    return response
+
+
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet
+from django.http import HttpResponse
+
+def export_to_pdf(report_data, columns, filename='report.pdf'):
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    doc = SimpleDocTemplate(response, pagesize=A4)
+    elements = []
+
+    style_sheet = getSampleStyleSheet()
+    elements.append(Paragraph('Report', style_sheet['Title']))
+
+    table_data = [columns] + [
+        [str(row.get(col, '')) for col in columns] for row in report_data
+    ]
+
+    table = Table(table_data)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.gray),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold'),
+    ]))
+    elements.append(table)
+
+    doc.build(elements)
+    return response
+
+project/services/project_skill_service.py
+# services/project_skill_service.py
+def save_required_skills(project, selected_skills):
+    from .models import ProjectRequiredSkill
+    if not project or not selected_skills:
+        return
+
+    # Clean old
+    project.required_skills.all().delete()
+
+    for skill in selected_skills:
+        main_skill_id = skill.get('main_skill_id')
+        subskill_id = skill.get('subskill_id')
+        if main_skill_id and subskill_id:
+            ProjectRequiredSkill.objects.create(
+                project=project,
+                main_skill_id=main_skill_id,
+                subskill_id=subskill_id
+            )
+
+project/services/reporting_service.py
+from django.db.models import Sum, F, ExpressionWrapper, DecimalField
+from django.utils import timezone
+from datetime import datetime
+from timesheet.models import Timesheet
+from project.models import Project
+from project.services.da_service import calculate_da
+
+def get_project_profitability(project_id):
+    project = Project.objects.get(id=project_id)
+
+    total_da = Timesheet.objects.filter(
+        project=project,
+        status='Approved',
+        daily_allowance_amount__isnull=False
+    ).aggregate(total=Sum('daily_allowance_amount'))['total'] or 0
+
+    from expenses.models import EmployeeExpense
+    total_expenses = EmployeeExpense.objects.filter(
+        project=project,
+        status='Approved'
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    if project.project_type.name.lower() == 'service':
+        timesheets = Timesheet.objects.filter(project=project, status='Approved')
+        if project.rate_type == 'Hourly':
+            total_hours = timesheets.aggregate(hours=Sum('hours'))['hours'] or 0
+            earnings = total_hours * project.rate_value
+        elif project.rate_type == 'Daily':
+            working_days = timesheets.values('date').distinct().count()
+            earnings = working_days * project.rate_value
+        else:
+            earnings = 0
+    elif project.project_type.name.lower() == 'turnkey':
+        earnings = project.budget or 0
+    else:
+        earnings = 0
+
+    profit = earnings - total_expenses - total_da
+    expense_percent = (total_expenses / earnings * 100) if earnings > 0 else 0
+    profit_percent = (profit / earnings * 100) if earnings > 0 else 0
+
+    return {
+        'project_name': project.name,
+        'total_earnings': earnings,
+        'total_expenses': total_expenses,
+        'total_da_claimed': total_da,
+        'net_profit': profit,
+        'expense_percentage': round(expense_percent, 2),
+        'profit_percentage': round(profit_percent, 2),
+    }
+
+def get_employee_da_claims(project_id):
+    timesheets = Timesheet.objects.filter(project_id=project_id, status='Approved')
+    recalculated_claims = []
+    for ts in timesheets:
+        da_amount, currency = calculate_da(ts)
+        recalculated_claims.append({
+            'employee': ts.employee.user.get_full_name(),
+            'date': ts.date,
+            'calculated_da': da_amount,
+            'currency': currency,
+        })
+    return recalculated_claims
+
+def get_timesheet_earning_report(project_id):
+    project = Project.objects.get(id=project_id)
+    timesheets = Timesheet.objects.filter(project=project, status='Approved')
+    report = []
+    for ts in timesheets:
+        total_hours = (datetime.combine(ts.date, ts.time_to) - datetime.combine(ts.date, ts.time_from)).seconds / 3600
+        earning = 0
+        if project.rate_type == 'Hourly':
+            earning = total_hours * project.rate_value
+        elif project.rate_type == 'Daily':
+            earning = project.rate_value
+        report.append({
+            'employee': ts.employee.user.get_full_name(),
+            'date': ts.date,
+            'hours': total_hours,
+            'earning': earning,
+            'da_claimed': ts.daily_allowance_amount,
+        })
+    return report
+
+project/views.py
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.http import JsonResponse
+from django.core.exceptions import PermissionDenied
+import logging
+import json
+
+from .models import Project, Task, Subtask
+from .forms import ProjectForm, TaskForm, CountryRateForm
+from .services.project_skill_service import save_required_skills
+from .services.country_service import get_country_rate_details
+from manager.models import MainSkill
+from expenses.models import CountryDARate
+
+logger = logging.getLogger(__name__)
+
+def is_manager(user):
+    if not user.is_authenticated:
+        return False
+    if user.role == 'Manager' or user.is_superuser:
+        return True
+    raise PermissionDenied
+
+
+@login_required
+@user_passes_test(is_manager)
+def project_dashboard(request):
+    projects = Project.objects.prefetch_related('tasks', 'tasks__subtasks', 'required_skills').all()
+
+    if request.method == 'POST':
+        if 'add_project' in request.POST:
+            project_id = request.POST.get('project_id')
+            instance = Project.objects.get(id=project_id) if project_id else None
+            project_form = ProjectForm(request.POST, request.FILES, instance=instance)
+
+            if project_form.is_valid():
+                new_project = project_form.save()
+                selected_skills = json.loads(request.POST.get('selected_skills') or '[]')
+
+                if instance:
+                    instance.required_skills.all().delete()
+
+                save_required_skills(new_project, selected_skills)
+                return redirect('project:project-dashboard')
+            else:
+                return JsonResponse({'success': False, 'errors': project_form.errors})
+
+        elif 'add_task' in request.POST:
+            task_form = TaskForm(request.POST)
+            if task_form.is_valid():
+                task_form.save()
+                return redirect('project:project-dashboard')
+            else:
+                return JsonResponse({'success': False, 'errors': task_form.errors})
+
+    project_form = ProjectForm()
+    task_form = TaskForm()
+    main_skills = MainSkill.objects.all()
+
+    return render(request, 'project/project_dashboard.html', {
+        'projects': projects,
+        'project_form': project_form,
+        'task_form': task_form,
+        'main_skills': main_skills,
+    })
+
+
+@login_required
+@user_passes_test(is_manager)
+def edit_task(request, task_id):
+    task = get_object_or_404(Task, id=task_id)
+    if request.method == 'POST':
+        form = TaskForm(request.POST, instance=task)
+        if form.is_valid():
+            form.save()
+            return redirect('project:project-dashboard')
+    else:
+        form = TaskForm(instance=task)
+    return render(request, 'project/edit_task.html', {'form': form, 'task': task})
+
+
+@login_required
+@user_passes_test(is_manager)
+def delete_project(request, project_id):
+    project = get_object_or_404(Project, id=project_id)
+    project.delete()
+    return redirect('project:project-dashboard')
+
+
+@login_required
+@user_passes_test(is_manager)
+def delete_task(request, task_id):
+    task = get_object_or_404(Task, id=task_id)
+    task.delete()
+    return redirect('project:project-dashboard')
+
+
+def get_country_rates(request):
+    country_id = request.GET.get('country_id')
+    data = get_country_rate_details(country_id)
+    if data:
+        return JsonResponse(data)
+    return JsonResponse({'error': 'Country not found'}, status=404)
+
+
+@login_required
+@user_passes_test(is_manager)
+def manage_country_rates(request):
+    rates = CountryDARate.objects.all()
+    form = CountryRateForm(request.POST or None)
+
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        return redirect('project:manage-country-rates')
+
+    return render(request, 'project/manage_country_rates.html', {
+        'form': form,
+        'rates': rates,
+    })
+
+
+@login_required
+@user_passes_test(is_manager)
+def edit_project(request, project_id):
+    project = get_object_or_404(Project, id=project_id)
+    if request.method == 'POST':
+        form = ProjectForm(request.POST, request.FILES, instance=project)
+        if form.is_valid():
+            form.save()
+            return redirect('project:project-dashboard')
+    else:
+        form = ProjectForm(instance=project)
+
+    return render(request, 'project/edit_project.html', {
+        'form': form,
+        'project': project
+    })
+
+project/views_reporting.py
+from django.shortcuts import render
+from project.services.reporting_service import (
+    get_project_profitability,
+    get_employee_da_claims,
+    get_timesheet_earning_report,
+)
+from project.services.export_helpers import (
+    export_project_profitability_excel,
+    export_da_claims_excel,
+    export_timesheet_earnings_excel,
+    export_project_profitability_pdf,
+)
+
+def project_profitability_view(request, project_id):
+    data = get_project_profitability(project_id)
+    return render(request, 'project/profitability.html', {'data': data})
+
+def project_da_claims_view(request, project_id):
+    claims = get_employee_da_claims(project_id)
+    return render(request, 'project/da_claims.html', {'claims': claims})
+
+def project_timesheet_earning_report_view(request, project_id):
+    report = get_timesheet_earning_report(project_id)
+    return render(request, 'project/earning_report.html', {'report': report})
+
+# Export endpoints are now handled by service wrappers
+def export_project_profitability_excel_view(request, project_id):
+    return export_project_profitability_excel(project_id)
+
+def export_da_claims_excel_view(request, project_id):
+    return export_da_claims_excel(project_id)
+
+def export_timesheet_earnings_excel_view(request, project_id):
+    return export_timesheet_earnings_excel(project_id)
+
+def export_project_profitability_pdf_view(request, project_id):
+    return export_project_profitability_pdf(project_id)
+
+
+
+project/forms.py
+from django import forms
+from .models import Project, Task, Subtask
+from expenses.models import CountryDARate
+import pycountry
+from django import forms
+from .models import Project
+
+CURRENCY_CHOICES = [(c.alpha_3, f"{c.name} ({c.alpha_3})") for c in pycountry.currencies]
+
+BILLING_CHOICES = [
+    ('Daily', 'Man Day Basis'),
+    ('Hourly', 'Man Hour Basis'),
+]
+
+
+class TaskForm(forms.ModelForm):
+    class Meta:
+        model = Task
+        fields = ['project', 'name', 'description', 'due_date', 'progress']
+        widgets = {'due_date': forms.DateInput(attrs={'type': 'date'})}
+
+class SubtaskForm(forms.ModelForm):
+    class Meta:
+        model = Subtask
+        fields = ['task', 'name', 'completed']
+
+class CountryRateForm(forms.ModelForm):
+    class Meta:
+        model = CountryDARate
+        fields = ['country', 'currency', 'da_rate_per_hour', 'extra_hour_rate']
+
+class ProjectForm(forms.ModelForm):
+    start_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
+    end_date = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date'}))
+
+    class Meta:
+        model = Project
+        fields = '__all__'
+
+    def clean(self):
+        cleaned_data = super().clean()
+        location = cleaned_data.get('location_type')
+        if location and location.name.lower() == 'international':
+            if not cleaned_data.get('da_rate_per_day'):
+                self.add_error('da_rate_per_day', 'DA rate per day is required for International projects.')
+            if not cleaned_data.get('extended_hours_threshold'):
+                self.add_error('extended_hours_threshold', 'Extended hours threshold is required for International projects.')
+            if not cleaned_data.get('extended_hours_da_rate'):
+                self.add_error('extended_hours_da_rate', 'Extended hours DA rate is required for International projects.')
+        return cleaned_data
+
+
+
+project/urls.py
+from django.urls import path
+from . import views
+from .views_reporting import (
+    export_project_profitability_excel,
+    export_project_profitability_pdf,
+    export_da_claims_excel,
+    export_timesheet_earnings_excel,
+)
+
+app_name = 'project'
+
+urlpatterns = [
+    # Dashboard
+    path('', views.project_dashboard, name='project-dashboard'),
+
+    # Project CRUD
+    path('edit-project/<int:project_id>/', views.edit_project, name='edit-project'),
+    path('delete-project/<int:project_id>/', views.delete_project, name='delete-project'),
+
+    # Task CRUD
+    path('edit-task/<int:task_id>/', views.edit_task, name='edit-task'),
+    path('delete-task/<int:task_id>/', views.delete_task, name='delete-task'),
+
+    # AJAX
+    path('ajax/get-country-rates/', views.get_country_rates, name='get-country-rates'),
+
+    # Reports Export (Excel / PDF)
+    path('report/profitability/<int:project_id>/excel/', export_project_profitability_excel, name='export_project_profitability_excel'),
+    path('report/profitability/<int:project_id>/pdf/', export_project_profitability_pdf, name='export_project_profitability_pdf'),
+    path('report/da-claims/<int:project_id>/excel/', export_da_claims_excel, name='export_da_claims_excel'),
+    path('report/earnings/<int:project_id>/excel/', export_timesheet_earnings_excel, name='export_timesheet_earnings_excel'),
+]
+
+	

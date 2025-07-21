@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <h3 class="mb-4 text-primary">Advance Request Approval</h3>
+  
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+  
+  <table class="table table-striped table-hover align-middle">
+    <thead class="table-light sticky-top">
+      <tr>
+        <th>ID</th>
+        <th>Employee</th>
+        <th>Project</th>
+        <th>Amount (₹)</th>
+        <th>Purpose</th>
+        <th>Requested</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for advance in advances %}
+      <tr>
+        <td>#{{ advance.id }}</td>
+        <td>{{ advance.employee.user.get_full_name }}</td>
+        <td>{{ advance.project.name }}</td>
+        <td>₹{{ advance.amount }}</td>
+        <td>{{ advance.purpose|truncatechars:50 }}</td>
+        <td>{{ advance.date_requested|date:"d M Y" }}</td>
+        <td>
+          <a href="{% url 'accountant:accountant_approve_advance' advance.id %}" 
+             class="btn btn-success btn-sm">
+            Approve
+          </a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="7" class="text-center text-muted py-4">
+          No advance requests pending accountant approval
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  
+  <div class="mt-3">
+    <a href="{% url 'accountant:expense-approval-dashboard' %}" 
+       class="btn btn-outline-primary">
+      &larr; Back to Expense Dashboard
+    </a>
+  </div>
+</div>
+{% endblock %}

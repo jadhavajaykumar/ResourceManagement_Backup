@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <h4>My Advance Requests</h4>
+  <table class="table table-bordered mt-3">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Project</th>
+        <th>Amount</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for adv in advances %}
+      <tr>
+        <td>{{ adv.date_requested }}</td>
+        <td>{{ adv.project.name }}</td>
+        <td>₹{{ adv.amount }}</td>
+        <td>
+          {% if adv.settled_by_account_manager %}
+            Settled
+          {% elif adv.approved_by_accountant %}
+            Approved by Accountant
+          {% elif adv.approved_by_manager %}
+            Approved by Manager
+          {% else %}
+            Pending
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" class="text-muted text-center">No advance requests yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

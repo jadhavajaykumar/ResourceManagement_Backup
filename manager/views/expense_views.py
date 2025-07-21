@@ -7,6 +7,9 @@ from django.template.loader import render_to_string
 from expenses.models import Expense
 from accounts.access_control import is_manager
 from employee.models import EmployeeProfile
+from expenses.models import AdvanceRequest
+
+
 
 def get_reportees(user):
     return EmployeeProfile.objects.filter(reporting_manager=user)
@@ -17,7 +20,19 @@ def expense_approval_dashboard(request):
     reportees = get_reportees(request.user)
     expenses = Expense.objects.select_related('employee__user', 'project', 'new_expense_type')\
                               .filter(status='Forwarded to Manager', employee__in=reportees)
-    return render(request, 'manager/expense_approval_dashboard.html', {'expenses': expenses})
+    advance_requests = AdvanceRequest.objects.filter(
+        approved_by_manager=False,
+        employee__in=reportees
+    )
+
+    return render(
+        request,
+        'manager/expense_approval_dashboard.html',
+        {
+            'expenses': expenses,
+            'advance_requests': advance_requests,  # ✅ Added to context
+        }
+    )
 
 @user_passes_test(is_manager)
 @login_required
@@ -34,6 +49,7 @@ def expense_approvals(request):
 @login_required
 def handle_expense_action(request, expense_id, action):
     expense = get_object_or_404(Expense, id=expense_id)
+    
 
     if expense.employee.reporting_manager != request.user:
         messages.error(request, "You can only process expenses from your direct reportees.")
@@ -48,6 +64,7 @@ def handle_expense_action(request, expense_id, action):
 
         if action == 'approve':
             expense.status = 'Approved'
+            expense.forwarded_to_accountmanager = True  # ✅ Now it goes to account manager
             expense.manager_remark = remark
             messages.success(request, "Expense approved.")
             notify_employee(expense, 'Approved', remark)

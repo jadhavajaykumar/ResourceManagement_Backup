@@ -3,11 +3,7 @@
 <form method="post" enctype="multipart/form-data" id="expenseForm">
     {% csrf_token %}
 
-    <!-- Section: Expense Information -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-primary text-white">
-            <i class="bi bi-wallet2 me-2"></i>{% if editing %}Edit{% else %}New{% endif %} Expense Entry
-        </div>
+    <div class="card mb-4">
         <div class="card-body">
             <div class="row g-3">
 
@@ -19,26 +15,41 @@
                 </div>
 
                 <!-- Expense Type -->
-                <!-- Expense Type -->
-				<div class="col-md-6">
-					<label for="id_new_expense_type" class="form-label">Expense Type</label>
-					<select name="{{ form.new_expense_type.name }}"
-							id="id_new_expense_type"
-							class="form-select"
-							required>
-						<option value="">-- Select Expense Type --</option>
-						{% for type in form.new_expense_type.field.queryset %}
-							<option value="{{ type.id }}"
+                <div class="col-md-6">
+                    <label for="id_new_expense_type" class="form-label">Expense Type</label>
+                    <select name="{{ form.new_expense_type.name }}"
+                            id="id_new_expense_type"
+                            class="form-select"
+                            required>
+                        <option value="">-- Select Expense Type --</option>
+                        {% for type in form.new_expense_type.field.queryset %}
+                            <option value="{{ type.id }}"
 								data-requires-km="{{ type.requires_kilometers|yesno:'true,false' }}"
 								data-requires-receipt="{{ type.requires_receipt|yesno:'true,false' }}"
 								data-rate="{{ type.rate_per_km|default:0 }}"
+								data-requires-travel="{{ type.requires_travel_locations|yesno:'true,false' }}"
+								data-max-cap="{{ type.max_amount_allowed|default:0 }}"
 								{% if form.new_expense_type.value|stringformat:'s' == type.id|stringformat:'s' %}selected{% endif %}>
 								{{ type.name }}
 							</option>
-						{% endfor %}
-					</select>
-					{{ form.new_expense_type.errors }}
-				</div>
+
+                        {% endfor %}
+                    </select>
+                    {{ form.new_expense_type.errors }}
+                </div>
+					<!-- Travel Fields -->
+					<div class="col-md-6" id="travel-fields-from" style="display:none;">
+						<label for="{{ form.from_location.id_for_label }}" class="form-label">From Location</label>
+						{{ form.from_location|add_class:"form-control" }}
+						{{ form.from_location.errors }}
+					</div>
+
+					<div class="col-md-6" id="travel-fields-to" style="display:none;">
+						<label for="{{ form.to_location.id_for_label }}" class="form-label">To Location</label>
+						{{ form.to_location|add_class:"form-control" }}
+						{{ form.to_location.errors }}
+					</div>
+
 
 
                 <!-- Date -->
@@ -78,23 +89,22 @@
                 <div class="col-md-6">
                     <label for="{{ form.comments.id_for_label }}" class="form-label">Comments</label>
                     {{ form.comments|add_class:"form-control" }}
-                    {{ form.comments.errors }}
+                    <div style="max-height: 100px; overflow-y: auto;">
+                        {{ form.comments.errors }}
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Buttons -->
-    <div class="d-flex justify-content-between mb-5">
+    <div class="d-flex justify-content-between mb-3">
         <button type="submit" class="btn {% if editing %}btn-primary{% else %}btn-success{% endif %}">
             <i class="bi bi-save me-2"></i>{% if editing %}Update{% else %}Submit{% endif %} Expense
         </button>
         {% if editing %}
             <a href="{% url 'expenses:employee-expenses' %}" class="btn btn-secondary">Cancel</a>
         {% endif %}
-        <!--<a href="{% url 'accounts:profile' %}" class="btn btn-outline-dark">
-            <i class="bi bi-house me-2"></i>Dashboard
-        </a>-->
     </div>
 </form>
 
@@ -107,15 +117,21 @@
         const amountInput = document.getElementById('id_amount');
         const kilometersInput = document.getElementById('id_kilometers');
         const receiptInput = document.getElementById('id_receipt');
+        const travelFromField = document.getElementById('travel-fields-from');
+		const travelToField = document.getElementById('travel-fields-to');
+
 
         function updateFormFields() {
             const selected = expenseType.options[expenseType.selectedIndex];
             const requiresKm = selected.dataset.requiresKm === 'true';
             const requiresReceipt = selected.dataset.requiresReceipt === 'true';
+            const requiresTravel = selected.dataset.requiresTravel === 'true';
             const rate = parseFloat(selected.dataset.rate || 0);
 
             kilometersField.style.display = requiresKm ? 'block' : 'none';
             amountField.style.display = requiresKm ? 'none' : 'block';
+            travelFromField.style.display = requiresTravel ? 'block' : 'none';
+			travelToField.style.display = requiresTravel ? 'block' : 'none';
             receiptInput.required = requiresReceipt;
 
             if (requiresKm && kilometersInput.value) {
@@ -123,8 +139,24 @@
             }
         }
 
-        updateFormFields();
+        function getMaxCap(selectedOption) {
+            return parseFloat(selectedOption.dataset.maxCap || 0);
+        }
+
+        function enforceMaxCap() {
+            const selected = expenseType.options[expenseType.selectedIndex];
+            const maxCap = getMaxCap(selected);
+            if (maxCap > 0 && parseFloat(amountInput.value) > maxCap) {
+                alert(`Maximum allowed amount for this expense is ₹${maxCap}`);
+                amountInput.value = maxCap.toFixed(2);
+            }
+        }
+
         expenseType.addEventListener('change', updateFormFields);
         kilometersInput.addEventListener('input', updateFormFields);
+        amountInput.addEventListener('blur', enforceMaxCap);
+
+        updateFormFields();  // Trigger on page load
     });
 </script>
+

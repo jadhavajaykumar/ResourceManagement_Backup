@@ -1,0 +1,50 @@
+from timesheet.models import Timesheet
+from employee.models import EmployeeProfile
+from accounts.models import CustomUser  # your actual user model
+
+# Replace with actual username
+user = CustomUser.objects.get(username='mrunal.waychal@pcscontrols.in')
+employee = EmployeeProfile.objects.get(user=user)
+
+# Now fetch and inspect timesheets
+tsheets = Timesheet.objects.filter(employee=employee).order_by('-date')
+
+for t in tsheets:
+    print(f"{t.date}: DA = {t.daily_allowance_amount} {t.daily_allowance_currency} | Hours = {t.total_hours} | Status = {t.status}")
+
+
+
+from accounts.models import CustomUser
+user = CustomUser.objects.get(username='ajaykumarj@pcscontrols.in')
+print(user.check_password('Ajay@1234'))
+
+
+from accounts.models import CustomUser
+
+user = CustomUser.objects.get(username='ajaykumarj@pcscontrols.in')
+print("User found:", user.username)
+print("Is staff:", user.is_staff)
+print("Is active:", user.is_active)
+print("Password OK:", user.check_password('Ajay@1234'))
+
+from accounts.models import CustomUser
+from employee.models import EmployeeProfile
+from timesheet.models import Timesheet
+
+# Get user and employee
+user = CustomUser.objects.get(email='mrunal.waychal@pcscontrols.in')  # or any other employee email
+employee = EmployeeProfile.objects.get(user=user)
+
+# Get timesheets for a particular month
+timesheets = Timesheet.objects.filter(employee=employee).order_by('05-05-2025')
+
+# Print DA values and other details
+for ts in timesheets:
+    print(f"{ts.date} | Hours: {ts.total_hours} | DA: {ts.daily_allowance_amount} {ts.daily_allowance_currency} | Status: {ts.status}")
+
+
+
+
+
+
+

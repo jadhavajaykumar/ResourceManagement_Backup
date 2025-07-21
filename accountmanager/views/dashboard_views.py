@@ -2,12 +2,12 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import Sum
-from datetime import datetime
+#from datetime import datetime
 from accounts.utils import is_accountmanager
 from employee.models import EmployeeProfile
 import re
 #from accountmanager.utils import is_accountmanager
-from expenses.models import Expense, DailyAllowance
+from expenses.models import Expense, DailyAllowance, AdvanceRequest
 from utils.currency import format_currency
 from django.contrib import messages
 from collections import defaultdict
@@ -15,6 +15,12 @@ from collections import defaultdict
 from django.urls import reverse
 from django.db.models import Q
 from django.utils.dateparse import parse_date
+import openpyxl
+from openpyxl.utils import get_column_letter
+
+from datetime import date
+
+
 
 
  # Adjust path as needed
@@ -105,24 +111,21 @@ def dashboard_view(request):
 @login_required
 @user_passes_test(is_accountmanager)
 def reimbursement_dashboard(request):
-    # Get all approved but unreimbursed expenses and DA
+    # Tab 1: Individual unreimbursed entries (approved)
+    expenses = Expense.objects.select_related('employee__user', 'project').filter(
+        status="Approved", reimbursed=False, forwarded_to_accountmanager=True
+    )
+    allowances = DailyAllowance.objects.select_related('employee__user', 'project').filter(
+        approved=True, reimbursed=False, forwarded_to_accountmanager=True
+    )
 
-    expenses = Expense.objects.select_related('employee__user', 'project').filter(status="Approved", reimbursed=False)
-    allowances = DailyAllowance.objects.select_related('employee__user', 'project').filter(approved=True, reimbursed=False)
-
-    # Tab 1: Individual Entries (Unreimbursed)
     reimbursement_entries = []
+
     for expense in expenses:
-        #employee_name = expense.employee.user.get_full_name()
-        #print("Expense employee:", expense.employee.user.get_full_name())
-        #print("Expense:", expense.id, "| Employee Name:", employee_name)
         reimbursement_entries.append({
-            #"employee_name": expense.employee.get_full_name() if hasattr(expense.employee, 'get_full_name') else str(expense.employee),
-            #"employee_name": expense.employee.user.get_full_name(),  # Corrected here
-            "employee_name": expense.employee.user.get_full_name(),
-            #"employee_name": employee_name,
             "type": "Expense",
             "employee": expense.employee,
+            "employee_name": expense.employee.user.get_full_name(),
             "project": expense.project,
             "amount": format_currency(expense.amount, getattr(expense, 'currency', 'INR')),
             "date": expense.date,
@@ -131,13 +134,10 @@ def reimbursement_dashboard(request):
         })
 
     for da in allowances:
-        #employee_name = da.employee.user.get_full_name()
-        #print("DA:", da.id, "| Employee Name:", employee_name)
         reimbursement_entries.append({
-            #"employee_name": da.employee.get_full_name() if hasattr(da.employee, 'get_full_name') else str(da.employee),
-            "employee_name": da.employee.user.get_full_name(),
             "type": "DA",
             "employee": da.employee,
+            "employee_name": da.employee.user.get_full_name(),
             "project": da.project,
             "amount": format_currency(da.da_amount, da.currency),
             "date": da.date,
@@ -145,14 +145,14 @@ def reimbursement_dashboard(request):
             "id": da.id,
         })
 
-    # Tab 2: Grouped by Employee
+    # Tab 2: Grouped summary by employee
     employee_summaries = {}
     for entry in reimbursement_entries:
         emp = entry["employee"]
         emp_id = emp.id
         amt_str = entry["amount"]
         symbol = amt_str[0]
-        amt = float(amt_str[1:].replace(',', '').strip())
+        amount = float(amt_str[1:].replace(",", "").strip())
 
         if emp_id not in employee_summaries:
             employee_summaries[emp_id] = {
@@ -160,67 +160,51 @@ def reimbursement_dashboard(request):
                 "total_amount": 0.0,
                 "currency_symbol": symbol,
             }
-        employee_summaries[emp_id]["total_amount"] += amt
+        employee_summaries[emp_id]["total_amount"] += amount
 
-    # Convert to list and format total
     grouped_summary = []
     for summary in employee_summaries.values():
         total_amt = summary["total_amount"]
         summary["total_formatted"] = f"{summary['currency_symbol']} {total_amt:,.2f}"
         grouped_summary.append(summary)
 
-    # Tab 3: Settled
-    #settled_expenses = Expense.objects.select_related('employee', 'project').filter(status="Approved", reimbursed=True)
-    #settled_allowances = DailyAllowance.objects.select_related('employee', 'project').filter(approved=True, reimbursed=True)
-    # Collect all employee IDs from settled data
-    
-
-    
-
-    
-    # Tab 3: Settled
-    # Tab 3: Settled History
-    settled_expenses = Expense.objects.select_related('employee__user', 'project').filter(status="Approved", reimbursed=True)
-    settled_das = DailyAllowance.objects.select_related('employee__user', 'project').filter(approved=True, reimbursed=True)
+    # Tab 3: Settled history
+    settled_expenses = Expense.objects.select_related('employee__user', 'project').filter(
+        status="Approved", reimbursed=True
+    )
+    settled_das = DailyAllowance.objects.select_related('employee__user', 'project').filter(
+        approved=True, reimbursed=True
+    )
 
     settled_employee_ids = set(e.employee.id for e in settled_expenses) | set(d.employee.id for d in settled_das)
-
     employee_map = {
         emp.id: emp for emp in EmployeeProfile.objects.select_related('user').filter(id__in=settled_employee_ids)
     }
 
     settled_data = defaultdict(list)
     for e in settled_expenses:
-        emp = e.employee
-        settled_data[emp.id].append({
+        settled_data[e.employee.id].append({
             "type": "Expense",
-            "employee": emp,
+            "employee": e.employee,
             "project": e.project,
             "amount": format_currency(e.amount, getattr(e, 'currency', 'INR')),
             "date": e.date,
         })
 
     for d in settled_das:
-        emp = d.employee
-        settled_data[emp.id].append({
+        settled_data[d.employee.id].append({
             "type": "DA",
-            "employee": emp,
+            "employee": d.employee,
             "project": d.project,
             "amount": format_currency(d.da_amount, d.currency),
             "date": d.date,
         })
 
-    # ✅ Filter out employees not in employee_map
-    settled_data = {
-        emp_id: entries
-        for emp_id, entries in settled_data.items()
-        if emp_id in employee_map
-    }
+    settled_data = {emp_id: entries for emp_id, entries in settled_data.items() if emp_id in employee_map}
 
-    # ✅ Now build settled_merged safely
     settled_merged = {}
     for emp_id, entries in settled_data.items():
-        total_amount = 0.0
+        total = 0.0
         currency_symbol = "₹"
         for entry in entries:
             amt_str = entry["amount"]
@@ -228,32 +212,34 @@ def reimbursement_dashboard(request):
                 currency_symbol = amt_str[0]
                 try:
                     amt = float(amt_str[1:].replace(",", ""))
-                    total_amount += amt
-                except Exception as e:
-                    print(f"Error parsing amount {amt_str} for employee {emp_id}: {e}")
+                    total += amt
+                except Exception:
+                    pass
         settled_merged[emp_id] = {
             "employee": employee_map[emp_id],
-            "total": f"{currency_symbol}{total_amount:,.2f}",
+            "total": f"{currency_symbol}{total:,.2f}",
             "entries": entries,
         }
 
-
-   # import pprint
-    #pprint.pprint(dict(settled_merged))
-    #print("Merged Keys:", list(settled_merged.keys()))
-
-
+    # Tab 4: Approved advances (ready for settlement)
+    approved_advances = AdvanceRequest.objects.select_related('employee__user', 'project').filter(
+        approved_by_manager=True,
+        approved_by_accountant=True,
+        settled_by_account_manager=False
+    )
 
     return render(request, 'accountmanager/reimbursement_dashboard.html', {
         'reimbursement_entries': reimbursement_entries,
         'employee_summaries': grouped_summary,
         'settled_data': settled_data,
-        'employee_map': employee_map,
-        
         'settled_merged': settled_merged,
-        
+        'employee_map': employee_map,
+        'tab_data': {
+            'advances': approved_advances  # For Tab 4
+        },
         'active_tab': request.GET.get("tab", "tab1"),
     })
+
 
 
 
@@ -353,3 +339,120 @@ def settle_selected(request):
         messages.success(request, "Reimbursement marked as settled.")
         return redirect('accountmanager:reimbursement_dashboard')
 
+
+@login_required
+def export_tab1(request):
+    headers = ['Employee', 'Date', 'Amount', 'Type']
+    rows = [
+        ["Ajay Kumar", "2025-06-20", "₹100", "Expense"],
+        # Populate from tab 1 actual data
+    ]
+    return generate_excel_response("Tab1_Report", headers, rows)
+
+@login_required
+def export_tab2(request):
+    headers = ['Employee', 'Total Pending Amount', 'Entry Count']
+    rows = [
+        ["Ajay Kumar", "₹600", "3"],
+        # Populate from tab 2 actual data
+    ]
+    return generate_excel_response("Tab2_PendingSummary", headers, rows)
+
+@login_required
+def export_tab3(request):
+    view_type = request.GET.get("view", "detailed")
+
+    settled_expenses = Expense.objects.select_related('employee__user', 'project').filter(status="Approved", reimbursed=True)
+    settled_das = DailyAllowance.objects.select_related('employee__user', 'project').filter(approved=True, reimbursed=True)
+
+    settled_data = defaultdict(list)
+    employee_ids = set()
+
+    for e in settled_expenses:
+        emp = e.employee
+        employee_ids.add(emp.id)
+        settled_data[emp.id].append({
+            "type": "Expense",
+            "employee": emp,
+            "project": e.project,
+            "amount": format_currency(e.amount, getattr(e, 'currency', 'INR')),
+            "date": e.date,
+        })
+
+    for d in settled_das:
+        emp = d.employee
+        employee_ids.add(emp.id)
+        settled_data[emp.id].append({
+            "type": "DA",
+            "employee": emp,
+            "project": d.project,
+            "amount": format_currency(d.da_amount, d.currency),
+            "date": d.date,
+        })
+
+    employee_map = {
+        emp.id: emp for emp in EmployeeProfile.objects.select_related('user').filter(id__in=employee_ids)
+    }
+
+    if view_type == "detailed":
+        headers = ['Employee', 'Date', 'Type', 'Amount', 'Project']
+        rows = []
+        for emp_id, entries in settled_data.items():
+            emp = employee_map.get(emp_id)
+            if not emp: continue
+            for entry in entries:
+                rows.append([
+                    emp.user.get_full_name(),
+                    entry['date'].strftime("%Y-%m-%d"),
+                    entry['type'],
+                    entry['amount'],
+                    entry['project'].name if entry['project'] else "-"
+                ])
+        return generate_excel_response("Tab3_Detailed", headers, rows)
+
+    else:  # Merged
+        headers = ['Employee', 'Total Amount', 'Entry Count']
+        rows = []
+        for emp_id, entries in settled_data.items():
+            emp = employee_map.get(emp_id)
+            if not emp: continue
+            total = 0
+            currency = '₹'
+            for entry in entries:
+                amt = float(entry['amount'][1:].replace(",", ""))
+                total += amt
+                currency = entry['amount'][0]
+            rows.append([
+                emp.user.get_full_name(),
+                f"{currency}{total:,.2f}",
+                len(entries)
+            ])
+        return generate_excel_response("Tab3_Merged", headers, rows)
+
+
+
+
+def generate_excel_response(filename_prefix, headers, rows):
+    output = io.BytesIO()
+    workbook = xlsxwriter.Workbook(output, {'in_memory': True})
+    worksheet = workbook.add_worksheet()
+
+    # Write headers
+    for col_num, header in enumerate(headers):
+        worksheet.write(0, col_num, header)
+
+    # Write data rows
+    for row_num, row_data in enumerate(rows, start=1):
+        for col_num, cell_value in enumerate(row_data):
+            worksheet.write(row_num, col_num, cell_value)
+
+    workbook.close()
+    output.seek(0)
+
+    response = HttpResponse(
+        output,
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    filename = f"{filename_prefix}_{date.today()}.xlsx"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response

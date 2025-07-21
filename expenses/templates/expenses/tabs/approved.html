@@ -1,0 +1,25 @@
+
+{% if approved_expenses %}
+<table class="table table-bordered table-sm">
+    <thead class="table-light">
+        <tr>
+            <th>Date</th>
+            <th>Project</th>
+            <th>Type</th>
+            <th>Amount</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for exp in approved_expenses %}
+        <tr>
+            <td>{{ exp.date }}</td>
+            <td>{{ exp.project.name }}</td>
+            <td>{{ exp.new_expense_type.name }}</td>
+            <td>{{ exp.amount }}</td>
+            <td>{{ exp.status }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}<p>No approved expenses.</p>{% endif %}

@@ -4,6 +4,13 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.utils.timezone import now
 from employee.models import EmployeeProfile
+from django.db.models import Sum
+
+
+from django.db import models
+from django.conf import settings
+from project.models import Project
+
 
 User = get_user_model()
 
@@ -18,6 +25,11 @@ class ExpenseType(models.Model):
     requires_receipt = models.BooleanField(default=False)
     rate_per_km = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    max_amount_allowed = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        help_text="Maximum reimbursable amount for this expense type")
+    requires_travel_locations = models.BooleanField(default=False)
+    
 
     def __str__(self):
         return self.name
@@ -29,7 +41,7 @@ class Expense(models.Model):
         ('Approved', 'Approved'),
         ('Rejected', 'Rejected'),
     ]
-
+    
     FINAL_STATUS_CHOICES = [
         ('Pending', 'Pending'),
         ('Approved', 'Approved'),
@@ -58,7 +70,8 @@ class Expense(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     receipt = models.FileField(upload_to='expense_receipts/', null=True, blank=True)
     comments = models.TextField(blank=True)
-
+    advance_used = models.ForeignKey('AdvanceRequest', null=True, blank=True, on_delete=models.SET_NULL, related_name='used_expenses')
+    
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='Pending')
     reimbursed = models.BooleanField(default=False)  # ✅ ADD THIS
     final_status = models.CharField(max_length=20, choices=FINAL_STATUS_CHOICES, default='Pending')
@@ -73,6 +86,9 @@ class Expense(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
   
     forwarded_to_accountmanager = models.BooleanField(default=False)
+    
+    from_location = models.CharField(max_length=100, null=True, blank=True)
+    to_location = models.CharField(max_length=100, null=True, blank=True)
 
     def clean(self):
         if hasattr(self, 'expense_type') and self.expense_type in ['travel-bike', 'travel-personal-car']:
@@ -91,7 +107,9 @@ class Expense(models.Model):
                 raise ValidationError("Amount is required for this expense type.")
 
     def save(self, *args, **kwargs):
-        self.full_clean()
+        validate = kwargs.pop("validate", True)
+        if validate:
+            self.full_clean()
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -207,3 +225,95 @@ class DailyAllowanceLog(models.Model):
 
     def __str__(self):
         return f"[{self.timestamp.strftime('%Y-%m-%d %H:%M')}] {self.action} by {self.performed_by}"
+
+
+
+
+class AdvanceRequest(models.Model): 
+    employee = models.ForeignKey('employee.EmployeeProfile', on_delete=models.CASCADE)
+    project = models.ForeignKey('project.Project', on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    adjusted_amount = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        null=True, blank=True,
+        help_text="Final amount after adjusting for previous negative balances"
+        )
+    purpose = models.TextField()
+    date_requested = models.DateField(auto_now_add=True)
+
+    approved_by_manager = models.BooleanField(default=False)
+    approved_by_accountant = models.BooleanField(default=False)
+    settled_by_account_manager = models.BooleanField(default=False)
+
+    date_approved_by_accountant = models.DateTimeField(null=True, blank=True)
+    settlement_date = models.DateField(null=True, blank=True)
+
+    def is_settled(self):
+        return self.settled_by_account_manager
+
+    @property
+    def used_expenses(self):
+        """
+        Return all approved expenses for this employee and project that are eligible for deduction.
+        """
+        return Expense.objects.filter(advance_used=self)
+
+    def current_balance(self):
+        total_deducted = self.used_expenses.aggregate(Sum("amount"))["amount__sum"] or 0
+        return float(self.amount) - float(total_deducted)
+
+
+    def can_raise_new(self):
+        """
+        Employee can raise a new advance only if all previous advances are:
+        - Settled
+        - Balance <= 0 (i.e., used fully or overspent)
+        """
+        unsettled = AdvanceRequest.objects.filter(
+            employee=self.employee,
+            settled_by_account_manager=True
+        ).order_by('-settlement_date')
+
+        if not unsettled.exists():
+            return True
+
+        latest = unsettled.first()
+        used_sum = latest.used_expenses.aggregate(Sum("amount"))["amount__sum"] or 0
+        remaining_balance = latest.amount - used_sum
+        return latest.settled_by_account_manager and remaining_balance <= 0
+        
+    @property
+    def adjustments(self):
+        return self.advanceadjustmentlog_set.select_related('expense')
+    
+
+
+    @property
+    def total_used(self):
+        return self.used_expenses.aggregate(Sum("amount"))["amount__sum"] or 0
+
+    @property
+    def balance(self):
+        return self.amount - self.total_used
+
+    def __str__(self):
+        return f"{self.employee.user.get_full_name()} | ₹{self.amount} | Requested: {self.date_requested}"
+
+class AdvanceAdjustmentLog(models.Model):
+    expense = models.ForeignKey(Expense, on_delete=models.CASCADE)
+    advance = models.ForeignKey(AdvanceRequest, on_delete=models.CASCADE)
+    amount_deducted = models.DecimalField(max_digits=10, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"₹{self.amount_deducted} from Advance {self.advance.id} for Expense {self.expense.id}"
+
+
+
+
+
+
+
+
+
+

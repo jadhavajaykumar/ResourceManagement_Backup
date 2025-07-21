@@ -5,221 +5,257 @@
 {% load custom_filters_am %}
 {% load dict_extras %}
 
-
 {% block content %}
 <div class="container mt-4">
-    <h2 class="text-primary mb-4">Reimbursement Dashboard</h2>
+  <h2 class="text-primary mb-4">Reimbursement Dashboard</h2>
 
-    <ul class="nav nav-tabs" id="reimbursementTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="tab1-tab" data-bs-toggle="tab" data-bs-target="#tab1" type="button">Unreimbursed Entries</button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="tab2-tab" data-bs-toggle="tab" data-bs-target="#tab2" type="button">Summary by Employee</button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="tab3-tab" data-bs-toggle="tab" data-bs-target="#tab3" type="button">Settled History</button>
-        </li>
-    </ul>
+  <!-- Tabs -->
+  <ul class="nav nav-tabs" id="reimbursementTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="tab1-tab" data-bs-toggle="tab" data-bs-target="#tab1" type="button">Unreimbursed Entries</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab2-tab" data-bs-toggle="tab" data-bs-target="#tab2" type="button">Summary by Employee</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab3-tab" data-bs-toggle="tab" data-bs-target="#tab3" type="button">Settled History</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="advances-tab" data-bs-toggle="tab" data-bs-target="#advances-tab-pane" type="button">Advances</button>
+    </li>
+  </ul>
 
-    <div class="tab-content mt-3" id="reimbursementTabsContent">
+  <div class="tab-content mt-3" id="reimbursementTabsContent">
 
-        <!-- Tab 1 -->
-        <div class="tab-pane fade show active" id="tab1" role="tabpanel">
-            <table class="table table-bordered">
-                <thead>
-                    <tr>
-                        <th>Employee</th>
-                        <th>Project</th>
-                        <th>Type</th>
-                        <th>Amount</th>
-                        <th>Date</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in reimbursement_entries %}
-                    <tr class="{% if item.type == 'Expense' %}table-warning{% elif item.type == 'DA' %}table-success{% endif %}">
-                        <td>{{ item.employee_name }}</td>
-                        <td>{{ item.project }}</td>
-                        <td>
-                            {% if item.type == "Expense" %}
-                                <span class="badge bg-primary">Expense</span>
-                            {% elif item.type == "DA" %}
-                                <span class="badge bg-success">DA</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ item.amount }}</td>
-                        <td>{{ item.date }}</td>
-                    </tr>
-                    {% empty %}
-                    <tr><td colspan="5">No unreimbursed entries found.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Tab 2 -->
-        <div class="tab-pane fade" id="tab2" role="tabpanel">
-            <table class="table table-bordered mt-3">
-                <thead>
-                    <tr>
-                        <th>Employee</th>
-                        <th>Total Unreimbursed</th>
-                        <th>Settlement Date</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for summary in employee_summaries %}
-                    <tr>
-                        <form method="post" action="{% url 'accountmanager:settle-selected' %}">
-                            {% csrf_token %}
-                            <input type="hidden" name="settle_employee" value="{{ summary.employee.id }}">
-                            <td>{{ summary.employee.user.first_name }} {{ summary.employee.user.last_name }}</td>
-                            <td>{{ summary.total_formatted }}</td>
-                            <td>
-                                <input type="date" name="settlement_date_{{ summary.employee.id }}" class="form-control" required>
-                            </td>
-                            <td>
-                                <button type="submit" class="btn btn-success btn-sm">Reimburse</button>
-                            </td>
-                        </form>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Tab 3 -->
-        <!-- Tab 3 -->
-		<!-- Tab 3 -->
-		<!-- Tab 3 -->
-		<!-- Tab 3: Settled History -->
-		<div class="tab-pane fade {% if active_tab == 'tab3' %}show active{% endif %}" id="tab3" role="tabpanel">
-			<h5 class="mt-3 mb-2">Settled History</h5>
-
-			<!-- Toggle Buttons -->
-			<div class="mb-3">
-				<button id="toggle-detailed" class="btn btn-outline-primary btn-sm">Detailed View</button>
-				<button id="toggle-merged" class="btn btn-outline-secondary btn-sm">Merged View</button>
-			</div>
-
-			<!-- Detailed View -->
-			<div id="detailed-view" style="display: block;">
-				{% if settled_data %}
-				<table class="table table-bordered table-sm">
-					<thead class="table-light">
-						<tr>
-							<th>Employee</th>
-							<th>Date</th>
-							<th>Type</th>
-							<th>Amount</th>
-							<th>Project</th>
-							<th>Status</th>
-						</tr>
-					</thead>
-					<tbody>
-						{% for emp_id, entries in settled_data.items %}
-							{% with employee=employee_map|get_item:emp_id %}
-								{% for entry in entries %}
-								<tr>
-									<td>{{ employee.user.get_full_name }}</td>
-									<td>{{ entry.date }}</td>
-									<td>{{ entry.type }}</td>
-									<td>{{ entry.amount }}</td>
-									<td>{% if entry.project %}{{ entry.project.name }}{% else %}-{% endif %}</td>
-
-									<td><span class="badge bg-success">Settled</span></td>
-								</tr>
-								{% endfor %}
-							{% endwith %}
-						{% endfor %}
-					</tbody>
-				</table>
-				{% else %}
-				<p>No settled reimbursements found.</p>
-				{% endif %}
-			</div>
-
-			<!-- Merged View -->
-			<!-- Merged View -->
-			<div id="merged-view" style="display: block;">
-				{% if settled_merged %}
-				<table class="table table-bordered table-sm">
-					<thead class="table-light">
-						<tr>
-							<th>Employee</th>
-							<th>Total Amount</th>
-							<th>Entry Count</th>
-							<th>Status</th>
-						</tr>
-					</thead>
-					<tbody>
-						{% for emp_id, summary in settled_merged.items %}
-							<tr>
-								<td>{{ summary.employee.user.get_full_name }}</td>
-								<td>{{ summary.total }}</td>
-								<td>{{ summary.entries|length }}</td>
-								<td><span class="badge bg-success">Settled</span></td>
-							</tr>
-						{% endfor %}
-					</tbody>
-
-				</table>
-				{% else %}
-				<p>No merged settled records available.</p>
-				{% endif %}
-			</div>
-
-		</div>
-
-		<script>
-			document.getElementById('toggle-detailed').addEventListener('click', function () {
-				document.getElementById('detailed-view').style.display = 'block';
-				document.getElementById('merged-view').style.display = 'none';
-			});
-
-			document.getElementById('toggle-merged').addEventListener('click', function () {
-				document.getElementById('detailed-view').style.display = 'none';
-				document.getElementById('merged-view').style.display = 'block';
-			});
-		</script>
-
-
-
-
-
-	<!--<div>
-	  <h3>Debug: Settled Tab</h3>
-	  <pre>{{ settled_data|safe }}</pre>
-	</div>-->
-
-
-
-
-
-
+    <!-- Tab 1 -->
+    <div class="tab-pane fade show active" id="tab1" role="tabpanel" tabindex="-1">
+      <a id="export-tab1" href="{% url 'accountmanager:export_tab1' %}" class="btn btn-success btn-sm mb-2 d-none">Export Tab 1</a>
+      <table class="table table-bordered">
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Project</th>
+            <th>Type</th>
+            <th>Amount</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in reimbursement_entries %}
+            <tr class="{% if item.type == 'Expense' %}table-warning{% elif item.type == 'DA' %}table-success{% endif %}">
+              <td>{{ item.employee_name }}</td>
+              <td>{{ item.project }}</td>
+              <td>
+                {% if item.type == "Expense" %}
+                  <span class="badge bg-primary">Expense</span>
+                {% elif item.type == "DA" %}
+                  <span class="badge bg-success">DA</span>
+                {% endif %}
+              </td>
+              <td>{{ item.amount }}</td>
+              <td>{{ item.date }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5">No unreimbursed entries found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
+
+    <!-- Tab 2 -->
+    <div class="tab-pane fade" id="tab2" role="tabpanel" tabindex="-1">
+      <a id="export-tab2" href="{% url 'accountmanager:export_tab2' %}" class="btn btn-success btn-sm mb-2 d-none">Export Tab 2</a>
+      <table class="table table-bordered">
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Total Unreimbursed</th>
+            <th>Settlement Date</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for summary in employee_summaries %}
+            <tr>
+              <td>{{ summary.employee.user.get_full_name }}</td>
+              <td>{{ summary.total_formatted }}</td>
+              <td>
+                <form method="post" action="{% url 'accountmanager:settle-selected' %}" class="d-flex gap-2 align-items-center">
+                  {% csrf_token %}
+                  <input type="hidden" name="settle_employee" value="{{ summary.employee.id }}">
+                  <input type="date" name="settlement_date_{{ summary.employee.id }}" class="form-control form-control-sm" required>
+              </td>
+              <td>
+                  <button type="submit" class="btn btn-sm btn-success">Reimburse</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Tab 3 -->
+    <div class="tab-pane fade" id="tab3" role="tabpanel" tabindex="-1">
+      <h5 class="mt-3 mb-2">Settled History</h5>
+
+      <div class="mb-3 d-flex gap-2">
+        <button id="toggle-detailed" class="btn btn-outline-primary btn-sm active">Detailed View</button>
+        <button id="toggle-merged" class="btn btn-outline-secondary btn-sm">Merged View</button>
+        <a id="export-tab3" href="#" class="btn btn-success btn-sm ms-auto" onclick="exportTab3()">Export</a>
+      </div>
+
+      <!-- Detailed View -->
+      <div id="detailed-view" style="display: block;">
+        {% if settled_data %}
+          <table class="table table-bordered table-sm">
+            <thead class="table-light">
+              <tr>
+                <th>Employee</th>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Amount</th>
+                <th>Project</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for emp_id, entries in settled_data.items %}
+                {% with employee=employee_map|get_item:emp_id %}
+                  {% for entry in entries %}
+                    <tr>
+                      <td>{{ employee.user.get_full_name }}</td>
+                      <td>{{ entry.date }}</td>
+                      <td>{{ entry.type }}</td>
+                      <td>{{ entry.amount }}</td>
+                      <td>
+                        {% if entry.project %}
+                          {{ entry.project.name }}
+                        {% else %}
+                          -
+                        {% endif %}
+                      </td>
+                      <td><span class="badge bg-success">Settled</span></td>
+                    </tr>
+                  {% endfor %}
+                {% endwith %}
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p>No settled reimbursements found.</p>
+        {% endif %}
+      </div>
+
+      <!-- Merged View -->
+      <div id="merged-view" style="display: none;">
+        {% if settled_merged %}
+          <table class="table table-bordered table-sm">
+            <thead class="table-light">
+              <tr>
+                <th>Employee</th>
+                <th>Total Amount</th>
+                <th>Entry Count</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for emp_id, summary in settled_merged.items %}
+                <tr>
+                  <td>{{ summary.employee.user.get_full_name }}</td>
+                  <td>{{ summary.total }}</td>
+                  <td>{{ summary.entries|length }}</td>
+                  <td><span class="badge bg-success">Settled</span></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p>No merged settled records available.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Tab 4 -->
+    <div class="tab-pane fade" id="advances-tab-pane" role="tabpanel" tabindex="-1">
+      <a id="export-tab4" href="#" class="btn btn-success btn-sm mb-2 d-none">Export Tab 4</a>
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Project</th>
+            <th>Amount</th>
+            <th>Date Requested</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for adv in tab_data.advances %}
+            <tr class="table-info">
+              <td>{{ adv.employee.user.get_full_name }}</td>
+              <td>{{ adv.project.name }}</td>
+              <td>₹{{ adv.amount }}</td>
+              <td>{{ adv.date_requested }}</td>
+              <td>Approved</td>
+              <td>
+                <form method="post" action="{% url 'accountmanager:settle-advance' adv.id %}">
+                  {% csrf_token %}
+                  <button class="btn btn-success btn-sm">Settle</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6" class="text-muted text-center">No pending advances</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  </div>
 </div>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const params = new URLSearchParams(window.location.search);
-        const activeTab = params.get("tab") || "tab1";
-        const tabTrigger = document.querySelector(`#reimbursementTabs button[data-bs-target="#${activeTab}"]`);
-        if (tabTrigger) {
-            const tab = new bootstrap.Tab(tabTrigger);
-            tab.show();
-        }
-    });
-	document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(function (tabBtn) {
-    tabBtn.addEventListener("shown.bs.tab", function (event) {
-        const tabId = event.target.getAttribute("data-bs-target").substring(1);
-        const url = new URL(window.location);
-        url.searchParams.set("tab", tabId);
-        history.replaceState(null, "", url.toString());
-    });
-});
+  function exportTab3() {
+    const isDetailed = document.getElementById('detailed-view').style.display !== 'none';
+    const viewType = isDetailed ? 'detailed' : 'merged';
+    window.location.href = `{% url 'accountmanager:export_tab3' %}?view=${viewType}`;
+  }
 
+  document.addEventListener("DOMContentLoaded", function () {
+    const tabMap = {
+      'tab1': 'export-tab1',
+      'tab2': 'export-tab2',
+      'tab3': 'export-tab3',
+      'advances-tab-pane': 'export-tab4'
+    };
+
+    const activeTab = "{{ active_tab|default:'tab1' }}";
+    if (tabMap[activeTab]) {
+      document.getElementById(tabMap[activeTab]).classList.remove("d-none");
+    }
+
+    document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(tabBtn => {
+      tabBtn.addEventListener("shown.bs.tab", function (event) {
+        const tabId = event.target.getAttribute("data-bs-target").substring(1);
+        Object.values(tabMap).forEach(id => document.getElementById(id).classList.add("d-none"));
+        if (tabMap[tabId]) document.getElementById(tabMap[tabId]).classList.remove("d-none");
+      });
+    });
+
+    document.getElementById('toggle-detailed').addEventListener('click', function () {
+      this.classList.add('active');
+      document.getElementById('toggle-merged').classList.remove('active');
+      document.getElementById('detailed-view').style.display = 'block';
+      document.getElementById('merged-view').style.display = 'none';
+    });
+
+    document.getElementById('toggle-merged').addEventListener('click', function () {
+      this.classList.add('active');
+      document.getElementById('toggle-detailed').classList.remove('active');
+      document.getElementById('detailed-view').style.display = 'none';
+      document.getElementById('merged-view').style.display = 'block';
+    });
+  });
 </script>
 {% endblock %}
