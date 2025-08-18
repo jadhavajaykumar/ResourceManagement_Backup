@@ -1,4 +1,6 @@
 {% load static %}
+{% load widget_tweaks %}
+
 <div class="container mt-3">
 
     <!-- Advance Summary -->
@@ -33,18 +35,43 @@
             <strong>Request New Advance</strong>
         </div>
         <div class="card-body">
-            <form method="post" action="{% url 'expenses:employee-expenses' %}" enctype="multipart/form-data">
-                {% csrf_token %}
-                <div class="mb-3">
-                    <label for="purpose" class="form-label">Purpose</label>
-                    <input type="text" name="purpose" class="form-control" required>
-                </div>
-                <div class="mb-3">
-                    <label for="amount" class="form-label">Amount</label>
-                    <input type="number" name="amount" step="0.01" class="form-control" required>
-                </div>
-                <button type="submit" name="advance_request" class="btn btn-primary">Submit Advance Request</button>
-            </form>
+            <h4>Raise New Advance Request</h4>
+				<form method="post" action="" novalidate>
+				  {% csrf_token %}
+
+				  {% if advance_form.non_field_errors %}
+					<div class="alert alert-danger">{{ advance_form.non_field_errors }}</div>
+				  {% endif %}
+
+				  <div class="mb-3">
+					<label for="{{ advance_form.purpose.id_for_label }}" class="form-label">Purpose</label>
+					{{ advance_form.purpose|add_class:"form-control" }}
+					{% for error in advance_form.purpose.errors %}
+					  <div class="text-danger small">{{ error }}</div>
+					{% endfor %}
+				  </div>
+
+				  <div class="mb-3">
+					<label for="{{ advance_form.amount.id_for_label }}" class="form-label">Amount</label>
+					{{ advance_form.amount|add_class:"form-control" }}
+					{% for error in advance_form.amount.errors %}
+					  <div class="text-danger small">{{ error }}</div>
+					{% endfor %}
+				  </div>
+
+				  <div class="mb-3">
+					<label for="{{ advance_form.project.id_for_label }}" class="form-label">Project</label>
+					{{ advance_form.project|add_class:"form-control" }}
+					{% for error in advance_form.project.errors %}
+					  <div class="text-danger small">{{ error }}</div>
+					{% endfor %}
+				  </div>
+
+				  <button type="submit" name="advance_submit" class="btn btn-primary">Submit</button>
+				</form>
+
+
+
         </div>
     </div>
     {% endif %}

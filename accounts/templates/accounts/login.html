@@ -3,168 +3,115 @@
 
 {% block content %}
 <style>
+    .login-wrapper {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: calc(100vh - 120px); /* minus navbar height */
+        background-color: inherit; /* Allow dark/light background */
+        transition: background-color 0.3s ease;
+    }
+
     .login-container {
-        max-width: 500px;  /* Increased width */
-        margin: 80px auto;
-        padding: 40px;
-        background-color: #2c2c3e;
+        width: 100%;
+        max-width: 400px;
+        padding: 30px;
+        background-color: var(--login-bg, #2c2c3e);
         border-radius: 12px;
         box-shadow: 0 0 30px rgba(0, 0, 0, 0.4);
-        animation: fadeIn 1s ease;
+        animation: fadeIn 0.8s ease;
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    /* Light mode override (inherits from base.html theme) */
+    body:not(.dark-mode) .login-container {
+        background-color: #ffffff;
+        color: #2e2e2e;
+        box-shadow: 0 0 20px rgba(0,0,0,0.1);
     }
 
     .login-container h2 {
         text-align: center;
         color: #61dafb;
         margin-bottom: 25px;
-        font-weight: 600;
     }
 
     .logo-container {
         text-align: center;
-        margin-bottom: 25px;
+        margin-bottom: 20px;
     }
 
     .logo {
-        width: 250px;  /* Increased width */
-        height: auto;  /* Maintain aspect ratio */
-        margin-bottom: 20px;
+        width: 200px;
+        height: auto;
     }
 
-    .form-group {
-        margin-bottom: 20px;
-    }
-
-    label {
-        display: block;
-        margin-bottom: 8px;
-        color: #c2c2c2;
-    }
-
-    input[type="text"],
-    input[type="password"] {
+    input[type="text"], input[type="password"] {
         width: 100%;
-        padding: 12px;
-        border: 1px solid #444;
-        background-color: #1e1e2f;
-        color: #ffffff;
+        padding: 10px;
+        margin-bottom: 15px;
         border-radius: 6px;
-        font-size: 16px;
+        border: 1px solid #444;
+        background: #1e1e2f;
+        color: white;
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    /* Light mode override for inputs */
+    body:not(.dark-mode) input[type="text"],
+    body:not(.dark-mode) input[type="password"] {
+        background: #ffffff;
+        color: #000;
+        border: 1px solid #ccc;
     }
 
     .btn-login {
         width: 100%;
-        padding: 14px;
-        border: none;
+        padding: 12px;
         background-color: #61dafb;
+        border: none;
+        border-radius: 6px;
         color: #1e1e2f;
         font-weight: bold;
-        border-radius: 6px;
         cursor: pointer;
-        font-size: 16px;
-        margin-top: 10px;
     }
-
     .btn-login:hover {
         background-color: #3ca9dd;
-    }
-
-    .role-buttons {
-        display: flex;
-        justify-content: space-between;
-        margin: 25px 0;
-        gap: 10px;
-    }
-
-    .role-buttons a {
-        flex: 1;
-        text-align: center;
-        background-color: #343a40;
-        color: #fff;
-        padding: 12px;
-        border-radius: 6px;
-        text-decoration: none;
-        transition: all 0.3s ease;
-    }
-
-    .role-buttons a:hover {
-        background-color: #3d434a;
-    }
-
-    .role-buttons a.active-role {
-        background-color: #61dafb;
-        color: #1e1e2f;
-        font-weight: bold;
     }
 
     .error-message {
         color: #ff6b6b;
         text-align: center;
-        margin-top: 15px;
-        font-size: 14px;
-    }
-
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(-20px); }
-        to { opacity: 1; transform: translateY(0); }
+        margin-top: 10px;
     }
 </style>
 
-<div class="login-container">
-    <div class="logo-container">
-        <img src="{% static 'images/logo_1.png' %}" alt="Company Logo" class="logo">
-    </div>
-    
-    <h2>Login Portal</h2>
-
-    {% if request.GET.role %}
-        <div class="role-text">Login as {{ request.GET.role|title }}</div>
-    {% endif %}
-
-   <!-- <div class="role-buttons">
-        <a href="{% url 'accounts:login' %}?role=Employee" 
-           class="{% if request.GET.role == 'Employee' %}active-role{% endif %}">
-           Employee
-        </a>
-        <a href="{% url 'accounts:login' %}?role=Manager" 
-           class="{% if request.GET.role == 'Manager' %}active-role{% endif %}">
-           Manager
-        </a>
-        <a href="{% url 'accounts:login' %}?role=HR" 
-           class="{% if request.GET.role == 'HR' %}active-role{% endif %}">
-           HR
-        </a>
-        <a href="{% url 'accounts:login' %}?role=Accountant" 
-           class="{% if request.GET.role == 'Accountant' %}active-role{% endif %}">
-           Accountant
-        </a>
-		<a href="{% url 'accounts:login' %}?role=Account Manager" 
-           class="{% if request.GET.role == 'Account Manager' %}active-role{% endif %}">
-           Account Manager
-        </a>
-		
-
-    </div>-->
-
-    <form method="post" action="{% url 'accounts:login' %}">
-        {% csrf_token %}
-        <div class="form-group">
-            <label for="id_username">Username</label>
-            <input type="text" name="username" id="id_username" required 
-                   placeholder="Enter your username">
+<div class="login-wrapper">
+    <div class="login-container">
+        <div class="logo-container">
+            <img src="{% static 'images/logo_1.png' %}" alt="Company Logo" class="logo">
         </div>
-        <div class="form-group">
-            <label for="id_password">Password</label>
-            <input type="password" name="password" id="id_password" required 
-                   placeholder="Enter your password">
-        </div>
-        <button type="submit" class="btn-login">Login</button>
-    </form>
+        
+        <h2>Login Portal</h2>
 
-    {% if form.errors %}
+        <form method="post" action="{% url 'accounts:login' %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="id_username">Username</label>
+                <input type="text" name="username" id="id_username" required placeholder="Enter your username">
+            </div>
+            <div class="form-group">
+                <label for="id_password">Password</label>
+                <input type="password" name="password" id="id_password" required placeholder="Enter your password">
+            </div>
+            <button type="submit" class="btn-login">Login</button>
+        </form>
+
+        {% if form.errors %}
         <div class="error-message">
             Invalid username or password. Please try again.
         </div>
-    {% endif %}
+        {% endif %}
+    </div>
 </div>
 {% endblock %}

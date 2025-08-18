@@ -46,9 +46,9 @@
   <ul class="nav nav-tabs mb-3" id="approvalTabs" role="tablist">
     {% for tab in tab_names %}
       <li class="nav-item" role="presentation">
-        <button class="nav-link {% if forloop.first %}active{% endif %}" id="{{ tab }}-tab" data-bs-toggle="tab" data-bs-target="#{{ tab }}-tab-pane" type="button" role="tab">
-          {{ tab|capfirst }}
-        </button>
+		  <button class="nav-link {% if forloop.first %}active{% endif %}" id="{{ tab }}-tab" data-bs-toggle="tab" data-bs-target="#{{ tab }}-tab-pane" type="button" role="tab">
+			  {% if tab == "submitted" %}Submitted{% else %}{{ tab|capfirst }}{% endif %}
+			</button>
       </li>
     {% endfor %}
   </ul>
@@ -57,97 +57,60 @@
   <div class="tab-content" id="approvalTabContent">
     {% for tab in tab_names %}
       <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" id="{{ tab }}-tab-pane" role="tabpanel">
-        <table class="table table-striped table-hover align-middle">
-          <thead class="table-light sticky-top">
-            <tr>
-              <th>Employee</th>
-              <th>Project</th>
-              <th>Amount (₹)</th>
-              <th>Type</th>
-              <th>Date</th>
-              <th>Status</th>
-              <th>Reimbursement</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% with data=tabbed_expenses|get_item:tab %}
-              {% if data %}
-                {% for row in data %}
-                  {% if row.type == "Expense" %}
-                    <tr>
-                      <td>{{ row.employee.user.get_full_name }}</td>
-                      <td>{{ row.project.name }}</td>
-                      <td>{{ row.amount }}</td>
-                      <td>{{ row.new_expense_type.name }}</td>
-                      <td>{{ row.date }}</td>
-                      <td>{{ row.status }}</td>
-                      <td>{{ row.reimbursed|yesno:"Yes,No" }}</td>
-                      <td>
-                        {% if row.status == 'Pending' %}
-                          <button class="btn btn-sm btn-success" onclick="openRemarkModal('{{ row.id }}', 'approve')">✓</button>
-                          <button class="btn btn-sm btn-danger" onclick="openRemarkModal('{{ row.id }}', 'reject')">✗</button>
-                        {% else %}
-                          <div class="small text-muted">
-                            {% if row.advance_used %}
-                              <span class="badge bg-info text-dark">Adv #{{ row.advance_used }}</span>
-                            {% else %}
-                              <span class="badge bg-secondary">No Advance</span>
-                            {% endif %}
-                          </div>
-                        {% endif %}
-                      </td>
-                    </tr>
-                  {% elif row.type == "DA" %}
-                    <tr class="table-warning text-dark">
-                      <td>{{ row.employee.user.get_full_name }}</td>
-                      <td>{{ row.project.name }}</td>
-                      <td>{{ row.amount }}</td>
-                      <td>Daily Allowance</td>
-                      <td>{{ row.date }}</td>
-                      <td>{{ row.status }}</td>
-                      <td>{{ row.reimbursed|yesno:"Yes,No" }}</td>
-                      <td>
-                        {% if not row.approved %}
-                          <form method="post" action="{% url 'accountant:approve-da' row.id %}">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-sm btn-outline-success">✓</button>
-                          </form>
-                        {% else %}
-                          <span class="text-muted">✓</span>
-                        {% endif %}
-                      </td>
-                    </tr>
-                  {% elif row.type == "Advance" %}
-                    <tr class="table-info text-dark">
-                      <td>{{ row.employee.user.get_full_name }}</td>
-                      <td>{{ row.project.name }}</td>
-                      <td>{{ row.amount }}</td>
-                      <td><strong>Advance Request</strong></td>
-                      <td>{{ row.date }}</td>
-                      <td>
-                        Manager: {% if row.approved_by_manager %}✓{% else %}✗{% endif %}<br>
-                        Accountant: {% if row.approved_by_accountant %}✓{% else %}✗{% endif %}
-                      </td>
-                      <td>-</td>
-                      <td>
-                        {% if row.approved_by_manager and not row.approved_by_accountant %}
-                          <a href="{% url 'accountant:accountant_approve_advance' row.id %}" class="btn btn-sm btn-success">Approve</a>
-                        {% elif row.approved_by_accountant %}
-                          <span class="text-muted">Approved</span>
-                        {% else %}
-                          <span class="text-muted">Pending Manager</span>
-                        {% endif %}
-                      </td>
-                    </tr>
-                  {% endif %}
-                {% endfor %}
-              {% else %}
-                <tr><td colspan="8" class="text-center text-muted">No entries found.</td></tr>
-              {% endif %}
-            {% endwith %}
-          </tbody>
-        </table>
+        <table class="table table-bordered table-striped table-sm">
+			<thead class="table-light">
+				<tr>
+					<th>ID</th>
+					<th>Employee</th>
+					<th>Date</th>
+					<th>Project</th>
+					<th>Type</th>
+					<th>Amount</th>
+					<th>From</th>
+					<th>To</th>
+					<th>Receipt</th>
+					<th>Status</th>
+					<th>Actions</th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for expense in tabbed_expenses|get_item:tab %}
+				<tr>
+					<td>{{ expense.id }}</td>
+					<td>{{ expense.employee.user.get_full_name }}</td>
+					<td>{{ expense.date }}</td>
+					<td>{{ expense.project.name }}</td>
+					<td>{{ expense.new_expense_type.name }}</td>
+					<td>₹{{ expense.amount }}</td>
+					<td>{{ expense.from_location|default_if_none:"-" }}</td>
+					<td>{{ expense.to_location|default_if_none:"-" }}</td>
+					
+					<td>
+						{% if expense.receipt %}
+							<a href="{{ expense.receipt }}" target="_blank">View</a>
+						{% else %}
+							-
+						{% endif %}
+					</td>
+					<td>{{ expense.status }}</td>
+					<td>
+						<form method="post" action="{% url 'accountant:expense-action' expense.id 'approve' %}" style="display:inline;">
+							{% csrf_token %}
+							<button type="submit" class="btn btn-success btn-sm">Approve</button>
+						</form>
+
+						<form method="post" action="{% url 'accountant:expense-action' expense.id 'reject' %}" style="display:inline;">
+							{% csrf_token %}
+							<button type="submit" class="btn btn-danger btn-sm">Reject</button>
+						</form>
+
+					</td>
+				</tr>
+				{% endfor %}
+			</tbody>
+
+		</table>
+
       </div>
     {% endfor %}
   </div>

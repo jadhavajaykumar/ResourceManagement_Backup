@@ -1,0 +1,40 @@
+{% if expenses %}
+<h5 class="mt-3">Pending Expenses</h5>
+<table class="table table-bordered table-sm">
+  <thead class="table-light">
+    <tr>
+      <th>Date</th>
+      <th>Employee</th>
+      <th>Project</th>
+      <th>Type</th>
+      <th>Amount</th>
+      <th>From</th>
+      <th>To</th>
+      <th>Status</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for expense in expenses %}
+    <tr>
+      <td>{{ expense.date }}</td>
+      <td>{{ expense.employee.user.get_full_name }}</td>
+      <td>{{ expense.project.name }}</td>
+      <td>{{ expense.new_expense_type.name }}</td>
+      <td>{{ expense.amount }}</td>
+      <td>{{ expense.from_location|default:"–" }}</td>
+      <td>{{ expense.to_location|default:"–" }}</td>
+      <td>{{ expense.status }}</td>
+      <td>
+        {% if role in "Accountant Manager Account Manager" %}
+        <button class="btn btn-success btn-sm" onclick="openRemarkModal('{{ expense.id }}','expense','approve')">✓</button>
+        <button class="btn btn-danger btn-sm" onclick="openRemarkModal('{{ expense.id }}','expense','reject')">✗</button>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="text-muted">No pending expenses.</p>
+{% endif %}

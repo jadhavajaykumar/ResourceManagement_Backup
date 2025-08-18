@@ -10,6 +10,7 @@ from manager.views.absent_views import mark_absent_dashboard
 from manager.views import task_views
 from manager.views.holiday_views import manage_holidays
 from manager.views import advance_views
+from expenses.views.unified_expense_dashboard import unified_expense_dashboard
 
 from manager.views import (
     manager_dashboard,
@@ -99,9 +100,11 @@ urlpatterns = [
     path('c-off-approvals/<int:application_id>/reject/', reject_c_off, name='reject-c-off'),
     
     
+    path('unified-expenses/', unified_expense_dashboard, name='unified-expense-dashboard'),
+]
+    
 
 
 
    
 
-]

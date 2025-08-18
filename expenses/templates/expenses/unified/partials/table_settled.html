@@ -1,0 +1,28 @@
+<table class="table table-bordered table-sm mt-2">
+  <thead class="table-light">
+    <tr>
+      <th>Type</th>
+      <th>Date</th>
+      <th>Employee</th>
+      <th>Project</th>
+      <th>Amount</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for entry in items %}
+    <tr>
+      <td>{{ entry.type }}</td>
+      <td>{{ entry.date }}</td>
+      <td>{{ entry.employee.user.get_full_name }}</td>
+      <td>{{ entry.project.name }}</td>
+      <td>{{ entry.amount }}</td>
+      <td>{{ entry.status }}</td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="6" class="text-center text-muted">No settled records found.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

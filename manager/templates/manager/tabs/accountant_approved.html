@@ -1,0 +1,89 @@
+{% if submitted_expenses %}
+<table class="table table-bordered table-sm">
+  <thead class="table-light">
+    <tr>
+      <th>Date</th>
+      <th>Employee</th>
+      <th>Project</th>
+      <th>Type</th>
+      <th>KM</th>
+      <th>Amount</th>
+      <th>From Location</th>
+      <th>To Location</th>
+      <th>Receipt</th>
+      <th>Comments</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for expense in submitted_expenses %}
+    <tr>
+      <td>{{ expense.date }}</td>
+      <td>{{ expense.employee.user.get_full_name }}</td>
+      <td>{{ expense.project.name }}</td>
+      <td>{{ expense.new_expense_type.name }}</td>
+      <td>{{ expense.kilometers|default:"-" }}</td>
+      <td>{{ expense.amount }}</td>
+      <td>{{ expense.from_location|default:"–" }}</td>
+      <td>{{ expense.to_location|default:"–" }}</td>
+      <td>
+        {% if expense.receipt %}
+          <a href="{{ expense.receipt.url }}" target="_blank">View</a>
+        {% else %}
+          –
+        {% endif %}
+      </td>
+      <td>{{ expense.comments|default:"-" }}</td>
+      <td>
+        <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modal-approve-{{ expense.id }}">Approve(✓)</button>
+        <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#modal-reject-{{ expense.id }}">Reject(✗)</button>
+      </td>
+    </tr>
+
+    <!-- Approve Modal -->
+    <div class="modal fade" id="modal-approve-{{ expense.id }}" tabindex="-1">
+      <div class="modal-dialog">
+        <form method="post" action="{% url 'manager:handle-expense-action' expense.id 'approve' %}">
+          {% csrf_token %}
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Approve Expense</h5>
+            </div>
+            <div class="modal-body">
+              <textarea class="form-control" name="manager_remark" required placeholder="Enter approval remark..."></textarea>
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-success">Approve</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Reject Modal -->
+    <div class="modal fade" id="modal-reject-{{ expense.id }}" tabindex="-1">
+      <div class="modal-dialog">
+        <form method="post" action="{% url 'manager:handle-expense-action' expense.id 'reject' %}">
+          {% csrf_token %}
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Reject Expense</h5>
+            </div>
+            <div class="modal-body">
+              <textarea class="form-control" name="manager_remark" required placeholder="Enter reason for rejection..."></textarea>
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-danger">Reject</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No accountant-approved expenses pending manager review.</p>
+{% endif %}

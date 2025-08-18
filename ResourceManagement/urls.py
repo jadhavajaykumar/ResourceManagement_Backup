@@ -4,6 +4,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.shortcuts import redirect
 from django.contrib.staticfiles.views import serve
+from expenses.views.unified_expense_dashboard import unified_expense_dashboard
 #from . import views
 
 
@@ -25,6 +26,7 @@ urlpatterns = [
     path('manager/', include('manager.urls')),
     path('docgen/', include('docgen.urls')),
     path('accountant/', include('accountant.urls')),
+    path('unified-expenses/', unified_expense_dashboard, name='unified-expense-dashboard'),
     
 
 

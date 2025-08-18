@@ -1,0 +1,58 @@
+{% load widget_tweaks %}
+<div class="card mb-4">
+  <div class="card-body">
+    <div class="row g-3">
+
+      <!-- Project -->
+      <div class="col-md-6">
+        <label for="{{ form.project.id_for_label }}" class="form-label">Project</label>
+        {{ form.project|add_class:"form-select" }}
+      </div>
+
+      <!-- Purpose -->
+      <div class="col-md-6">
+        <label for="{{ form.purpose.id_for_label }}" class="form-label">Purpose</label>
+        {{ form.purpose|add_class:"form-control" }}
+      </div>
+
+      <!-- Date Requested -->
+      <div class="col-md-4">
+        <label for="{{ form.date_requested.id_for_label }}" class="form-label">Date</label>
+        {{ form.date_requested|add_class:"form-control" }}
+      </div>
+
+      <!-- Amount -->
+      <div class="col-md-4">
+        <label for="{{ form.amount.id_for_label }}" class="form-label">Amount (₹)</label>
+        {{ form.amount|add_class:"form-control" }}
+      </div>
+
+      <!-- Remarks -->
+      <div class="col-md-12">
+        <label for="{{ form.remarks.id_for_label }}" class="form-label">Remarks</label>
+        {{ form.remarks|add_class:"form-control" }}
+      </div>
+
+    </div>
+  </div>
+</div>
+
+	{% if editing and advance %}
+	  {% if advance.status != "Submitted" %}
+		<script>
+		document.addEventListener("DOMContentLoaded", function() {
+		  document.querySelectorAll('#advance-form-body input, #advance-form-body select, #advance-form-body textarea')
+			.forEach(el => el.setAttribute('disabled', true));
+		});
+		</script>
+	  {% elif advance.current_stage != "MANAGER" %}
+		<script>
+		document.addEventListener("DOMContentLoaded", function() {
+		  document.querySelectorAll('#advance-form-body input, #advance-form-body select, #advance-form-body textarea')
+			.forEach(el => el.setAttribute('disabled', true));
+		});
+		</script>
+	  {% endif %}
+	{% endif %}
+
+

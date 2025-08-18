@@ -1,0 +1,461 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+{% block content %}
+<div class="container mt-4">
+
+  <!-- Page header + primary actions -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h3 class="text-primary m-0">Unified Expense, Advance & DA Dashboard</h3>
+    <div class="d-flex gap-2">
+      <button class="btn btn-primary btn-sm" id="newExpenseBtn" data-bs-toggle="modal" data-bs-target="#expenseModal">
+        + New Expense
+      </button>
+
+      {% if allow_new_advance %}
+        <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#advanceModal">
+          <i class="bi bi-cash-coin"></i> Raise Advance Request
+        </button>
+      {% else %}
+        <button class="btn btn-secondary btn-sm" disabled>
+          Balance: ₹{{ current_balance|floatformat:2 }}
+        </button>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Summary cards -->
+  {% if advance_summary %}
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-lg-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body py-3">
+          <div class="small text-muted">Advance Credited</div>
+          <div class="h5 mb-0">₹{{ advance_summary.total_advance_amount|floatformat:2 }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body py-3">
+          <div class="small text-muted">Used Against Expenses</div>
+          <div class="h5 mb-0">₹{{ advance_summary.total_deducted|floatformat:2 }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body py-3">
+          <div class="small text-muted">Advance Balance</div>
+          <div class="h5 mb-0">₹{{ advance_summary.advance_balance|floatformat:2 }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body py-3">
+          <div class="small text-muted">Submitted (Awaiting Flow)</div>
+          <div class="h5 mb-0">₹{{ advance_summary.submitted_total|floatformat:2 }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Filters (collapsible card) -->
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="m-0">Filters</h6>
+        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filtersCollapse" aria-expanded="true" aria-controls="filtersCollapse">
+          Toggle
+        </button>
+      </div>
+      <div class="collapse show" id="filtersCollapse">
+        <form method="get" class="row g-3">
+          <div class="col-md-2">
+            <label for="year" class="form-label">Year</label>
+            <select name="year" id="year" class="form-select">
+              {% for y in year_range %}
+                <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-md-2">
+            <label for="month" class="form-label">Month</label>
+            <select name="month" id="month" class="form-select">
+              <option value="">All</option>
+              {% for num, name in month_choices %}
+                <option value="{{ num }}" {% if selected_month|stringformat:"s" == num|stringformat:"s" %}selected{% endif %}>{{ name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-md-3">
+            <label for="project" class="form-label">Project</label>
+            <select name="project" id="project" class="form-select">
+              <option value="">All</option>
+              {% for proj in projects %}
+                <option value="{{ proj.project_id }}" {% if selected_project|stringformat:"s" == proj.project_id|stringformat:"s" %}selected{% endif %}>
+                  {{ proj.project__name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          {% if employees %}
+          <div class="col-md-3">
+            <label for="employee" class="form-label">Employee</label>
+            <select name="employee" id="employee" class="form-select">
+              <option value="">All</option>
+              {% for emp in employees %}
+                <option value="{{ emp.id }}" {% if selected_employee|stringformat:"s" == emp.id|stringformat:"s" %}selected{% endif %}>
+                  {{ emp.user.get_full_name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
+
+          <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100">Apply Filters</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+<style>
+  /* Elegant pill tabs */
+  .tabbar { 
+    position: sticky; 
+    top: 64px;              /* adjust if your navbar height differs */
+    z-index: 101; 
+    background: var(--bs-body-bg); 
+    padding-top: .25rem;
+  }
+  .nav-tabs.elevated {
+    border: 0;
+    gap: .5rem;
+    flex-wrap: wrap;
+  }
+  .nav-tabs.elevated .nav-link {
+    border: 0;
+    background: var(--bs-secondary-bg, #f8f9fa);
+    border-radius: .75rem;
+    padding: .5rem .8rem;
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    font-weight: 500;
+    color: var(--bs-body-color);
+    transition: transform .15s ease, box-shadow .2s ease, background .2s ease;
+    box-shadow: 0 1px 0 rgba(0,0,0,.04) inset;
+  }
+  .nav-tabs.elevated .nav-link .bi {
+    font-size: 1rem;
+    opacity: .7;
+  }
+  .nav-tabs.elevated .nav-link .count {
+    background: var(--bs-secondary, #6c757d);
+    color: #fff;
+    border-radius: 999px;
+    padding: .1rem .45rem;
+    font-size: .72rem;
+    line-height: 1;
+  }
+  .nav-tabs.elevated .nav-link:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(0,0,0,.06);
+    text-decoration: none;
+  }
+  .nav-tabs.elevated .nav-link.active {
+    background: var(--bs-primary);
+    color: #fff;
+    box-shadow: 0 6px 16px rgba(var(--bs-primary-rgb, 13,110,253), .25);
+  }
+  .nav-tabs.elevated .nav-link.active .bi { opacity: 1; }
+  .nav-tabs.elevated .nav-link.active .count {
+    background: rgba(255,255,255,.25);
+  }
+</style>
+
+  <!-- Tabs -->
+  <div class="tabbar">
+	  <ul class="nav nav-tabs elevated" role="tablist">
+		{% for key, dataset in tabs.items %}
+		  {% with key|title as label %}
+		  <li class="nav-item" role="presentation">
+			<a class="nav-link {% if forloop.first %}active{% endif %}"
+			   data-bs-toggle="tab"
+			   href="#{{ key }}"
+			   role="tab"
+			   {% if key == "pending_expenses" %}
+				 data-bs-toggle="tooltip" title="Expenses in workflow"
+			   {% elif key == "approved_expenses" %}
+				 data-bs-toggle="tooltip" title="Approved expenses"
+			   {% elif key == "rejected_expenses" %}
+				 data-bs-toggle="tooltip" title="Rejected expenses"
+			   {% elif key == "settled_expenses" %}
+				 data-bs-toggle="tooltip" title="Fully settled expenses"
+			   {% elif key == "pending_advances" %}
+				 data-bs-toggle="tooltip" title="Advance requests in workflow"
+			   {% elif key == "approved_advances" %}
+				 data-bs-toggle="tooltip" title="Approved advances"
+			   {% elif key == "rejected_advances" %}
+				 data-bs-toggle="tooltip" title="Rejected advances"
+			   {% elif key == "settled_advances" %}
+				 data-bs-toggle="tooltip" title="Settled advances"
+			   {% elif key == "da_entries" %}
+				 data-bs-toggle="tooltip" title="Daily allowance entries"
+			   {% endif %}
+			>
+			  {% if key == "pending_expenses" %}
+				<i class="bi bi-clock-history"></i>
+			  {% elif key == "approved_expenses" %}
+				<i class="bi bi-check2-circle"></i>
+			  {% elif key == "rejected_expenses" %}
+				<i class="bi bi-x-circle"></i>
+			  {% elif key == "settled_expenses" %}
+				<i class="bi bi-cash-stack"></i>
+			  {% elif key == "pending_advances" %}
+				<i class="bi bi-cash-coin"></i>
+			  {% elif key == "approved_advances" %}
+				<i class="bi bi-check-circle"></i>
+			  {% elif key == "rejected_advances" %}
+				<i class="bi bi-slash-circle"></i>
+			  {% elif key == "settled_advances" %}
+				<i class="bi bi-bag-check"></i>
+			  {% elif key == "da_entries" %}
+				<i class="bi bi-receipt"></i>
+			  {% else %}
+				<i class="bi bi-folder2"></i>
+			  {% endif %}
+
+			  {{ label|cut:"_"|capfirst }}
+			  {% if dataset %}
+				<span class="count">{{ dataset|length }}</span>
+			  {% endif %}
+			</a>
+		  </li>
+		  {% endwith %}
+		{% endfor %}
+	  </ul>
+	</div>
+
+
+  <!-- Tab Content -->
+  <div class="tab-content mt-3">
+    {% for key, dataset in tabs.items %}
+      <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" id="{{ key }}">
+        {% if "expense" in key %}
+          {% include "expenses/unified/partials/table_expenses.html" with items=dataset role=role action=expense_action %}
+        {% elif "advance" in key %}
+          {% include "expenses/unified/partials/table_advances.html" with items=dataset role=role action=expense_action %}
+        {% elif "da" in key %}
+          {% include "expenses/unified/partials/table_da.html" with data=dataset role=role %}
+        {% elif "settled" in key %}
+          {% include "expenses/unified/partials/table_settled.html" with items=settled_page role=role %}
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+
+  <!-- EXPENSE MODAL -->
+  <div class="modal fade" id="expenseModal" tabindex="-1" aria-labelledby="expenseModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content p-3">
+        <h5 class="modal-title mb-3" id="expenseModalLabel">Submit Expense</h5>
+        <form method="post" enctype="multipart/form-data" id="expenseForm">
+          {% csrf_token %}
+          <div id="expense-form-body">
+            {% include "expenses/expense_form_partial.html" with form=expense_form editing=False %}
+          </div>
+          <div class="mt-3 text-end">
+            <button type="submit" name="submit_expense" value="1" class="btn btn-primary">Submit Expense</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADVANCE MODAL & INFO -->
+  {% if not allow_new_advance %}
+	  <div class="alert alert-info mt-2">
+		<strong>Info:</strong> You cannot raise a new advance request until your current balance (₹{{ current_balance }}) is cleared.
+	  </div>
+	{% else %}
+	  <div class="modal fade" id="advanceModal" tabindex="-1">
+		<div class="modal-dialog modal-lg">
+		  <div class="modal-content p-3">
+			<h5 class="modal-title mb-3" id="advanceModalLabel">
+			  <i class="bi bi-cash-stack me-2"></i> Raise Advance Request
+			</h5>
+
+			{% if latest_advance == None %}
+			  <!-- FORM A (kept) -->
+			  <form method="post" id="advanceForm">
+				{% csrf_token %}
+				<div id="advance-form-body">
+				  {% include "expenses/advance_form_partial.html" with form=advance_form editing=False %}
+				</div>
+				<div class="mt-3 text-end">
+				  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+				  <button type="submit" name="submit_advance" value="1" class="btn btn-warning" id="advanceSubmitBtn">Submit Request</button>
+				</div>
+			  </form>
+
+			{% elif latest_advance.status == "Submitted" and latest_advance.current_stage == "MANAGER" %}
+			  <!-- FORM B (kept) -->
+			  <form method="post" id="advanceForm">
+				{% csrf_token %}
+				<div id="advance-form-body">
+				  {% include "expenses/advance_form_partial.html" with form=advance_form editing=False %}
+				</div>
+				<div class="mt-3 text-end">
+				  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+				  <button type="submit" name="submit_advance" value="1" class="btn btn-warning" id="advanceSubmitBtn">Submit Request</button>
+				</div>
+			  </form>
+
+	+       {% elif latest_advance.status == "Settled" %}
+	+         {# Settled = credited; never blocks raising a new request when balance <= 0 #}
+	+         <!-- FORM C (new, identical to A/B to avoid losing anything) -->
+	+         <form method="post" id="advanceForm">
+	+           {% csrf_token %}
+	+           <div id="advance-form-body">
+	+             {% include "expenses/advance_form_partial.html" with form=advance_form editing=False %}
+	+           </div>
+	+           <div class="mt-3 text-end">
+	+             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+	+             <button type="submit" name="submit_advance" value="1" class="btn btn-warning" id="advanceSubmitBtn">Submit Request</button>
+	+           </div>
+	+         </form>
+
+			{% else %}
+			  <div class="alert alert-warning mb-0">
+				<strong>Advance Locked:</strong>
+				Current advance is at <em>{{ latest_advance.current_stage }}</em> stage ({{ latest_advance.status }}).
+				You cannot raise a new request now.
+			  </div>
+			  <div class="mt-3 text-end">
+				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+			  </div>
+			{% endif %}
+
+		  </div>
+		</div>
+	  </div>
+	{% endif %}
+
+
+</div>
+
+<!-- Page JS -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const expenseModal = new bootstrap.Modal(document.getElementById('expenseModal'));
+  const modalTitle   = document.getElementById('expenseModalLabel');
+  const formBody     = document.getElementById('expense-form-body');
+  const expenseForm  = document.getElementById('expenseForm');
+
+  // helper: control submit button label + name attr
+  const setSubmitBtn = (text, nameValueOrNull) => {
+    const btn = expenseForm.querySelector("button[type='submit']");
+    if (!btn) return;
+    btn.textContent = text;
+    if (nameValueOrNull) {
+      btn.setAttribute("name", nameValueOrNull);
+      btn.setAttribute("value", "1");
+    } else {
+      btn.removeAttribute("name");   // critical: prevents create flow on edit
+      btn.removeAttribute("value");
+    }
+  };
+
+  // --- NEW EXPENSE (loads blank form via JSON) ---
+  const newBtn = document.getElementById("newExpenseBtn");
+  if (newBtn) {
+    newBtn.addEventListener("click", function() {
+      modalTitle.textContent = "Submit Expense";
+      fetch("{% url 'expenses:new-expense-form' %}")
+        .then(res => res.json())
+        .then(data => {
+          formBody.innerHTML = data.form_html;
+          // post to dashboard which handles create
+          expenseForm.action = "{{ request.path }}";
+          setSubmitBtn("Submit Expense", "submit_expense"); // keep name for create
+          if (typeof initExpenseForm === "function") { initExpenseForm(); }
+        })
+        .catch(err => console.error("Error loading new expense form:", err));
+    });
+  }
+
+  // --- EDIT EXPENSE (loads existing via JSON, posts to edit endpoint) ---
+  document.querySelectorAll(".edit-expense-btn").forEach(btn => {
+    btn.addEventListener("click", function () {
+      const expenseId = this.dataset.expenseId;
+      modalTitle.textContent = "Edit Expense";
+
+      const jsonUrl = "{% url 'expenses:edit-expense-json' 0 %}".replace("/0/", `/${expenseId}/`);
+      const postUrl = "{% url 'expenses:edit-expense' 0 %}".replace("/0/", `/${expenseId}/`);
+
+      fetch(jsonUrl)
+        .then(res => res.json())
+        .then(data => {
+          if (data.error) { alert(data.error); return; }
+          formBody.innerHTML = data.form_html;
+          expenseForm.action = postUrl;              // post to dedicated edit view
+          setSubmitBtn("Update Expense", null);      // remove name to avoid create
+          if (typeof initExpenseForm === "function") { initExpenseForm(); }
+        })
+        .catch(err => console.error("Error loading edit expense form:", err));
+
+      expenseModal.show();
+    });
+  });
+
+  // --- EDIT ADVANCE (unchanged, just kept tidy) ---
+  const advanceModalEl = document.getElementById('advanceModal');
+  const advanceModal   = advanceModalEl ? new bootstrap.Modal(advanceModalEl) : null;
+  const advTitle       = document.getElementById('advanceModalLabel');
+  const advanceFormEl  = document.getElementById('advanceForm');
+  const advFormBody    = document.getElementById('advance-form-body');
+  const advSubmitBtn   = document.getElementById('advanceSubmitBtn');
+
+  document.querySelectorAll(".edit-advance-btn").forEach(btn => {
+    btn.addEventListener("click", function () {
+      if (!advanceModal) return;
+      const advanceId = this.dataset.advanceId;
+      if (advTitle) advTitle.innerHTML = `<i class="bi bi-cash-stack me-2"></i> Edit Advance Request`;
+
+      const editUrl = "{% url 'expenses:edit-advance-json' 0 %}".replace("/0/", `/${advanceId}/`);
+
+      fetch(editUrl)
+        .then(res => res.json())
+        .then(data => {
+          if (data.error) { alert(data.error); return; }
+          if (advFormBody) advFormBody.innerHTML = data.form_html;
+          if (advanceFormEl) advanceFormEl.action = editUrl.replace("/json/", "/");
+          if (advSubmitBtn) advSubmitBtn.textContent = "Update Advance";
+        })
+        .catch(err => console.error("Error loading edit advance form:", err));
+
+      advanceModal.show();
+    });
+  });
+
+  // Enable tooltips for tab hints
+  const tipTriggers = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+  tipTriggers.forEach(el => new bootstrap.Tooltip(el));
+});
+</script>
+
+
+
+
+
+ 
+</script>
+
+{% endblock %}

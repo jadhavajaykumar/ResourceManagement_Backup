@@ -1,5 +1,6 @@
 from django.urls import path
 from employee.views.attendance_views import attendance_c_off_report
+from expenses.views.unified_expense_dashboard import unified_expense_dashboard
 from .views import (
     profile_home, edit_profile,
     employee_dashboard,
@@ -7,6 +8,8 @@ from .views import (
     attendance_report,
     advance_views
 )
+from employee.views.advance_views import raise_advance_request
+
 
 app_name = 'employee'
 
@@ -17,7 +20,14 @@ urlpatterns = [
     path('my-projects/', my_projects, name='my-projects'),
     path('attendance-report/', attendance_report, name='attendance-report'),
     path('attendance-c-off-report/', attendance_c_off_report, name='attendance-c-off-report'),
-    path('raise-advance/', advance_views.raise_advance_request, name='raise-advance'),
-    #path('raise-advance/', advance_views.raise_advance_request, name='raise-advance'),
-    path('my-advance-requests/', advance_views.list_advance_requests, name='advance-requests'),
+    path('raise-advance/', raise_advance_request, name='raise-advance-request'),
+    #path('unified-expenses/', unified_expense_dashboard, name='unified-expense-dashboard'),
+    #path('my-expenses/', unified_expense_dashboard, name='employee-expenses'),
+    path('unified-expenses/', unified_expense_dashboard, name='unified-expense-dashboard'),
+
+    
+
 ]
+
+
+

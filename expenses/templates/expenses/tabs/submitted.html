@@ -6,6 +6,8 @@
             <th>Project</th>
             <th>Type</th>
             <th>KMs</th>
+            <th>From</th>
+            <th>To</th>
             <th>Amount (₹)</th>
             <th>Receipt</th>
             <th>Comments</th>
@@ -19,6 +21,8 @@
             <td>{{ exp.project.name }}</td>
             <td>{{ exp.new_expense_type.name }}</td>
             <td>{{ exp.kilometers|default:"-" }}</td>
+            <td>{{ exp.from_location|default:"-" }}</td>
+            <td>{{ exp.to_location|default:"-" }}</td>
             <td>{{ exp.amount }}</td>
             <td>{% if exp.receipt %}<a href="{{ exp.receipt.url }}" target="_blank">View</a>{% else %}-{% endif %}</td>
             <td>{{ exp.accountant_remark|default:"-" }}</td>
@@ -36,4 +40,6 @@
         {% endfor %}
     </tbody>
 </table>
-{% else %}<p>No submitted expenses.</p>{% endif %}
+{% else %}
+<p>No submitted expenses.</p>
+{% endif %}

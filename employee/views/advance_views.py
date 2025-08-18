@@ -2,6 +2,10 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from expenses.forms import AdvanceRequestForm
 from expenses.models import AdvanceRequest
+from expenses.models import ExpenseType
+from project.services.assignment import get_assigned_projects
+
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -33,7 +37,18 @@ def raise_advance_request(request):
         advance.save()
         return redirect('employee:advance-requests')
 
-    return render(request, 'employee/raise_advance.html', {'form': form})
+    
+
+    return render(request, 'expenses/my_expenses.html', {
+        'form': AdvanceRequestForm(employee=request.user.employeeprofile),
+        'advance_form': form,
+        'editing': False,
+        'expense_types': ExpenseType.objects.all(),
+        'projects': get_assigned_projects(request.user.employeeprofile),
+        'tabbed_expenses': {},  # or fetch actual data if needed
+        'active_tab': 'advance',
+})
+
 
 
 

@@ -38,6 +38,8 @@
             <th>Type</th>
             <th>Amount</th>
             <th>Date</th>
+			<th>From</th>
+			<th>To</th>
           </tr>
         </thead>
         <tbody>
@@ -54,6 +56,9 @@
               </td>
               <td>{{ item.amount }}</td>
               <td>{{ item.date }}</td>
+			  <td>{{ entry.from_location|default:"–" }}</td>
+			  <td>{{ entry.to_location|default:"–" }}</td>
+
             </tr>
           {% empty %}
             <tr><td colspan="5">No unreimbursed entries found.</td></tr>

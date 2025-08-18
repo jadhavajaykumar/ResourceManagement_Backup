@@ -1,10 +1,8 @@
 from django import forms
 from datetime import date, timedelta
 from manager.models import TaskAssignment
-from project.models import Project
 from project.models import Project  # ✅ imported
-
-
+from expenses.models import AdvanceRequest
 from .models import (
     Expense, ExpenseType, SystemSettings,
     EmployeeExpenseSetting, CountryDASetting, AdvanceRequest
@@ -49,6 +47,7 @@ class ExpenseForm(forms.ModelForm):
     def clean_date(self):
         submitted_date = self.cleaned_data['date']
         today = date.today()
+        expense_type = self.cleaned_data.get('new_expense_type')
 
         if submitted_date > today:
             raise forms.ValidationError("Expenses cannot be submitted for future dates.")
@@ -59,6 +58,21 @@ class ExpenseForm(forms.ModelForm):
                 raise forms.ValidationError(
                     f"You can only submit expenses within the last {grace_days} days."
                 )
+            # ✅ Cooldown validation
+            if expense_type and expense_type.requires_cooldown:
+                from expenses.models import Expense
+                latest_same_type = Expense.objects.filter(
+                    employee=self.employee,
+                    new_expense_type=expense_type
+                ).order_by('-date').first()
+
+                if latest_same_type:
+                    min_allowed_date = latest_same_type.date + timedelta(days=expense_type.cooldown_days or 365)
+                    if submitted_date < min_allowed_date:
+                        raise forms.ValidationError(
+                            f"You can only submit this expense once every {expense_type.cooldown_days or 365} days. "
+                            f"Last claimed on {latest_same_type.date}. Next eligible date: {min_allowed_date}"
+                        )    
 
         return submitted_date
 
@@ -149,14 +163,25 @@ class CountryDASettingForm(forms.ModelForm):
 
 
 # ---------------------- Advance request Form ----------------------
+
+
 class AdvanceRequestForm(forms.ModelForm):
     class Meta:
         model = AdvanceRequest
-        fields = ['project', 'amount', 'purpose']
+        fields = ['project', 'amount', 'purpose']  # ⛔ Removed 'date_requested'
+        widgets = {
+            'amount': forms.NumberInput(attrs={'placeholder': 'Enter amount'}),
+            'purpose': forms.Textarea(attrs={'placeholder': 'Enter purpose', 'rows': 3}),
+        }
 
     def __init__(self, *args, **kwargs):
-        employee = kwargs.pop('employee')
+        employee = kwargs.pop('employee', None)
         super().__init__(*args, **kwargs)
-         # ✅ Correct assignment logic using TaskAssignment
-        assigned_projects = Project.objects.filter(taskassignment__employee=employee).distinct()
-        self.fields['project'].queryset = assigned_projects
+
+        if employee:
+            assigned_projects = Project.objects.filter(taskassignment__employee=employee).distinct()
+            self.fields['project'].queryset = assigned_projects
+            self.fields['project'].empty_label = "Select Project"
+            self.fields['amount'].widget.attrs.update({'placeholder': 'Enter amount'})
+
+

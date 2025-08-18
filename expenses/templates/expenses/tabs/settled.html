@@ -5,6 +5,8 @@
             <th>Date</th>
             <th>Project</th>
             <th>Type</th>
+            <th>From</th>
+            <th>To</th>
             <th>Amount</th>
             <th>Status</th>
         </tr>
@@ -15,10 +17,14 @@
             <td>{{ exp.date }}</td>
             <td>{{ exp.project.name }}</td>
             <td>{{ exp.new_expense_type.name }}</td>
+            <td>{{ exp.from_location|default:"-" }}</td>
+            <td>{{ exp.to_location|default:"-" }}</td>
             <td>{{ exp.amount }}</td>
             <td>Settled</td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
-{% else %}<p>No settled expenses.</p>{% endif %}
+{% else %}
+<p>No settled expenses.</p>
+{% endif %}

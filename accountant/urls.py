@@ -12,6 +12,8 @@ from accountant.views.advance_views import (
     accountant_approve_advance
 )
 
+from expenses.views.unified_expense_dashboard import unified_expense_dashboard
+
 app_name = 'accountant'
 
 urlpatterns = [
@@ -26,5 +28,15 @@ urlpatterns = [
     path('approve-advance/<int:advance_id>/', accountant_approve_advance, name='accountant_approve_advance'),
     
     path('export/advance-summary/', export_advance_expense_summary, name='export-advance-summary'),
+    #path('unified-expenses/', unified_expense_dashboard, name='unified-expense-dashboard'),
+    
+    # Unified expenses menu link
+    path('expenses/', unified_expense_dashboard, name='accountant-expenses'),
+    
+    
 
 ]
+
+
+
+

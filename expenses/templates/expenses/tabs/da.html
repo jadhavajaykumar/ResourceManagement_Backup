@@ -1,23 +1,68 @@
-{# expenses/tabs/da.html #}
+<h5 class="mt-3">Daily Allowance Records</h5>
+<form method="get" class="row g-2 mb-3">
+  <div class="col-md-2">
+    <select name="month" class="form-select">
+      <option value="">All Months</option>
+      {% for m in 1|to_month_list %}
+        <option value="{{ m }}" {% if selected_month == m|stringformat:"s" %}selected{% endif %}>{{ m|month_name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2">
+    <select name="year" class="form-select">
+      {% for y in 2023|to_current_year_list %}
+        <option value="{{ y }}" {% if selected_year == y|stringformat:"s" %}selected{% endif %}>{{ y }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% if role in "Accountant Manager Account Manager" %}
+  <div class="col-md-3">
+    <select name="employee" class="form-select">
+      <option value="">All Employees</option>
+      {% for emp in employees %}
+        <option value="{{ emp.id }}" {% if selected_employee == emp.id|stringformat:"s" %}selected{% endif %}>
+          {{ emp.user.get_full_name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endif %}
+  <div class="col-md-3">
+    <select name="project" class="form-select">
+      <option value="">All Projects</option>
+      {% for proj in projects %}
+        <option value="{{ proj.project_id }}" {% if selected_project == proj.project_id|stringformat:"s" %}selected{% endif %}>
+          {{ proj.project__name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2">
+    <button class="btn btn-primary w-100">Filter</button>
+  </div>
+</form>
+
 {% if da_entries %}
 <table class="table table-bordered table-sm">
-    <thead class="table-light">
-        <tr>
-            <th>Date</th>
-            <th>Project</th>
-            <th>DA Amount</th>
-            <th>Status</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for da in da_entries %}
-        <tr>
-            <td>{{ da.date }}</td>
-            <td>{{ da.project.name }}</td>
-            <td>{{ da.da_amount }}</td>
-            <td>{% if da.approved %}Approved{% else %}Pending{% endif %}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
+  <thead class="table-light">
+    <tr>
+      <th>Date</th>
+      <th>Employee</th>
+      <th>Project</th>
+      <th>Amount</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for da in da_entries %}
+    <tr>
+      <td>{{ da.date }}</td>
+      <td>{{ da.employee.user.get_full_name }}</td>
+      <td>{{ da.project.name }}</td>
+      <td>{{ da.da_amount }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
 </table>
-{% else %}<p>No Daily Allowance entries.</p>{% endif %}
+{% else %}
+<p class="text-muted">No DA records found for selected filters.</p>
+{% endif %}

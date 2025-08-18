@@ -111,16 +111,22 @@ def dashboard_view(request):
 @login_required
 @user_passes_test(is_accountmanager)
 def reimbursement_dashboard(request):
-    # Tab 1: Individual unreimbursed entries (approved)
-    expenses = Expense.objects.select_related('employee__user', 'project').filter(
-        status="Approved", reimbursed=False, forwarded_to_accountmanager=True
-    )
-    allowances = DailyAllowance.objects.select_related('employee__user', 'project').filter(
-        approved=True, reimbursed=False, forwarded_to_accountmanager=True
-    )
+    # Tab 1: Pending Reimbursement – Manager Approved
+    expenses = Expense.objects.filter(
+        status="Forwarded to Account Manager",
+        reimbursed=False,
+        forwarded_to_accountmanager=True
+    ).select_related('employee__user', 'project')
+
+    allowances = DailyAllowance.objects.filter(
+        approved=True,
+        reimbursed=False,
+        forwarded_to_accountmanager=True
+    ).select_related('employee__user', 'project')
 
     reimbursement_entries = []
 
+    # Add expenses
     for expense in expenses:
         reimbursement_entries.append({
             "type": "Expense",
@@ -133,6 +139,7 @@ def reimbursement_dashboard(request):
             "id": expense.id,
         })
 
+    # Add allowances
     for da in allowances:
         reimbursement_entries.append({
             "type": "DA",
@@ -169,12 +176,13 @@ def reimbursement_dashboard(request):
         grouped_summary.append(summary)
 
     # Tab 3: Settled history
-    settled_expenses = Expense.objects.select_related('employee__user', 'project').filter(
+    settled_expenses = Expense.objects.filter(
         status="Approved", reimbursed=True
-    )
-    settled_das = DailyAllowance.objects.select_related('employee__user', 'project').filter(
+    ).select_related('employee__user', 'project')
+
+    settled_das = DailyAllowance.objects.filter(
         approved=True, reimbursed=True
-    )
+    ).select_related('employee__user', 'project')
 
     settled_employee_ids = set(e.employee.id for e in settled_expenses) | set(d.employee.id for d in settled_das)
     employee_map = {
@@ -200,8 +208,6 @@ def reimbursement_dashboard(request):
             "date": d.date,
         })
 
-    settled_data = {emp_id: entries for emp_id, entries in settled_data.items() if emp_id in employee_map}
-
     settled_merged = {}
     for emp_id, entries in settled_data.items():
         total = 0.0
@@ -216,17 +222,17 @@ def reimbursement_dashboard(request):
                 except Exception:
                     pass
         settled_merged[emp_id] = {
-            "employee": employee_map[emp_id],
+            "employee": employee_map.get(emp_id),
             "total": f"{currency_symbol}{total:,.2f}",
             "entries": entries,
         }
 
     # Tab 4: Approved advances (ready for settlement)
-    approved_advances = AdvanceRequest.objects.select_related('employee__user', 'project').filter(
+    approved_advances = AdvanceRequest.objects.filter(
         approved_by_manager=True,
         approved_by_accountant=True,
         settled_by_account_manager=False
-    )
+    ).select_related('employee__user', 'project')
 
     return render(request, 'accountmanager/reimbursement_dashboard.html', {
         'reimbursement_entries': reimbursement_entries,
@@ -235,10 +241,11 @@ def reimbursement_dashboard(request):
         'settled_merged': settled_merged,
         'employee_map': employee_map,
         'tab_data': {
-            'advances': approved_advances  # For Tab 4
+            'advances': approved_advances
         },
         'active_tab': request.GET.get("tab", "tab1"),
     })
+
 
 
 
@@ -307,37 +314,43 @@ def settle_employee(request, employee_id):
 def settle_selected(request):
     if request.method == "POST":
         employee_id = request.POST.get("settle_employee")
+        reimbursement_date = request.POST.get(f"settlement_date_{employee_id}")
+
         if not employee_id:
             messages.error(request, "No employee selected for reimbursement.")
             return redirect(f"{reverse('accountmanager:reimbursement_dashboard')}?tab=tab2")
 
-        date_field = f"settlement_date_{employee_id}"
-        reimbursement_date = request.POST.get(date_field)
-
         if not reimbursement_date:
-            messages.error(request, "Please enter a reimbursement date.")
+            messages.error(request, "Please enter a settlement date.")
             return redirect(f"{reverse('accountmanager:reimbursement_dashboard')}?tab=tab2")
 
-        # Parse and validate the date
-        try:
-            date_obj = parse_date(reimbursement_date)
-            if not date_obj:
-                raise ValueError
-        except ValueError:
-            messages.error(request, "Invalid date format.")
-            return redirect(f"{reverse('accountmanager:reimbursement_dashboard')}?tab=tab2")
-
-        # Mark reimbursements as settled
+        # Mark expenses & DA as reimbursed
         Expense.objects.filter(
-            employee__id=employee_id, status="Approved", reimbursed=False
-        ).update(reimbursed=True)
+            employee_id=employee_id,
+            status="Forwarded to Account Manager",
+            reimbursed=False,
+            forwarded_to_accountmanager=True
+        ).update(
+            reimbursed=True,
+            status="Approved",
+            settlement_date=reimbursement_date
+        )
 
         DailyAllowance.objects.filter(
-            employee__id=employee_id, approved=True, reimbursed=False
-        ).update(reimbursed=True)
+            employee_id=employee_id,
+            approved=True,
+            reimbursed=False,
+            forwarded_to_accountmanager=True
+        ).update(
+            reimbursed=True,
+            settlement_date=reimbursement_date
+        )
 
-        messages.success(request, "Reimbursement marked as settled.")
-        return redirect('accountmanager:reimbursement_dashboard')
+        messages.success(request, f"Reimbursement settled for employee {employee_id}.")
+
+        # Redirect back to Summary by Employee tab
+        return redirect(f"{reverse('accountmanager:reimbursement_dashboard')}?tab=tab2")
+
 
 
 @login_required

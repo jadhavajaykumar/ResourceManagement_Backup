@@ -131,3 +131,8 @@ LOGGING = {
 SESSION_COOKIE_SECURE = False  # False for local dev (http)
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'  # Default, should be fine
+
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+]

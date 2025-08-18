@@ -1,0 +1,75 @@
+<!-- expenses/unified/partials/table_da.html -->
+<form method="get" class="row g-2 align-items-end mb-3">
+  <div class="col-md-2">
+    <label for="year" class="form-label">Year</label>
+    <select name="year" id="year" class="form-select">
+      {% for y in year_range %}
+      <option value="{{ y }}" {% if selected_year|stringformat:"s" == y|stringformat:"s" %}selected{% endif %}>{{ y }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="col-md-2">
+    <label for="month" class="form-label">Month</label>
+    <select name="month" id="month" class="form-select">
+      <option value="">All</option>
+      {% for num, name in month_choices %}
+      <option value="{{ num }}" {% if selected_month|stringformat:"s" == num|stringformat:"s" %}selected{% endif %}>{{ name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="col-md-3">
+    <label for="project" class="form-label">Project</label>
+    <select name="project" id="project" class="form-select">
+      <option value="">All</option>
+      {% for proj in projects %}
+      <option value="{{ proj.id }}" {% if selected_project|stringformat:"s" == proj.id|stringformat:"s" %}selected{% endif %}>{{ proj.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  {% if employees %}
+  <div class="col-md-3">
+    <label for="employee" class="form-label">Employee</label>
+    <select name="employee" id="employee" class="form-select">
+      <option value="">All</option>
+      {% for emp in employees %}
+      <option value="{{ emp.id }}" {% if selected_employee|stringformat:"s" == emp.id|stringformat:"s" %}selected{% endif %}>{{ emp.user.get_full_name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endif %}
+
+  <div class="col-md-2">
+    <button type="submit" class="btn btn-primary w-100">Filter</button>
+  </div>
+</form>
+
+<!-- DA Table -->
+<table class="table table-bordered table-sm">
+  <thead class="table-light">
+    <tr>
+      <th>Date</th>
+      <th>Employee</th>
+      <th>Project</th>
+      <th>DA Amount</th>
+      <th>Currency</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for da in items %}
+    <tr>
+      <td>{{ da.date }}</td>
+      <td>{{ da.employee.user.get_full_name }}</td>
+      <td>{{ da.project.name }}</td>
+      <td>{{ da.da_amount }}</td>
+      <td>{{ da.currency }}</td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="5" class="text-center text-muted">No DA records found.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

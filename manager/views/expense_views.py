@@ -18,21 +18,42 @@ def get_reportees(user):
 @login_required
 def expense_approval_dashboard(request):
     reportees = get_reportees(request.user)
-    expenses = Expense.objects.select_related('employee__user', 'project', 'new_expense_type')\
-                              .filter(status='Forwarded to Manager', employee__in=reportees)
+
+    # Tab 1: Accountant Approved (Manager can approve/reject)
+    accountant_approved = Expense.objects.filter(
+        employee__in=reportees,
+        status='Forwarded to Manager',
+        forwarded_to_manager=True
+    ).select_related('employee__user', 'project', 'new_expense_type')
+
+    # Tab 2: Forwarded to Account Manager
+    forwarded_expenses = Expense.objects.filter(
+        employee__in=reportees,
+        status='Forwarded to Account Manager',
+        forwarded_to_accountmanager=True
+    ).select_related('employee__user', 'project', 'new_expense_type')
+
+    # Tab 3: Rejected
+    rejected_expenses = Expense.objects.filter(
+        employee__in=reportees,
+        status='Rejected'
+    ).select_related('employee__user', 'project', 'new_expense_type')
+
+    # Tab 4: Advance Requests
     advance_requests = AdvanceRequest.objects.filter(
         approved_by_manager=False,
         employee__in=reportees
     )
 
-    return render(
-        request,
-        'manager/expense_approval_dashboard.html',
-        {
-            'expenses': expenses,
-            'advance_requests': advance_requests,  # ✅ Added to context
-        }
-    )
+    context = {
+        'accountant_approved': accountant_approved,   # renamed tab 1
+        'forwarded_expenses': forwarded_expenses,     # renamed tab 2
+        'rejected_expenses': rejected_expenses,
+        'advance_requests': advance_requests,
+    }
+    return render(request, 'manager/expense_approval_dashboard.html', context)
+
+
 
 @user_passes_test(is_manager)
 @login_required
@@ -49,7 +70,6 @@ def expense_approvals(request):
 @login_required
 def handle_expense_action(request, expense_id, action):
     expense = get_object_or_404(Expense, id=expense_id)
-    
 
     if expense.employee.reporting_manager != request.user:
         messages.error(request, "You can only process expenses from your direct reportees.")
@@ -63,24 +83,27 @@ def handle_expense_action(request, expense_id, action):
             return redirect('manager:expense-approval')
 
         if action == 'approve':
-            expense.status = 'Approved'
-            expense.forwarded_to_accountmanager = True  # ✅ Now it goes to account manager
+            expense.status = 'Forwarded to Account Manager'
+            expense.forwarded_to_accountmanager = True
             expense.manager_remark = remark
             messages.success(request, "Expense approved.")
             notify_employee(expense, 'Approved', remark)
+
         elif action == 'reject':
             expense.status = 'Rejected'
             expense.manager_remark = remark
             messages.success(request, "Expense rejected.")
             notify_employee(expense, 'Rejected', remark)
+
         else:
             messages.error(request, "Invalid action.")
             return redirect('manager:expense-approval')
 
         expense.save()
         return redirect('manager:expense-approval')
-    else:
-        return redirect('manager:expense-approval')
+
+    return redirect('manager:expense-approval')
+
 
 def notify_employee(expense, action, remark):
     subject = f"Your expense has been {action}"
