@@ -1,0 +1,50 @@
+<form method="get" class="d-grid gap-3">
+  <div>
+    <label for="year" class="form-label">Year</label>
+    <select name="year" id="year" class="form-select">
+      {% for y in year_range %}
+        <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <label for="month" class="form-label">Month</label>
+    <select name="month" id="month" class="form-select">
+      <option value="">All</option>
+      {% for num, name in month_choices %}
+        <option value="{{ num }}" {% if selected_month|stringformat:"s" == num|stringformat:"s" %}selected{% endif %}>{{ name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <label for="project" class="form-label">Project</label>
+    <select name="project" id="project" class="form-select">
+      <option value="">All</option>
+      {% for proj in projects %}
+        <option value="{{ proj.project_id }}" {% if selected_project|stringformat:"s" == proj.project_id|stringformat:"s" %}selected{% endif %}>
+          {{ proj.project__name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  {% if employees %}
+  <div>
+    <label for="employee" class="form-label">Employee</label>
+    <select name="employee" id="employee" class="form-select">
+      <option value="">All</option>
+      {% for emp in employees %}
+        <option value="{{ emp.id }}" {% if selected_employee|stringformat:"s" == emp.id|stringformat:"s" %}selected{% endif %}>
+          {{ emp.user.get_full_name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endif %}
+
+  <div class="d-grid">
+    <button type="submit" class="btn btn-primary">Apply Filters</button>
+  </div>
+</form>

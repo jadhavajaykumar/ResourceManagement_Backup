@@ -1,0 +1,18 @@
+**************** COMMANDS FOR RESET THE EXPNESE & ADVANCE REQUEST ID's**********************************************
+Option 2: Keep the database but clear only the tables
+Run python manage.py flush (clears all data across the database) and confirm the prompt.
+This also resets all auto-increment counters.
+
+Alternatively, clear specific tables and reset their sequences:
+
+python manage.py dbshell
+DELETE FROM expenses_expense;
+DELETE FROM expenses_advancerequest;
+DELETE FROM sqlite_sequence WHERE name IN ('expenses_expense','expenses_advancerequest');
+.quit
+Then restart your app and add new records; IDs begin from 1 again.
+
+These steps apply to the Expense and AdvanceRequest models defined in expenses/models.py, which rely on default auto-incrementing IDs
+
+
+

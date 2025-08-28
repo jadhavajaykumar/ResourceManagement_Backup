@@ -7,8 +7,8 @@ from django.contrib import messages
 from expenses.models import Expense, AdvanceRequest, DailyAllowance, AdvanceAdjustmentLog
 from employee.models import EmployeeProfile
 from expenses.forms import ExpenseForm, AdvanceRequestForm
-
-from django.db.models import Sum, Prefetch
+from django.db.models import Sum, Prefetch, Q
+from collections import defaultdict
 
 
 @login_required
@@ -22,7 +22,6 @@ def unified_expense_dashboard(request):
     advance_form = AdvanceRequestForm(request.POST or None, employee=employee)
 
     # ------------------------------- Advance Summary (authoritative) -------------------------------
-    # We'll compute the true advance balance from SETTLED advances and AdvanceAdjustmentLog
     employee_for_summary = request.user.employeeprofile
 
     settled_advances_qs = AdvanceRequest.objects.filter(
@@ -36,7 +35,6 @@ def unified_expense_dashboard(request):
 
     advance_balance = float(total_advance_amount or 0) - float(total_deducted or 0)
 
-    # Submitted/flowing (not approved/rejected/settled) just for the summary card
     submitted_total = Expense.objects.filter(
         employee=employee_for_summary
     ).exclude(status__in=["Approved", "Rejected", "Settled"]).aggregate(s=Sum("amount"))["s"] or 0
@@ -50,8 +48,11 @@ def unified_expense_dashboard(request):
         }
     }
 
+    # Reviewer/settlement flags for templates
+    is_reviewer = bool(user.is_staff or role in ["Manager", "Accountant", "Account Manager", "Account_Manager"])
+    can_settle_da = bool(user.is_staff or role in ["Account Manager", "Account_Manager"])
+
     # ------------------------------- Latest advance (for modal messaging only) -------------------------------
-    # Keep this for info/locking copy in the modal; do NOT use to compute balance
     latest_advance = AdvanceRequest.objects.filter(
         employee=employee
     ).exclude(status="Settled").order_by('-date_requested', '-id').first()
@@ -95,7 +96,7 @@ def unified_expense_dashboard(request):
                 return redirect("expenses:unified-expense-dashboard")
             else:
                 show_expense_modal = True
-                messages.error(request, "❌ Please correct the errors in the expense form.")
+                messages.error(request, "❌ Timesheet required for that date before you can submit an expense.")
 
         elif "submit_advance" in request.POST:
             if not allow_new_advance:
@@ -132,7 +133,8 @@ def unified_expense_dashboard(request):
     if role == "Employee":
         expenses = expense_qs.filter(employee=employee)
         advances = AdvanceRequest.objects.filter(employee=employee)
-        da_entries = DailyAllowance.objects.filter(employee=employee, approved=True)
+        # Show ALL DA for this employee
+        da_entries = DailyAllowance.objects.filter(employee=employee).select_related("employee__user", "project")
         projects = expenses.values("project_id", "project__name").distinct()
         employees = None
 
@@ -140,14 +142,14 @@ def unified_expense_dashboard(request):
         reportees = EmployeeProfile.objects.filter(reporting_manager=user)
         expenses = expense_qs.filter(employee__in=reportees)
         advances = AdvanceRequest.objects.filter(employee__in=reportees)
-        da_entries = DailyAllowance.objects.filter(employee__in=reportees, approved=True)
+        da_entries = DailyAllowance.objects.filter(employee__in=reportees).select_related("employee__user", "project")
         projects = expenses.values("project_id", "project__name").distinct()
         employees = reportees
 
     elif role in ["Accountant", "Account Manager"]:
         expenses = expense_qs.all()
         advances = AdvanceRequest.objects.all()
-        da_entries = DailyAllowance.objects.filter(approved=True)
+        da_entries = DailyAllowance.objects.all().select_related("employee__user", "project")
         projects = expenses.values("project_id", "project__name").distinct()
         employees = EmployeeProfile.objects.all()
 
@@ -180,6 +182,19 @@ def unified_expense_dashboard(request):
         advances = advances.filter(employee_id=selected_employee)
         da_entries = da_entries.filter(employee_id=selected_employee)
 
+    # ------------------------------- DA Subtabs (NEW) -------------------------------
+    # Approved DA = manager-approved but NOT settled (unreimbursed and no settlement_date)
+    approved_da = da_entries.filter(
+        approved=True,
+    ).filter(
+        Q(reimbursed=False) & Q(settlement_date__isnull=True)
+    )
+
+    # Settled DA = reimbursed True OR settlement_date present (covers both cash & advance settlements)
+    settled_da = da_entries.filter(
+        Q(reimbursed=True) | Q(settlement_date__isnull=False)
+    )
+
     # ------------------------------- Approval Rights -------------------------------
     for exp in expenses:
         exp.can_approve = False
@@ -202,11 +217,15 @@ def unified_expense_dashboard(request):
         "pending_advances": advances.filter(
             current_stage__in=["MANAGER", "ACCOUNTANT", "ACCOUNT_MANAGER"]
         ),
-        # No "Approved" status exists for advances; closest is forwarded to AM
         "approved_advances": advances.filter(status="Forwarded to Account Manager"),
         "rejected_advances": advances.filter(status="Rejected"),
         "settled_advances": advances.filter(status="Settled"),
 
+        # NEW: DA subtabs
+        "approved_da": approved_da,
+        "settled_da": settled_da,
+
+        # Kept for any other consumers/includes that still use it
         "da_entries": da_entries,
     }
 
@@ -215,6 +234,67 @@ def unified_expense_dashboard(request):
     paginator = Paginator(settled_combined, 10)
     page_number = request.GET.get("page")
     settled_page = paginator.get_page(page_number)
+
+    # --- Account Manager inline settlement summary (approved & unsettled) ---
+    am_settlement_summary = None
+    if role in ["Account Manager", "Account_Manager"] or request.user.is_staff:
+        exp_base = Expense.objects.select_related("employee__user", "project").filter(
+            status="Approved"
+        )
+        da_base = DailyAllowance.objects.select_related("employee__user", "project").filter(
+            approved=True,
+        ).filter(reimbursed=False)  # unreimbursed DA only
+
+        if selected_year:
+            exp_base = exp_base.filter(date__year=selected_year)
+            da_base = da_base.filter(date__year=selected_year)
+        if selected_month:
+            exp_base = exp_base.filter(date__month=selected_month)
+            da_base = da_base.filter(date__month=selected_month)
+        if selected_project:
+            exp_base = exp_base.filter(project_id=selected_project)
+            da_base = da_base.filter(project_id=selected_project)
+        if role in ["Accountant", "Manager", "Account Manager"] and selected_employee:
+            exp_base = exp_base.filter(employee_id=selected_employee)
+            da_base = da_base.filter(employee_id=selected_employee)
+
+        am_settlement_summary = []
+        emp_ids = set(exp_base.values_list("employee_id", flat=True)) | set(
+            da_base.values_list("employee_id", flat=True)
+        )
+        if emp_ids:
+            emp_map = {
+                e.id: e
+                for e in EmployeeProfile.objects.select_related("user").filter(id__in=emp_ids)
+            }
+
+            from collections import defaultdict
+            emp_expenses = defaultdict(list)
+            emp_das = defaultdict(list)
+
+            for e in exp_base.order_by("date", "id"):
+                emp_expenses[e.employee_id].append(e)
+            for d in da_base.order_by("date", "id"):
+                emp_das[d.employee_id].append(d)
+
+            for eid in sorted(emp_ids):
+                emp = emp_map.get(eid)
+                expenses_list = emp_expenses.get(eid, [])
+                das_list = emp_das.get(eid, [])
+
+                exp_total = sum(float(x.amount or 0) for x in expenses_list)
+                da_total = sum(float(x.da_amount or 0) for x in das_list)
+                grand_total = exp_total + da_total
+
+                if grand_total > 0:
+                    am_settlement_summary.append({
+                        "employee": emp,
+                        "expenses": expenses_list,
+                        "da_list": das_list,
+                        "expenses_total": exp_total,
+                        "da_total": da_total,
+                        "grand_total": grand_total,
+                    })
 
     return render(request, "expenses/unified_expense_dashboard.html", {
         "tabs": tabs,
@@ -238,4 +318,13 @@ def unified_expense_dashboard(request):
         "show_expense_modal": show_expense_modal,
         "show_advance_modal": show_advance_modal,
         "advance_summary": context_extra["advance_summary"],
+
+        # DA table helpers
+        "da_entries": da_entries,
+        "viewer_role": role or "",
+        "is_reviewer": is_reviewer,
+        "can_settle_da": can_settle_da,
+        "today": now().date(),
+        "am_settlement_summary": am_settlement_summary,
+        "is_account_manager": bool(role in ["Account Manager", "Account_Manager"] or request.user.is_staff),
     })

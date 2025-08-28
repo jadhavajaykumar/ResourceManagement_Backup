@@ -3,6 +3,8 @@ from django.contrib import admin
 from .models import AdvanceRequest, AdvanceAdjustmentLog
 from django.contrib import admin
 from .models import Expense, ExpenseType
+from django.contrib import admin, messages
+from expenses.models import DailyAllowance
 
 
 
@@ -58,4 +60,22 @@ class AdvanceAdjustmentLogAdmin(admin.ModelAdmin):
     )
     raw_id_fields = ("advance", "expense")
     date_hierarchy = "created_at"
+    
+    
+
+
+@admin.register(DailyAllowance)
+class DailyAllowanceAdmin(admin.ModelAdmin):
+    list_display = ("id", "employee", "project", "date", "da_amount", "approved", "reimbursed")
+    search_fields = ("employee__user__first_name", "employee__user__last_name", "project__name")
+    list_filter = ("date", "approved", "reimbursed", "is_weekend", "auto_generated", "source")
+
+    # Optional: explicit action to call out cascading effects
+    @admin.action(description="Permanently delete selected DA (and related settlements/adjustments)")
+    def hard_delete_selected(self, request, queryset):
+        count = queryset.count()
+        queryset.delete()
+        self.message_user(request, f"Deleted {count} DA record(s).", level=messages.WARNING)
+
+    actions = ["hard_delete_selected"]
     

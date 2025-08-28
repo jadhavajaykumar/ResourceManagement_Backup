@@ -89,14 +89,7 @@
     <div class="dashboard-card">
       <i class="fa-solid fa-receipt"></i>
       <h3>My Expenses</h3>
-      <a href="{% url 'expenses:employee-expenses' %}">Go</a>
-    </div>
-
-    <div class="dashboard-card">
-      <i class="fa-solid fa-check-circle"></i>
-      <h3>Expense Approvals</h3>
-      <!--<a href="{% url 'accountant:expense-approval-dashboard' %}">Go</a>-->
-	  <a class="nav-link" href="{% url 'unified-expense-dashboard' %}">Go</a>
+      <a href="{% url 'unified-expense-dashboard' %}?employee={{ request.user.employeeprofile.id }}">Go</a>
     </div>
     <div class="dashboard-card">
       <i class="fa-solid fa-file-arrow-down"></i>

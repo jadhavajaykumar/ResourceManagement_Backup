@@ -14,7 +14,7 @@
     </div>
   {% endif %}
 
-  <!-- Page header + primary actions -->
+  <!-- Header + primary actions -->
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div>
       <h3 class="text-primary m-0">Unified Expense, Advance &amp; DA Dashboard</h3>
@@ -35,9 +35,9 @@
         </button>
       {% endif %}
 
-      <!-- Mobile filters trigger -->
+      <!-- Mobile-only trigger for filter offcanvas -->
       <button class="btn btn-outline-secondary btn-sm d-md-none" type="button"
-              data-bs-toggle="offcanvas" data-bs-target="#filterOffcanvas" aria-controls="filterOffcanvas">
+              data-bs-toggle="offcanvas" data-bs-target="#filterOffcanvas">
         <i class="bi bi-funnel"></i> Filters
       </button>
     </div>
@@ -97,7 +97,7 @@
         .seg .btn { border-radius: 999px; }
         .seg .btn.active { pointer-events:none; }
         @media (min-width: 768px){
-          aside .card, aside .collapse, aside form { position: sticky; top: 70px; }
+          aside .card { position: sticky; top: 70px; }
         }
       </style>
 

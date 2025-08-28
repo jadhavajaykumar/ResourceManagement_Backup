@@ -22,7 +22,8 @@ urlpatterns = [
     path("timesheet/", include(("timesheet.urls", "timesheet"), namespace="timesheet")),
     path("accountmanager/", include("accountmanager.urls")),
 
-    path('expenses/', include('expenses.urls')),
+    #path('expenses/', include('expenses.urls')),
+    path('expenses/', include(('expenses.urls', 'expenses'), namespace='expenses')),
     path('manager/', include('manager.urls')),
     path('docgen/', include('docgen.urls')),
     path('accountant/', include('accountant.urls')),

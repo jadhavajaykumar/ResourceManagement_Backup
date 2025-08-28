@@ -88,7 +88,7 @@
     <div class="dashboard-card">
       <i class="fa-solid fa-receipt"></i>
       <h3>My Expenses</h3>
-      <a href="{% url 'expenses:employee-expenses' %}">Go</a>
+      <a href="{% url 'unified-expense-dashboard' %}?employee={{ request.user.employeeprofile.id }}">Go</a>
     </div>
 
    
@@ -126,15 +126,6 @@
       <h3>Expense Related Settings</h3>
 	  <a href="{% url 'expenses:expense-settings' %}">Go</a>
 
-	</div>
-	<!-- Expense Approval -->
-	<div class="dashboard-card">
-	  <i class="fa-solid fa-check-circle"></i>
-	  <h3>Expense Approvals</h3>
-	  <!--<a href="{% url 'manager:expense-approval' %}">Go</a>-->
-	  <a class="nav-link" href="{% url 'unified-expense-dashboard' %}">Go</a>
-	</div>
-	
 	<!-- PDF to Word -->
 	<div class="dashboard-card">
 	  <i class="fas fa-file-word"></i>

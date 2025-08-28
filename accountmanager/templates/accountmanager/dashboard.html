@@ -90,16 +90,9 @@
     <div class="dashboard-card">
       <i class="fa-solid fa-receipt"></i>
       <h3>My Expenses</h3>
-      <a href="{% url 'expenses:employee-expenses' %}">Go</a>
+	  <a href="{% url 'unified-expense-dashboard' %}?employee={{ request.user.employeeprofile.id }}">Go</a>
     </div>
-
-    <<div class="dashboard-card">
-	  <i class="fa-solid fa-check-circle"></i>
-	  <h3>Expense Approvals</h3>
-	  <a href="{% url 'expenses:unified-expense-dashboard' %}">Go</a>
-	</div>
-
-    <div class="dashboard-card">
+	<div class="dashboard-card">
       <i class="fa-solid fa-file-arrow-down"></i>
       <h3>Download Receipts</h3>
       <a href="#" class="btn btn-secondary disabled" aria-disabled="true">Coming Soon</a>
@@ -121,6 +114,8 @@
     </div>
   </div>
 </div>
+
+
 
 <script>
   document.body.classList.add(localStorage.getItem("theme") || "light");

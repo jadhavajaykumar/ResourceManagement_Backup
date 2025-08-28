@@ -12,6 +12,9 @@ from project.services.assignment import get_assigned_projects
 # ---------------------- Expense Entry Form ----------------------
 from utils.grace_period import get_allowed_grace_days, is_within_grace
 
+# ✅ NEW: we will validate against timesheets
+from timesheet.models import Timesheet
+
 
 class ExpenseForm(forms.ModelForm):
     class Meta:
@@ -72,7 +75,7 @@ class ExpenseForm(forms.ModelForm):
                         raise forms.ValidationError(
                             f"You can only submit this expense once every {expense_type.cooldown_days or 365} days. "
                             f"Last claimed on {latest_same_type.date}. Next eligible date: {min_allowed_date}"
-                        )    
+                        )
 
         return submitted_date
 
@@ -84,6 +87,21 @@ class ExpenseForm(forms.ModelForm):
         receipt = cleaned_data.get('receipt')
         from_location = cleaned_data.get('from_location')
         to_location = cleaned_data.get('to_location')
+        submitted_date = cleaned_data.get('date')
+
+        # ✅ NEW: Require a timesheet (Pending or Approved) for the same employee & date
+        # Change status__in to ["Approved"] if you want *only* approved timesheets to qualify.
+        if self.employee and submitted_date:
+            has_ts = Timesheet.objects.filter(
+                employee=self.employee,
+                date=submitted_date,
+                status__in=["Pending", "Approved"]
+            ).exists()
+            if not has_ts:
+                self.add_error(
+                    'date',
+                    f"Please submit your timesheet for {submitted_date} first, then submit the expense."
+                )
 
         if expense_type:
             # ✅ Validate kilometers requirement
@@ -118,12 +136,6 @@ class ExpenseForm(forms.ModelForm):
                     self.add_error('amount', f"Amount exceeds cap of ₹{expense_type.max_amount_allowed} for this expense type.")
 
         return cleaned_data
-
-
-
-
-
-
 
 
 # ---------------------- Global Grace Period Settings ----------------------
@@ -161,10 +173,7 @@ class CountryDASettingForm(forms.ModelForm):
         }
 
 
-
 # ---------------------- Advance request Form ----------------------
-
-
 class AdvanceRequestForm(forms.ModelForm):
     class Meta:
         model = AdvanceRequest
@@ -183,5 +192,3 @@ class AdvanceRequestForm(forms.ModelForm):
             self.fields['project'].queryset = assigned_projects
             self.fields['project'].empty_label = "Select Project"
             self.fields['amount'].widget.attrs.update({'placeholder': 'Enter amount'})
-
-

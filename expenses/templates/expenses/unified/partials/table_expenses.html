@@ -74,7 +74,21 @@
         {% endif %}
       </td>
 
-      <td>{{ exp.remarks|default:"–" }}</td>
+      {# ✅ REMARKS: show all reviewer remarks; fallback to employee comments #}
+      <td>
+        {% if exp.accountant_remark %}
+          <div><small class="text-muted">Accountant:</small> {{ exp.accountant_remark }}</div>
+        {% endif %}
+        {% if exp.manager_remark %}
+          <div><small class="text-muted">Manager:</small> {{ exp.manager_remark }}</div>
+        {% endif %}
+        {% if exp.account_manager_remark %}
+          <div><small class="text-muted">Account&nbsp;Manager:</small> {{ exp.account_manager_remark }}</div>
+        {% endif %}
+        {% if not exp.accountant_remark and not exp.manager_remark and not exp.account_manager_remark %}
+          {{ exp.comments|default:"–" }}
+        {% endif %}
+      </td>
 
       {% if action != "none" %}
       <td>
@@ -118,9 +132,10 @@
             {% if exp.status == "Approved" and not exp.reimbursed %}
               <form method="post"
                     action="{% url 'expenses:unified-action' 'expense' exp.id 'settle' %}"
-                    class="d-inline mt-1">
+                    class="d-inline mt-1 d-flex gap-2 align-items-center flex-wrap">
                 {% csrf_token %}
-                <input type="text" name="remark" class="form-control form-control-sm mb-1" placeholder="Cash settlement remark (optional)">
+                <input type="date" name="settlement_date" class="form-control form-control-sm" required>
+                <input type="text" name="remark" class="form-control form-control-sm" placeholder="Cash settlement remark (optional)">
                 <button type="submit" class="btn btn-outline-primary btn-sm">Settle by Cash</button>
               </form>
             {% endif %}
@@ -129,9 +144,10 @@
             {% if exp.status == "Approved" and not exp.reimbursed %}
               <form method="post"
                     action="{% url 'expenses:unified-action' 'expense' exp.id 'settle' %}"
-                    class="d-inline">
+                    class="d-inline d-flex gap-2 align-items-center flex-wrap">
                 {% csrf_token %}
-                <input type="text" name="remark" class="form-control form-control-sm mb-1" placeholder="Cash settlement remark (optional)">
+                <input type="date" name="settlement_date" class="form-control form-control-sm" required>
+                <input type="text" name="remark" class="form-control form-control-sm" placeholder="Cash settlement remark (optional)">
                 <button type="submit" class="btn btn-outline-primary btn-sm">Settle by Cash</button>
               </form>
             {% else %}

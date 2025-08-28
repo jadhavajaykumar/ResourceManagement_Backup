@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <h5 class="mb-0">Unsettled (Approved) Expenses + Daily Allowance</h5>
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-sm table-striped mb-0">
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th class="text-end">Expenses (₹)</th>
+          <th class="text-end">DA (₹)</th>
+          <th class="text-end">Total (₹)</th>
+          <th class="text-end">Settle</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if rows %}
+          {% for r in rows %}
+            <tr>
+              <td>{{ r.employee.user.get_full_name }}</td>
+              <td class="text-end">{{ r.total_expenses|floatformat:2 }}</td>
+              <td class="text-end">{{ r.total_da|floatformat:2 }}</td>
+              <td class="text-end fw-bold">{{ r.grand_total|floatformat:2 }}</td>
+              <td class="text-end">
+                <form method="post" action="{% url 'expenses:am-bulk-settle-employee' r.employee.id %}" class="d-inline">
+                  {% csrf_token %}
+                  <input type="date" class="form-control form-control-sm d-inline w-auto me-2" name="payment_date" value="{{ today|date:'Y-m-d' }}">
+                  <button class="btn btn-sm btn-primary">Settle All</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="5" class="text-center text-muted py-4">Nothing to settle. 🎉</td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

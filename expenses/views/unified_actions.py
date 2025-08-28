@@ -190,11 +190,21 @@ def handle_expense_action(request, item_type, item_id, action):
             elif role_key == "account-manager" and obj.current_stage == "ACCOUNT_MANAGER":
                 if hasattr(obj, "account_manager_remark"):
                     obj.account_manager_remark = remark
+                else:
+                    # Fallback: persist AM remark into manager_remark
+                    if remark:
+                        prefix = "[AM Remark] "
+                        obj.manager_remark = f"{obj.manager_remark}\n{prefix}{remark}" if obj.manager_remark else f"{prefix}{remark}"
+                # Adjust against latest settled advance; may auto-settle if fully covered
                 _adjust_expense_against_latest_advance(obj)
                 if obj.reimbursed:
                     messages.success(request, f"Expense {obj.id} settled via available advance.")
                 else:
-                    messages.info(request, f"Expense {obj.id} approved; remaining will require cash settlement.")
+                    messages.info(
+                        request,
+                        f"Expense {obj.id} approved; remaining will require cash settlement."
+                    )
+
             else:
                 messages.warning(request, "Approval action not allowed at this stage for expense.")
 
@@ -247,20 +257,47 @@ def handle_expense_action(request, item_type, item_id, action):
     # SETTLE (EXPENSE) by cash when no advance covers it
     elif action == "settle" and item_type == "expense":
         if role_key == "account-manager":
+            # Require a date
+            date_str = request.POST.get("settlement_date", "").strip()
+            try:
+                # store date in manager_reviewed_at (since Expense has no dedicated settlement_date)
+                if date_str:
+                    dt = datetime.strptime(date_str, "%Y-%m-%d")
+                else:
+                    raise ValueError("Missing settlement date")
+            except ValueError:
+                messages.error(request, "Please provide a valid settlement date (YYYY-MM-DD).")
+                return redirect(reverse("expenses:unified-expense-dashboard"))
+
             if not obj.reimbursed:
                 obj.reimbursed = True
                 obj.status = "Settled"
                 if any(c[0] == "SETTLED" for c in Expense.STAGE_CHOICES):
                     obj.current_stage = "SETTLED"
+
+                # store timestamp & remark
+                obj.manager_reviewed_at = dt
                 if hasattr(obj, "account_manager_remark"):
-                    obj.account_manager_remark = remark
+                    # append
+                    if remark:
+                        prefix = f"[Cash Settled {date_str}] "
+                        existing = obj.account_manager_remark or ""
+                        obj.account_manager_remark = f"{existing}\n{prefix}{remark}".strip()
+                else:
+                    # fallback into manager_remark
+                    if remark:
+                        prefix = f"[AM Cash Settled {date_str}] "
+                        existing = obj.manager_remark or ""
+                        obj.manager_remark = f"{existing}\n{prefix}{remark}".strip()
+
                 obj.save()
-                messages.success(request, f"Expense {obj.id} settled by cash.")
+                messages.success(request, f"Expense {obj.id} settled by cash on {date_str}.")
             else:
                 messages.info(request, f"Expense {obj.id} is already settled.")
             return redirect(reverse("expenses:unified-expense-dashboard"))
         else:
             messages.warning(request, "Only Account Manager can settle the expense at this stage.")
+
 
     # REJECT
     elif action == "reject":

@@ -1,53 +1,7 @@
-<!-- expenses/unified/partials/table_da.html -->
-<form method="get" class="row g-2 align-items-end mb-3">
-  <div class="col-md-2">
-    <label for="year" class="form-label">Year</label>
-    <select name="year" id="year" class="form-select">
-      {% for y in year_range %}
-      <option value="{{ y }}" {% if selected_year|stringformat:"s" == y|stringformat:"s" %}selected{% endif %}>{{ y }}</option>
-      {% endfor %}
-    </select>
-  </div>
+{# expenses/unified/partials/table_da.html #}
 
-  <div class="col-md-2">
-    <label for="month" class="form-label">Month</label>
-    <select name="month" id="month" class="form-select">
-      <option value="">All</option>
-      {% for num, name in month_choices %}
-      <option value="{{ num }}" {% if selected_month|stringformat:"s" == num|stringformat:"s" %}selected{% endif %}>{{ name }}</option>
-      {% endfor %}
-    </select>
-  </div>
 
-  <div class="col-md-3">
-    <label for="project" class="form-label">Project</label>
-    <select name="project" id="project" class="form-select">
-      <option value="">All</option>
-      {% for proj in projects %}
-      <option value="{{ proj.id }}" {% if selected_project|stringformat:"s" == proj.id|stringformat:"s" %}selected{% endif %}>{{ proj.name }}</option>
-      {% endfor %}
-    </select>
-  </div>
-
-  {% if employees %}
-  <div class="col-md-3">
-    <label for="employee" class="form-label">Employee</label>
-    <select name="employee" id="employee" class="form-select">
-      <option value="">All</option>
-      {% for emp in employees %}
-      <option value="{{ emp.id }}" {% if selected_employee|stringformat:"s" == emp.id|stringformat:"s" %}selected{% endif %}>{{ emp.user.get_full_name }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  {% endif %}
-
-  <div class="col-md-2">
-    <button type="submit" class="btn btn-primary w-100">Filter</button>
-  </div>
-</form>
-
-<!-- DA Table -->
-<table class="table table-bordered table-sm">
+<table class="table table-bordered table-sm align-middle">
   <thead class="table-light">
     <tr>
       <th>Date</th>
@@ -55,21 +9,110 @@
       <th>Project</th>
       <th>DA Amount</th>
       <th>Currency</th>
+      <th>Status</th>
+      {% if show_settlement %}
+        <th>Settlement Method</th>
+        <th>Settlement Date</th>
+        <th>Settled Amount</th>
+      {% endif %}
+      <th class="text-end">Actions</th>
     </tr>
   </thead>
   <tbody>
     {% for da in items %}
-    <tr>
-      <td>{{ da.date }}</td>
-      <td>{{ da.employee.user.get_full_name }}</td>
-      <td>{{ da.project.name }}</td>
-      <td>{{ da.da_amount }}</td>
-      <td>{{ da.currency }}</td>
-    </tr>
+      {# Highlight entitlement rows (weekend + auto + no timesheet) #}
+      <tr
+        {% if da.is_weekend and da.auto_generated and not da.timesheet %}
+          class="table-warning"
+        {% endif %}
+      >
+        <td>{{ da.date|date:"M j, Y (D)" }}</td>
+        <td>{{ da.employee.user.get_full_name }}</td>
+        <td>{{ da.project.name }}</td>
+        <td>{{ da.da_amount }}</td>
+        <td>{{ da.currency }}</td>
+
+        <!-- Status -->
+        <td>
+          {% if da.is_weekend and da.auto_generated and not da.timesheet %}
+            <span class="badge bg-info">Weekend</span>
+          {% endif %}
+
+          {% if da.reimbursed or da.settlement_date %}
+            <span class="badge bg-primary">Settled</span>
+          {% elif da.rejected %}
+            <span class="badge bg-danger">Rejected</span>
+          {% elif da.approved %}
+            <span class="badge bg-success">Approved</span>
+          {% else %}
+            <span class="badge bg-warning text-dark">Pending</span>
+          {% endif %}
+        </td>
+
+        {% if show_settlement %}
+          <td>
+            {% if da.settlement_method %}
+              {{ da.settlement_method }}
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          <td>
+            {% if da.settlement_date %}
+              {{ da.settlement_date|date:"Y-m-d" }}
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          <td>
+            {% if da.settled_amount %}
+              {{ da.settled_amount }}
+            {% else %}
+              —
+            {% endif %}
+          </td>
+        {% endif %}
+
+        <!-- Actions -->
+        <td class="text-end">
+          {% if show_actions %}
+            {% if da.is_weekend and da.auto_generated and not da.timesheet %}
+              {# Manager-only actions for weekend auto entries #}
+              {% if viewer_role == 'Manager' %}
+                {% if not da.approved and not da.rejected %}
+                  <form method="post" action="{% url 'expenses:da_weekend_approve' da.id %}" class="d-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{% url 'expenses:unified-expense-dashboard' %}?tab=da">
+                    <button class="btn btn-sm btn-success">Approve</button>
+                  </form>
+                  <form method="post" action="{% url 'expenses:da_weekend_reject' da.id %}" class="d-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{% url 'expenses:unified-expense-dashboard' %}?tab=da">
+                    <button class="btn btn-sm btn-outline-danger">Reject</button>
+                  </form>
+                  <form method="post" action="{% url 'expenses:da_weekend_delete' da.id %}" class="d-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{% url 'expenses:unified-expense-dashboard' %}?tab=da">
+                    <button class="btn btn-sm btn-outline-secondary">Delete</button>
+                  </form>
+                {% endif %}
+              {% elif viewer_role == 'Accountant' %}
+                {% if not da.approved and not da.rejected %}
+                  <form method="post" action="{% url 'expenses:da_weekend_delete' da.id %}" class="d-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{% url 'expenses:unified-expense-dashboard' %}?tab=da">
+                    <button class="btn btn-sm btn-outline-secondary">Delete</button>
+                  </form>
+                {% endif %}
+              {% endif %}
+            {% endif %}
+          {% endif %}
+        </td>
+      </tr>
     {% empty %}
-    <tr>
-      <td colspan="5" class="text-center text-muted">No DA records found.</td>
-    </tr>
+      <tr>
+        <td colspan="{% if show_settlement %}10{% else %}7{% endif %}" class="text-center text-muted">No DA records found.</td>
+      </tr>
     {% endfor %}
   </tbody>
 </table>

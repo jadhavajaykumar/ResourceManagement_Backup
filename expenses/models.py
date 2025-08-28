@@ -8,6 +8,8 @@ from django.db.models import Sum
 from django.db import models
 from django.conf import settings
 from project.models import Project
+from django.conf import settings
+from django.db import models
 
 
 User = get_user_model()
@@ -96,6 +98,7 @@ class Expense(models.Model):
 
     from_location = models.CharField(max_length=100, null=True, blank=True)
     to_location = models.CharField(max_length=100, null=True, blank=True)
+    settlement_date = models.DateField(null=True, blank=True)
 
     def clean(self):
         if self.new_expense_type:
@@ -152,19 +155,97 @@ class EmployeeExpenseSetting(models.Model):
     def __str__(self):
         return f"{self.employee.user.get_full_name()} - {self.grace_period_days} days"
 
+# ... keep all your imports above ...
+
+# expenses/models.py
+
 class DailyAllowance(models.Model):
-    timesheet = models.OneToOneField('timesheet.Timesheet', on_delete=models.CASCADE)
+    # CHANGED: allow DA without a timesheet; use FK (not OneToOne), nullable
+    timesheet = models.ForeignKey(
+        'timesheet.Timesheet',
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='daily_allowances'
+    )
+
     employee = models.ForeignKey('employee.EmployeeProfile', on_delete=models.CASCADE)
     project = models.ForeignKey('project.Project', on_delete=models.CASCADE)
     date = models.DateField()
     da_amount = models.DecimalField(max_digits=10, decimal_places=2)
     currency = models.CharField(max_length=10)
     is_extended = models.BooleanField(default=False)
+
+    # entitlement flags (keep)
+    is_weekend = models.BooleanField(default=False)
+    auto_generated = models.BooleanField(default=False)
+
+    # creation source (keep)
+    SOURCE_CHOICES = [
+        ('TIMESHEET', 'Timesheet'),
+        ('WEEKEND', 'Weekend entitlement'),
+        ('EXTRA_HOURS', 'Extra hours'),
+        ('MANUAL', 'Manual'),
+    ]
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default='TIMESHEET')
+
     approved = models.BooleanField(default=False)
-    reimbursed = models.BooleanField(default=False)  # ✅ ADD THIS
+    reimbursed = models.BooleanField(default=False)  # keep
     forwarded_to_accountant = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     forwarded_to_accountmanager = models.BooleanField(default=False)
+    rejected = models.BooleanField(default=False)
+
+    # ✅ NEW: settlement metadata (to support settle via advance or cash)
+    settlement_method = models.CharField(
+        max_length=20,
+        choices=(('ADVANCE', 'Advance'), ('CASH', 'Cash')),
+        null=True, blank=True
+    )
+    settlement_date = models.DateField(null=True, blank=True)
+    settlement_reference = models.ForeignKey(
+        'AdvanceRequest',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='da_settlement_references',
+        related_query_name='da_settlement_reference',
+    )
+    settled_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    @property
+    def is_pending(self):
+        return not self.approved and not self.rejected
+
+    def mark_approved(self, user=None, remark=""):
+        self.approved = True
+        self.rejected = False
+        self.save(update_fields=["approved", "rejected"])
+        try:
+            DailyAllowanceLog.objects.create(
+                da_entry=self, action="Approved", performed_by=user, remark=remark
+            )
+        except Exception:
+            pass
+
+    def mark_rejected(self, user=None, remark=""):
+        self.approved = False
+        self.rejected = True
+        self.save(update_fields=["approved", "rejected"])
+        try:
+            DailyAllowanceLog.objects.create(
+                da_entry=self, action="Rejected", performed_by=user, remark=remark
+            )
+        except Exception:
+            pass
+
+    class Meta:
+        # Ensure only one DA per employee+project+date (prevents dupes)
+        unique_together = ('employee', 'project', 'date')
+        ordering = ['-date', '-created_at']
+
+    def __str__(self):
+        return f"DA {self.date} – {self.employee.user.get_full_name()} – {self.da_amount} {self.currency}"
+
+
 
 
 class CountryDASetting(models.Model):
@@ -346,13 +427,53 @@ class AdvanceRequest(models.Model):
         return f"{self.employee.user.get_full_name()} | ₹{self.amount} | Requested: {self.date_requested}"
 
 
+# expenses/models.py
+
 class AdvanceAdjustmentLog(models.Model):
-    expense = models.ForeignKey(Expense, on_delete=models.CASCADE)
-    advance = models.ForeignKey(AdvanceRequest, on_delete=models.CASCADE)
+    # was: expense = models.ForeignKey(Expense, on_delete=models.CASCADE)
+    # ✅ allow either an Expense OR a DA to be the source of the deduction
+    expense = models.ForeignKey('Expense', on_delete=models.CASCADE, null=True, blank=True)
+    da = models.ForeignKey('DailyAllowance', on_delete=models.CASCADE, null=True, blank=True)
+
+    advance = models.ForeignKey('AdvanceRequest', on_delete=models.CASCADE)
     amount_deducted = models.DecimalField(max_digits=10, decimal_places=2)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"₹{self.amount_deducted} from Advance {self.advance.id} for Expense {self.expense.id}"
+        if self.expense_id:
+            src = f"Expense {self.expense_id}"
+        elif self.da_id:
+            src = f"DA {self.da_id}"
+        else:
+            src = "Unknown"
+        return f"₹{self.amount_deducted} from Advance {self.advance.id} for {src}"
 
 
+
+
+
+class DailyAllowanceSettlement(models.Model):
+    METHOD_CHOICES = [
+        ("ADVANCE", "Adjusted Against Advance"),
+        ("CASH", "Cash/Bank Reimbursement"),
+    ]
+
+    da = models.ForeignKey('DailyAllowance', on_delete=models.CASCADE, related_name='settlements')
+    method = models.CharField(max_length=10, choices=METHOD_CHOICES)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_date = models.DateField()
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    note = models.TextField(blank=True)
+    # optional reference to the first advance that contributed when method=ADVANCE
+    #primary_advance = models.ForeignKey('AdvanceRequest', on_delete=models.SET_NULL, null=True, blank=True, related_name='da_settlements')
+    primary_advance = models.ForeignKey(
+        'AdvanceRequest',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='da_settlements',
+        related_query_name='da_settlement',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"DA#{self.da_id} {self.method} ₹{self.amount} on {self.payment_date}"
