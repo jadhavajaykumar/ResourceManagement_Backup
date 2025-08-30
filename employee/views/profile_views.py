@@ -3,7 +3,11 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from employee.models import EmployeeProfile
-from manager.services.skills import get_employee_skills
+try:
+    from manager.services.skills import get_employee_skills
+except ImportError:  # Manager app removed
+    def get_employee_skills(profile):
+        return []
 from employee.forms import EmployeeProfileForm
 from accounts.utils import get_dashboard_redirect_url
 
@@ -33,9 +37,9 @@ def edit_profile(request):
             messages.success(request, "Profile updated successfully.")
             role = request.user.role
             redirect_map = {
-                'Manager': 'manager:manager-dashboard',
+                'Manager': 'timesheet:timesheet-approval',
                 'HR': 'hr:dashboard',
-                'Accountant': 'accountant:dashboard',
+                'Accountant': 'expenses:expense-approval-dashboard',
                 'Director': 'director:dashboard',
             }
             return redirect(redirect_map.get(role, 'employee:employee-dashboard'))

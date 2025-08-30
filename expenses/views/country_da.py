@@ -1,14 +1,14 @@
 # expenses/views/country_da.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required, permission_required
 from ..forms import CountryDASettingForm
 from ..models import CountryDARate
-from accounts.access_control import is_manager_or_admin
+
 
 
 @login_required
-@user_passes_test(is_manager_or_admin)
+@permission_required('timesheet.can_approve')
 def manage_country_da(request):
     form = CountryDASettingForm()
     country_rates = CountryDARate.objects.all().order_by('country')
@@ -27,7 +27,7 @@ def manage_country_da(request):
     })
 
 @login_required
-@user_passes_test(is_manager_or_admin)
+@permission_required('timesheet.can_approve')
 def edit_country_da(request, rate_id):
     instance = get_object_or_404(CountryDARate, id=rate_id)
     form = CountryDASettingForm(request.POST or None, instance=instance)
@@ -46,7 +46,7 @@ def edit_country_da(request, rate_id):
     })
 
 @login_required
-@user_passes_test(is_manager_or_admin)
+@permission_required('timesheet.can_approve')
 def delete_country_da(request, rate_id):
     if request.method == "POST":
         rate = get_object_or_404(CountryDARate, id=rate_id)

@@ -7,10 +7,14 @@ from django.views.decorators.http import require_POST
 from django.urls import reverse
 from employee.models import EmployeeProfile
 from expenses.services.settlement_summary import build_unsettled_summary, settle_everything_for_employee
-
+from accounts.access_control import is_manager
 def _is_account_manager(user):
     role = getattr(getattr(user, "employeeprofile", None), "role", None) or getattr(user, "role", None)
-    return bool(user.is_staff or role in ["Account Manager", "Account_Manager"])
+     return bool(
+        user.has_perm('timesheet.can_approve')
+        or is_manager(user)
+        or role in ["Account Manager", "Account_Manager"]
+    ))
 
 @login_required
 def am_unsettled_summary(request):

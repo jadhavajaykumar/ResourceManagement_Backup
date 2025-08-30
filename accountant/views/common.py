@@ -1,6 +1,2 @@
 def is_accountant(user):
-    return (
-        user.is_authenticated and
-        hasattr(user, 'employeeprofile') and
-        user.employeeprofile.role == 'Accountant'
-    )
+    return user.is_authenticated and user.has_perm('expenses.can_settle')

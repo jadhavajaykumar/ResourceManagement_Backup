@@ -1,13 +1,20 @@
 # employee/services/project_access.py
 
-from manager.models import TaskAssignment
+try:
+    from manager.models import TaskAssignment
+except ImportError:  # Manager app removed
+    TaskAssignment = None
 from project.models import Project, Task
 from django.db.models import Prefetch
 
 def get_assigned_project_ids(employee):
+    if not TaskAssignment:
+        return []
     return TaskAssignment.objects.filter(employee=employee).values_list('project', flat=True).distinct()
 
 def get_assigned_task_ids(employee):
+    if not TaskAssignment:
+        return []
     return TaskAssignment.objects.filter(employee=employee).values_list('task', flat=True).distinct()
 
 def get_assigned_projects_with_tasks(employee):
@@ -17,6 +24,8 @@ def get_assigned_projects_with_tasks(employee):
     return Project.objects.filter(id__in=project_ids).prefetch_related(Prefetch('tasks', queryset=tasks_qs))
 
 def get_recent_assigned_projects(employee, limit=3):
+    if not TaskAssignment:
+        return Project.objects.none()
     recent_project_ids = (
         TaskAssignment.objects
         .filter(employee=employee)

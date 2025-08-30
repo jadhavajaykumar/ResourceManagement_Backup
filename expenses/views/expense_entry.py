@@ -24,9 +24,6 @@ from django.template.loader import render_to_string
 from project.models import Project  # ✅ add this
 
 
-
-
-
 @login_required
 def employee_expenses(request):
     month_choices = [
@@ -53,7 +50,7 @@ def employee_expenses(request):
                 advance.employee = employee
                 advance.save()
                 messages.success(request, 'Advance request submitted successfully.')
-                return redirect('expenses:employee-expenses')
+                return redirect('expenses:unified-expense-dashboard')
             else:
                 messages.error(request, 'Please correct the errors below.')
         else:
@@ -72,7 +69,7 @@ def employee_expenses(request):
 
                 if not is_within_grace(submitted_date, grace_days):
                     messages.error(request, f"Submission not allowed. You can only submit expenses within {grace_days} days.")
-                    return redirect('expenses:employee-expenses')
+                    return redirect('expenses:unified-expense-dashboard')
 
                 exp = expense_form.save(commit=False)
                 exp.status = 'Submitted'
@@ -81,7 +78,7 @@ def employee_expenses(request):
                 exp.forwarded_to_accountmanager = False
                 exp.save()
                 messages.success(request, 'Expense submitted successfully.')
-                return redirect('expenses:employee-expenses')
+                return redirect('expenses:unified-expense-dashboard')
             else:
                 messages.error(request, 'Please correct the errors below.')
 

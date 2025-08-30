@@ -1,9 +1,8 @@
 # expenses/views/expense_type_settings.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required, permission_required
 from ..models import ExpenseType
-from accounts.access_control import is_manager_or_admin, is_manager
 from django.views.decorators.http import require_POST
 from django.db.models import ProtectedError
 from django.http import JsonResponse
@@ -16,7 +15,7 @@ from employee.models import EmployeeProfile
 
 
 @login_required
-@user_passes_test(is_manager_or_admin)
+@permission_required('timesheet.can_approve')
 def edit_expense_type(request, type_id):
     expense_type = get_object_or_404(ExpenseType, id=type_id)
 
@@ -35,7 +34,7 @@ def edit_expense_type(request, type_id):
 
 
 @login_required
-@user_passes_test(is_manager)
+@permission_required('timesheet.can_approve')
 @require_POST
 def delete_expense_type(request, expense_type_id):
     expense_type = get_object_or_404(ExpenseType, id=expense_type_id)
@@ -50,7 +49,7 @@ def delete_expense_type(request, expense_type_id):
 
 
 @login_required
-@user_passes_test(is_manager_or_admin)
+@permission_required('timesheet.can_approve')
 def expense_settings_dashboard(request):
     if request.method == 'POST':
         # Add New Expense Type

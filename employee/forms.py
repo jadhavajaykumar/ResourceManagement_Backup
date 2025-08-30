@@ -11,8 +11,8 @@ class EmployeeProfileForm(forms.ModelForm):
     
     def clean_role(self):
         role = self.cleaned_data.get('role')
-        if role == 'Admin' and not self.instance.user.is_superuser:
-            raise forms.ValidationError("Only superusers can be assigned Admin role.")
+        if role == 'Admin' and not self.instance.user.has_perm('timesheet.can_approve'):
+            raise forms.ValidationError("Only authorized users can be assigned Admin role.")
         return role
 
 # Update the admin class to use the form

@@ -3,7 +3,10 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from .models import Timesheet, TimeSlot
 from project.models import Project, Task
-from manager.models import TaskAssignment
+try:
+    from manager.models import TaskAssignment
+except ImportError:  # Manager app removed
+    TaskAssignment = None
 from datetime import datetime, timedelta
 from expenses.models import GlobalExpenseSettings, EmployeeExpenseGrace
 from employee.models import EmployeeProfile
@@ -22,7 +25,7 @@ class TimeSlotForm(forms.ModelForm):
         employee = kwargs.pop('employee', None)
         super().__init__(*args, **kwargs)
 
-        if employee:
+        if employee and TaskAssignment:
             assigned_project_ids = TaskAssignment.objects.filter(
                 employee=employee
             ).values_list('project_id', flat=True)

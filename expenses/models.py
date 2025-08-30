@@ -99,6 +99,11 @@ class Expense(models.Model):
     from_location = models.CharField(max_length=100, null=True, blank=True)
     to_location = models.CharField(max_length=100, null=True, blank=True)
     settlement_date = models.DateField(null=True, blank=True)
+    
+    class Meta:
+        permissions = [
+            ("can_settle", "Can settle expenses"),
+        ]
 
     def clean(self):
         if self.new_expense_type:

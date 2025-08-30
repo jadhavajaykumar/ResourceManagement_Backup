@@ -34,7 +34,7 @@ def custom_login(request):
 
             # Use URL param role if available
             login_role = request.GET.get('role', '').capitalize()
-            valid_roles = ['Manager', 'Employee', 'HR', 'Accountant', 'Account manager', 'Accountmanager']
+            valid_roles = ['Manager', 'Employee', 'HR', 'Accountant', 'Account manager', 'Accountmanager', 'Director']
 
             if login_role in valid_roles:
                 profile.role = login_role

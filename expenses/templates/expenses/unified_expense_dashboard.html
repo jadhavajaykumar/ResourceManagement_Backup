@@ -191,7 +191,10 @@
         <!-- DA -->
         <div class="tab-pane fade" id="pane-da" role="tabpanel" aria-labelledby="tab-da">
           <div class="d-flex seg mb-2">
-            <button class="btn btn-outline-secondary btn-sm active" data-da-view="approved">
+            <button class="btn btn-outline-secondary btn-sm active" data-da-view="pending">
+              Pending DA <span class="badge bg-secondary ms-1">{{ tabs.pending_da|length }}</span>
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" data-da-view="approved">
               Approved DA <span class="badge bg-secondary ms-1">{{ tabs.approved_da|length }}</span>
             </button>
             <button class="btn btn-outline-secondary btn-sm" data-da-view="settled">
@@ -199,8 +202,12 @@
             </button>
           </div>
 
-          <div data-da-panel="approved">
-            {% include "expenses/unified/partials/table_da.html" with items=tabs.approved_da role=role viewer_role=viewer_role show_actions=True show_settlement=False %}
+          <div data-da-panel="pending">
+            {% include "expenses/unified/partials/table_da.html" with items=tabs.pending_da role=role viewer_role=viewer_role show_actions=is_reviewer show_settlement=False %}
+          </div>
+
+          <div data-da-panel="approved" class="d-none">
+            {% include "expenses/unified/partials/table_da.html" with items=tabs.approved_da role=role viewer_role=viewer_role show_actions=False show_settlement=False %}
           </div>
 
           <div data-da-panel="settled" class="d-none">

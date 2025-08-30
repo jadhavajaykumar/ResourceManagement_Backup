@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required, permission_required
 from django.views.decorators.http import require_POST
 from django.contrib import messages
 from collections import defaultdict
@@ -19,9 +20,10 @@ from django.utils import timezone
 from project.models import Project
 from employee.models import EmployeeProfile
 from .advance_views import accountant_approve_advance
+from django.contrib.auth.decorators import login_required, permission_required
 
 @login_required
-@user_passes_test(is_accountant)
+@permission_required('expenses.can_settle')
 def expense_approval_dashboard(request):
     selected_project = request.GET.get('project')
     from_date = request.GET.get('from_date')
@@ -47,70 +49,7 @@ def expense_approval_dashboard(request):
     if to_date:
         expenses = expenses.filter(date__lte=to_date)
         allowances = allowances.filter(date__lte=to_date)
-        advance_requests = advance_requests.filter(date_requested__lte=to_date)
-
-    tabbed_expenses = {
-        'submitted': [],
-        'approved': [],
-        'reimbursement': [],
-        'settled': [],
-        'advance': []
-    }
-
-    for expense in expenses:
-        entry = {
-            "type": "Expense",
-            "employee": expense.employee,
-            "project": expense.project,
-            "amount": format_currency(expense.amount, getattr(expense, 'currency', 'INR')),
-            "date": expense.date,
-            "status": expense.status,
-            "reimbursed": expense.reimbursed,
-            "new_expense_type": expense.new_expense_type,
-            "id": expense.id,
-            "advance_used": expense.advance_used.id if expense.advance_used else None,
-            "from_location": expense.from_location,
-            "to_location": expense.to_location,
-            "receipt": expense.receipt.url if expense.receipt else None,
-        }
-
-        if expense.status == "Submitted":
-            tabbed_expenses["submitted"].append(entry)
-        elif expense.status == "Forwarded to Manager":
-            # Do NOT show in accountant’s action tabs
-            continue
-        elif expense.status == "Approved" and not expense.reimbursed:
-            tabbed_expenses["reimbursement"].append(entry)
-        elif expense.status == "Approved" and expense.reimbursed:
-            tabbed_expenses["settled"].append(entry)
-        else:
-            tabbed_expenses["approved"].append(entry)
-
-
-    for da in allowances:
-        entry = {
-            "type": "DA",
-            "employee": da.employee,
-            "project": da.project,
-            "amount": format_currency(da.da_amount, da.currency),
-            "currency": da.currency,
-            "date": da.date,
-            "status": "Approved" if da.approved else "Pending",
-            "reimbursed": da.reimbursed,
-            "id": da.id,
-            "approved": da.approved,
-        }
-
-        if not da.approved:
-            tabbed_expenses["pending"].append(entry)
-        elif da.approved and not da.reimbursed:
-            tabbed_expenses["reimbursement"].append(entry)
-        elif da.approved and da.reimbursed:
-            tabbed_expenses["settled"].append(entry)
-        else:
-            tabbed_expenses["approved"].append(entry)
-
-    for adv in advance_requests:
+        
         entry = {
             "type": "Advance",
             "employee": adv.employee,
@@ -136,7 +75,7 @@ def expense_approval_dashboard(request):
 
 
 @login_required
-@user_passes_test(is_accountant)
+@permission_required('expenses.can_settle')
 @require_POST
 def approve_or_reject_expense(request, expense_id, action):
     expense = get_object_or_404(Expense, id=expense_id)
@@ -162,25 +101,7 @@ def approve_or_reject_expense(request, expense_id, action):
             )
 
             if latest_advance:
-                used_sum = latest_advance.used_expenses.aggregate(Sum("amount"))['amount__sum'] or 0
-                remaining_balance = latest_advance.amount - used_sum
 
-                deduct_amount = min(expense.amount, remaining_balance)
-                expense.advance_used = latest_advance
-                expense.save()
-
-                AdvanceAdjustmentLog.objects.create(
-                    expense=expense,
-                    advance=latest_advance,
-                    amount_deducted=deduct_amount
-                )
-
-                if expense.amount > remaining_balance:
-                    messages.success(
-                        request,
-                        f"Expense ID {expense.id} approved and linked to Advance ID {latest_advance.id}. Only ₹{deduct_amount} could be deducted due to insufficient balance."
-                    )
-                else:
                     messages.success(
                         request,
                         f"Expense ID {expense.id} approved and fully deducted ₹{expense.amount} from Advance ID {latest_advance.id}."
@@ -206,7 +127,7 @@ def approve_or_reject_expense(request, expense_id, action):
 
 
 @login_required
-@user_passes_test(is_accountant)
+@permission_required('expenses.can_settle')
 def approve_daily_allowance(request, da_id):
     da = get_object_or_404(DailyAllowance, id=da_id)
 
@@ -221,7 +142,7 @@ def approve_daily_allowance(request, da_id):
 
 
 @login_required
-@user_passes_test(is_accountant)
+@permission_required('expenses.can_settle')
 def export_expense_tab_excel(request, tab_name):
     from_date = request.GET.get('from_date')
     to_date = request.GET.get('to_date')
@@ -247,62 +168,3 @@ def export_expense_tab_excel(request, tab_name):
         reimbursed = expense.reimbursed
         match = (
             (tab_name == "pending" and status == "Pending") or
-            (tab_name == "approved" and status == "Approved" and not reimbursed) or
-            (tab_name == "reimbursement" and status == "Approved" and not reimbursed) or
-            (tab_name == "settled" and status == "Approved" and reimbursed)
-        )
-        if match:
-            rows.append({
-                "employee": expense.employee.user.get_full_name(),
-                "project": expense.project.name,
-                "amount": float(expense.amount),
-                "type": expense.new_expense_type.name,
-                "date": expense.date.strftime("%Y-%m-%d"),
-                "status": status,
-                "reimbursed": "Yes" if reimbursed else "No",
-                "from_location": expense.from_location or "",
-                "to_location": expense.to_location or ""
-            })
-
-    for da in allowances:
-        status = "Approved" if da.approved else "Pending"
-        reimbursed = da.reimbursed
-        match = (
-            (tab_name == "pending" and not da.approved) or
-            (tab_name == "reimbursement" and da.approved and not reimbursed) or
-            (tab_name == "settled" and da.approved and reimbursed)
-        )
-        if match:
-            rows.append({
-                "employee": da.employee.user.get_full_name(),
-                "project": da.project.name,
-                "amount": float(da.da_amount),
-                "type": "Daily Allowance",
-                "date": da.date.strftime("%Y-%m-%d"),
-                "status": status,
-                "reimbursed": "Yes" if reimbursed else "No",
-                "from_location": "",
-                "to_location": ""
-            })
-
-    output = io.BytesIO()
-    workbook = xlsxwriter.Workbook(output, {'in_memory': True})
-    sheet = workbook.add_worksheet(tab_name.capitalize())
-
-    headers = ["Employee", "Project", "Amount", "Type", "Date", "Status", "Reimbursed", "From Location", "To Location"]
-    for col, header in enumerate(headers):
-        sheet.write(0, col, header)
-
-    for row_idx, row in enumerate(rows, start=1):
-        for col_idx, key in enumerate(headers):
-            key_clean = key.lower().replace(" ", "_")
-            sheet.write(row_idx, col_idx, row.get(key_clean, ""))
-
-    workbook.close()
-    output.seek(0)
-
-    filename = f"{tab_name}_export_{localtime().strftime('%Y%m%d_%H%M%S')}.xlsx"
-    response = HttpResponse(output.read(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = f'attachment; filename={filename}'
-    return response
-

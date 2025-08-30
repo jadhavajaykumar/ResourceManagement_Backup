@@ -2,7 +2,8 @@
   # Save the new document
 from datetime import datetime
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required, permission_required
+from accounts.access_control import is_manager
 from .models import DocumentTemplate, GeneratedDocument
 from .forms import DocumentTemplateForm
 from django.http import HttpResponse
@@ -25,13 +26,11 @@ import io
 
 
 
-
-def is_manager(user):
-    return user.is_authenticated and (user.is_superuser or user.groups.filter(name='Manager').exists())
-
+def has_manager_access(user):
+    return user.has_perm('timesheet.can_approve') or is_manager(user)
 
 @login_required
-@user_passes_test(is_manager)
+@permission_required('timesheet.can_approve')
 def upload_template(request):
     if request.method == 'POST':
         form = DocumentTemplateForm(request.POST, request.FILES)
@@ -44,7 +43,7 @@ def upload_template(request):
 
 
 @login_required
-@user_passes_test(is_manager)
+@permission_required('timesheet.can_approve')
 def list_templates(request):
     templates = DocumentTemplate.objects.all()
     return render(request, 'docgen/template_list.html', {'templates': templates})
@@ -87,7 +86,7 @@ def replace_text_in_runs(runs, replacements):
 from django.contrib import messages
 
 @login_required
-@user_passes_test(is_manager)
+@permission_required('timesheet.can_approve')
 def delete_template(request, template_id):
     template = get_object_or_404(DocumentTemplate, id=template_id)
     if request.method == 'POST':
@@ -107,7 +106,7 @@ def update_excel_file(input_values, excel_path):
     wb.save(excel_path)
 
 @login_required
-@user_passes_test(is_manager)
+@permission_required('timesheet.can_approve')
 def fill_template(request, template_id):
     template = get_object_or_404(DocumentTemplate, id=template_id)
     docx_path = template.template_file.path

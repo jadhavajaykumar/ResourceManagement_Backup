@@ -1,7 +1,7 @@
+
 import logging
 logger = logging.getLogger(__name__)
 
-from django.shortcuts import render, redirect, get_object_or_404
 from timesheet.utils.slot_utils import generate_time_slots
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -27,6 +27,8 @@ from timesheet.utils.time_utils import get_current_slot
 from .models import CompOffApplication
 from django.db.models import Q
 
+from accounts.access_control import is_manager
+
 from employee.models import LeaveBalance
 from timesheet.utils.calendar_utils import get_timesheet_calendar_data
 from timesheet.utils.calculate_attendance import calculate_attendance
@@ -48,19 +50,32 @@ from timesheet.models import Timesheet, CompensatoryOff, CompOffBalance, TimeSlo
 #from timesheet.utils import generate_time_slots  # ensure this is correct
 import logging
 
-# timesheet/views.py
-
 @login_required
 def load_tasks_for_employee(request):
-    project_id = request.GET.get('project')
-    employee = request.user.employeeprofile
+    
+    slot.timesheet = updated_entry
+                slot.slot_date = updated_entry.date  # ✅ Fixed for C-Off eligibility
+                slot.save()
 
-    if not project_id:
-        return JsonResponse([], safe=False)
+            for deleted_form in formset.deleted_objects:
+                deleted_form.delete()
 
-    # Filter tasks assigned to this employee
-    tasks = Task.objects.filter(project_id=project_id, taskassignment__employee=employee).distinct()
-    return JsonResponse(list(tasks.values('id', 'name')), safe=False)
+            messages.success(request, "Timesheet resubmitted for approval.")
+            return redirect('timesheet:my-timesheets')
+        else:
+            print("Form or formset invalid")
+    else:
+        form = TimesheetForm(instance=timesheet, employee=employee)
+        formset = TimeSlotFormSet(queryset=timesheet.time_slots.all(), form_kwargs={'employee': employee})
+
+    return render(request, 'timesheet/resubmit_timesheet.html', {
+        'form': form,
+        'formset': formset,
+        'original_entry': timesheet
+    })
+
+
+
 
 
 @login_required
@@ -156,7 +171,7 @@ def resubmit_timesheet(request, pk):
 #Comp off application approval
 @login_required 
 def comp_off_approval_view(request):
-    if not request.user.is_manager:
+    if not (request.user.has_perm('timesheet.can_approve') or is_manager(request.user)):
         messages.error(request, "Access denied.")
         return redirect('dashboard')
 
@@ -544,7 +559,7 @@ def delete_employee_timesheet_data(request, employee_id):
     employee = get_object_or_404(EmployeeProfile, id=employee_id)
 
     # ✅ Restrict access to only assigned employees
-    if not request.user.is_superuser:
+    if not request.user.has_perm('timesheet.can_approve'):
         messages.error(request, "You do not have permission to access this function.")
         return redirect('expenses:expense-settings')  # or any safe fallback page
 

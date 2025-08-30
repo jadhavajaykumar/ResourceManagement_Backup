@@ -1,6 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required, user_passes_test
-from accountmanager.views.common import is_accountmanager
+from django.contrib.auth.decorators import login_required, permission_required
 from expenses.models import Expense, DailyAllowance, AdvanceRequest, AdvanceAdjustmentLog
 from django.utils.timezone import now
 from django.contrib import messages
@@ -11,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 @login_required
-@user_passes_test(is_accountmanager)
+@permission_required('expenses.can_settle')
 def settle_advances(request):
     # Get advances approved by both manager and accountant but not settled
     advances = AdvanceRequest.objects.filter(
@@ -24,7 +23,7 @@ def settle_advances(request):
 
 
 @login_required
-@user_passes_test(is_accountmanager)
+@permission_required('expenses.can_settle')
 def settle_advance(request, advance_id):
     advance = get_object_or_404(AdvanceRequest, id=advance_id)
 
@@ -50,26 +49,3 @@ def settle_advance(request, advance_id):
         if prev_balance < 0:
             adjusted_amount = float(advance.amount) + float(prev_balance)  # balance is negative
             if adjusted_amount < 0:
-                adjusted_amount = 0
-
-            # Log this deduction
-            AdvanceAdjustmentLog.objects.create(
-                expense=None,
-                advance=advance,
-                amount_deducted=abs(prev_balance)
-            )
-
-            logger.info(f"Advance #{advance.id} adjusted by {abs(prev_balance)} due to carry-forward negative balance.")
-            deduction_notice = f" (adjusted by ₹{abs(prev_balance):.2f} due to negative balance)"
-
-    advance.adjusted_amount = adjusted_amount
-    advance.settled_by_account_manager = True
-    advance.settlement_date = now().date()
-    advance.save()
-
-    messages.success(
-        request,
-        f"Advance of ₹{adjusted_amount:.2f} settled for {advance.employee.user.get_full_name()}{deduction_notice}"
-    )
-
-    return redirect('accountmanager:settle-advances')

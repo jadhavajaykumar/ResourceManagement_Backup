@@ -1,10 +1,7 @@
 from django.shortcuts import render
-from django.contrib.auth.decorators import login_required, user_passes_test
-from accountant.views.common import is_accountant
+from django.contrib.auth.decorators import login_required, permission_required
 
 @login_required
-@user_passes_test(is_accountant)
+@permission_required('expenses.can_settle')
 def accountant_dashboard(request):
     return render(request, 'accountant/accountant_dashboard.html')
-    
-    

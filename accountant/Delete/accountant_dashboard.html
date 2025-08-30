@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Accountant Dashboard{% endblock %}
+
+{% block content %}
+<style>
+  .dashboard-container {
+    max-width: 1200px;
+    margin: 30px auto;
+    padding: 20px;
+  }
+
+  .dashboard-title {
+    font-size: 28px;
+    font-weight: 600;
+    text-align: center;
+    margin-bottom: 30px;
+    color: var(--text-color);
+  }
+
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 25px;
+  }
+
+  .dashboard-card {
+    background: var(--card-bg);
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease-in-out;
+    text-align: center;
+  }
+
+  .dashboard-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.1);
+  }
+
+  .dashboard-card i {
+    font-size: 36px;
+    margin-bottom: 10px;
+    color: var(--icon-color);
+  }
+
+  .dashboard-card h3 {
+    font-size: 18px;
+    margin: 10px 0;
+    color: var(--text-color);
+  }
+
+  .dashboard-card a {
+    display: inline-block;
+    margin-top: 10px;
+    background-color: #007bff;
+    color: white;
+    padding: 8px 14px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .dashboard-card a:hover {
+    background-color: #0056b3;
+  }
+</style>
+
+<div class="dashboard-container">
+  <h2 class="dashboard-title">Welcome, {{ profile.user.get_full_name }}</h2>
+  <div class="card-grid">
+
+    <div class="dashboard-card">
+      <i class="fa-solid fa-id-card"></i>
+      <h3>My Profile</h3>
+      <a href="{% url 'employee:employee-profile-home' %}">Go</a>
+    </div>
+    <div class="dashboard-card">
+      <i class="fa-solid fa-folder"></i>
+      <h3>My Projects</h3>
+      <a href="{% url 'employee:my-projects' %}">Go</a>
+    </div>
+    <div class="dashboard-card">
+      <i class="fa-solid fa-clock"></i>
+      <h3>My Timesheets</h3>
+      <a href="{% url 'timesheet:my-timesheets' %}">Go</a>
+    </div>
+    <div class="dashboard-card">
+      <i class="fa-solid fa-receipt"></i>
+      <h3>My Expenses</h3>
+      <!--<a href="{% url 'unified-expense-dashboard' %}?employee={{ request.user.employeeprofile.id }}">Go</a>-->
+	  <a href="{% url 'unified-expense-dashboard' %}">Go</a>
+    </div>
+    <div class="dashboard-card">
+      <i class="fa-solid fa-file-arrow-down"></i>
+      <h3>Download Receipts</h3>
+      <a href="#" class="btn btn-secondary disabled" aria-disabled="true">Coming Soon</a>
+    </div>
+    <div class="dashboard-card">
+      <i class="fa-solid fa-chart-line"></i>
+      <h3>Analytics / Charts</h3>
+      <a href="#" class="btn btn-secondary disabled" aria-disabled="true">Coming Soon</a>
+    </div>
+    <div class="dashboard-card">
+      <i class="fa-solid fa-calendar-days"></i>
+      <h3>Monthly Summary</h3>
+      <a href="#" class="btn btn-secondary disabled" aria-disabled="true">Coming Soon</a>
+    </div>
+    <div class="dashboard-card">
+      <i class="fa-solid fa-bell"></i>
+      <h3>Team Notifications</h3>
+      <a href="#" class="btn btn-secondary disabled" aria-disabled="true">Coming Soon</a>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.body.classList.add(localStorage.getItem("theme") || "light");
+
+  function toggleTheme() {
+    const currentTheme = document.body.classList.contains("dark") ? "dark" : "light";
+    const newTheme = currentTheme === "dark" ? "light" : "dark";
+    document.body.classList.remove(currentTheme);
+    document.body.classList.add(newTheme);
+    localStorage.setItem("theme", newTheme);
+  }
+</script>
+{% endblock %}

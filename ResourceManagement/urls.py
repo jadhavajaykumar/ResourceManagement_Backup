@@ -17,17 +17,16 @@ urlpatterns = [
     path('accounts/', include('accounts.urls')),
     path('employee/', include('employee.urls')),
     path('project/', include('project.urls')),
-    #path('timesheet/', include('timesheet.urls')),
     # main urls.py
     path("timesheet/", include(("timesheet.urls", "timesheet"), namespace="timesheet")),
-    path("accountmanager/", include("accountmanager.urls")),
-
-    #path('expenses/', include('expenses.urls')),
+    #path("accountmanager/", include("accountmanager.urls")),
     path('expenses/', include(('expenses.urls', 'expenses'), namespace='expenses')),
-    path('manager/', include('manager.urls')),
+    #path('manager/', include('manager.urls')),
     path('docgen/', include('docgen.urls')),
-    path('accountant/', include('accountant.urls')),
+    #path('accountant/', include('accountant.urls')),
     path('unified-expenses/', unified_expense_dashboard, name='unified-expense-dashboard'),
+    path('dashboard/', include(('dashboard.urls', 'dashboard'), namespace='dashboard')),
+    
     
 
 

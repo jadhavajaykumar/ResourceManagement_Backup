@@ -94,24 +94,10 @@
 	  <i class="fa-solid fa-receipt"></i>
 	  <h3>My Expenses</h3>
 	  <p class="text-muted" style="font-size: 14px;">Track your claims & view feedback from Accountant/Manager</p>
-	  <!--<a href="{% url 'expenses:employee-expenses' %}">Go</a>-->
 	  <a class="nav-link" href="{% url 'employee:unified-expense-dashboard' %}">Go</a>
-	</div>
+    </div>
 	
-	<!--<div class="card mb-3 shadow-sm">
-	  <div class="card-header bg-info text-white">Leave Balance</div>
-	  <div class="card-body">
-		<p class="mb-1"><strong>Compensatory Off:</strong> {{ leave_balance.compensatory_off|default:"0" }} day(s)</p>
-		<p class="text-muted">Last updated: {{ leave_balance.updated_at|date:"d M Y H:i" }}</p>
-	  </div>
-	</div>
-	<h4>C-Off Balance: {{ balance.balance }}</h4>
-	<ul>
-	  {% for off in earned_offs %}
-		<li>{{ off.date_earned }} — {{ off.credited_days }} day(s) credited</li>
-	  {% endfor %}
-	</ul>-->
-
+	
 	<div class="dashboard-card">
 	  <i class="fa-solid fa-calendar-check"></i>
 	  <h3>Attendance / C-Off Report</h3>

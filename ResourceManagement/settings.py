@@ -16,12 +16,11 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django_extensions',
     'accounts',
-    'accountant',
-    #'employee',
+    #'accountant',
     'project',
     'expenses',
     'timesheet',
-    'manager',
+    #'manager',
     'import_export',
     'widget_tweaks',
     'crispy_forms',
@@ -29,7 +28,8 @@ INSTALLED_APPS = [
     'employee.apps.EmployeeConfig',    # Use the AppConfig class
     'docgen',
     'utils',
-    'accountmanager',
+    #'accountmanager',
+    'dashboard',
 ]
 
 GRAPH_MODELS = {
@@ -47,8 +47,7 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    #'accounts.middleware.DisableClientSideCachingMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',x
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]

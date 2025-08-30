@@ -1,44 +1,63 @@
 document.addEventListener("DOMContentLoaded", function () {
   // Toggle dynamic fields in project form
   function toggleFields() {
-    const location = document.getElementById("id_location")?.value;
-    const projectType = document.getElementById("id_project_type")?.value;
+    const projectTypeEl = document.getElementById("id_project_type");
+    const locationEl = document.getElementById("id_location_type");
 
-    const intlFields = ["country_rate", "currency", "da_rate_per_hour", "extra_hour_rate"];
-    const billingDiv = document.getElementById("div_billing_method");
-    const budgetDiv = document.getElementById("div_budget");
-    const statusDiv = document.getElementById("div_status");
+    const rateTypeGroup = document.getElementById("div_rate_type");
+    const rateValueGroup = document.getElementById("div_rate_value");
+    const dailyRateGroup = document.getElementById("div_daily_rate");
+    const budgetGroup = document.getElementById("div_budget");
 
-    intlFields.forEach(field => {
-      const div = document.getElementById("div_" + field);
-      if (div) div.style.display = (location === "International") ? "block" : "none";
-    });
+    const daRateGroup = document.getElementById("div_da_rate_per_unit");
+    const daTypeGroup = document.getElementById("div_da_type");
+    const extHoursThresholdGroup = document.getElementById("div_extended_hours_threshold");
+    const extHoursRateGroup = document.getElementById("div_extended_hours_da_rate");
+    const offDayDAGroup = document.getElementById("div_off_day_da_rate");
 
-    if (billingDiv) billingDiv.style.display = projectType === "Service" ? "block" : "none";
-    if (budgetDiv) budgetDiv.style.display = projectType === "Turnkey" ? "block" : "none";
-    if (statusDiv) statusDiv.style.display = (projectType === "Turnkey" || location === "International") ? "block" : "none";
+    const countryGroup = document.getElementById("div_country");
+    const currencyGroup = document.getElementById("div_currency");
+
+    const projectType = projectTypeEl?.selectedOptions[0]?.text?.toLowerCase();
+    const location = locationEl?.selectedOptions[0]?.text?.toLowerCase();
+
+    if (projectType === "service") {
+      rateTypeGroup?.classList.remove("d-none");
+      rateValueGroup?.classList.remove("d-none");
+      dailyRateGroup?.classList.remove("d-none");
+      budgetGroup?.classList.add("d-none");
+    } else {
+      rateTypeGroup?.classList.add("d-none");
+      rateValueGroup?.classList.add("d-none");
+      dailyRateGroup?.classList.add("d-none");
+      budgetGroup?.classList.remove("d-none");
+    }
+
+    daRateGroup?.classList.remove("d-none");
+
+    if (location === "international") {
+      daTypeGroup?.classList.remove("d-none");
+      extHoursThresholdGroup?.classList.remove("d-none");
+      extHoursRateGroup?.classList.remove("d-none");
+      offDayDAGroup?.classList.remove("d-none");
+      countryGroup?.classList.remove("d-none");
+      currencyGroup?.classList.remove("d-none");
+    } else {
+      daTypeGroup?.classList.add("d-none");
+      extHoursThresholdGroup?.classList.add("d-none");
+      extHoursRateGroup?.classList.add("d-none");
+      offDayDAGroup?.classList.add("d-none");
+      countryGroup?.classList.add("d-none");
+      currencyGroup?.classList.add("d-none");
+    }
   }
 
   // Bind toggle triggers
-  document.getElementById("id_location")?.addEventListener("change", toggleFields);
+  document.getElementById("id_location_type")?.addEventListener("change", toggleFields);
   document.getElementById("id_project_type")?.addEventListener("change", toggleFields);
   toggleFields(); // Initial call
 
-  // Fetch and populate country DA rate values
-  document.getElementById("id_country_rate")?.addEventListener("change", function () {
-    const countryId = this.value;
-    if (!countryId) return;
-
-    fetch(`/project/ajax/get-country-rates/?country_id=${countryId}`)
-      .then(res => res.json())
-      .then(data => {
-        document.getElementById("id_da_rate_per_hour").value = data.da_rate_per_hour || '';
-        document.getElementById("id_extra_hour_rate").value = data.extra_hour_rate || '';
-        document.getElementById("id_currency").value = data.currency || '';
-      });
-  });
-
-  // Skill mapping section
+    // Skill mapping section
   const mainSkillDropdown = document.getElementById('main_skill');
   const subskillDropdown = document.getElementById('subskill');
   const addSkillBtn = document.getElementById('add-skill-btn');

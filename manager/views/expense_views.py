@@ -1,21 +1,19 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required, permission_required
 from django.http import HttpResponse
 from django.contrib import messages
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from expenses.models import Expense
-from accounts.access_control import is_manager
 from employee.models import EmployeeProfile
 from expenses.models import AdvanceRequest
-
 
 
 def get_reportees(user):
     return EmployeeProfile.objects.filter(reporting_manager=user)
 
-@user_passes_test(is_manager)
 @login_required
+@permission_required('timesheet.can_approve')
 def expense_approval_dashboard(request):
     reportees = get_reportees(request.user)
 
@@ -55,8 +53,8 @@ def expense_approval_dashboard(request):
 
 
 
-@user_passes_test(is_manager)
 @login_required
+@permission_required('timesheet.can_approve')
 def expense_approvals(request):
     reportees = get_reportees(request.user)
     pending_exp = Expense.objects.filter(status='SUBMITTED', employee__in=reportees)
@@ -66,8 +64,8 @@ def expense_approvals(request):
     context = {'expenses': pending_exp, 'current_page': 'expenses'}
     return render(request, 'manager/expense_approvals.html', context)
 
-@user_passes_test(is_manager)
 @login_required
+@permission_required('timesheet.can_approve')
 def handle_expense_action(request, expense_id, action):
     expense = get_object_or_404(Expense, id=expense_id)
 
@@ -93,35 +91,3 @@ def handle_expense_action(request, expense_id, action):
             expense.status = 'Rejected'
             expense.manager_remark = remark
             messages.success(request, "Expense rejected.")
-            notify_employee(expense, 'Rejected', remark)
-
-        else:
-            messages.error(request, "Invalid action.")
-            return redirect('manager:expense-approval')
-
-        expense.save()
-        return redirect('manager:expense-approval')
-
-    return redirect('manager:expense-approval')
-
-
-def notify_employee(expense, action, remark):
-    subject = f"Your expense has been {action}"
-    message = f"""
-Dear {expense.employee.user.get_full_name()},
-
-Your expense submitted on {expense.date} for project '{expense.project.name}' has been {action.lower()} by your manager.
-
-Manager Remark:
-{remark or 'No remarks provided.'}
-
-Regards,
-Accounts Team
-"""
-    send_mail(
-        subject,
-        message,
-        'noreply@yourcompany.com',
-        [expense.employee.user.email],
-        fail_silently=True,
-    )

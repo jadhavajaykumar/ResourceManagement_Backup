@@ -1,16 +1,15 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required, permission_required
 from django.http import JsonResponse
 from ..models import TaskAssignment
 from employee.models import EmployeeProfile
 from project.models import Task
 from ..forms import TaskAssignmentForm
 from django.db import transaction
-from accounts.access_control import is_manager_or_admin, is_manager
 
 
 @login_required
-@user_passes_test(is_manager)
+@permission_required('timesheet.can_approve')
 def assign_task(request):
     assignments = TaskAssignment.objects.select_related('employee__user', 'project', 'task').order_by('-assigned_date')
 
@@ -36,14 +35,6 @@ def assign_task(request):
             if form.is_valid():
                 form.save()
                 if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-                    return JsonResponse({'success': True})
-                return redirect('manager:assign-task')
-            else:
-                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-                    return JsonResponse({'success': False, 'errors': form.errors})
-                # Re-render page if normal POST fails validation
-                return render(request, 'manager/assign_task.html', {
-                    'form': form,
                     'assignments': assignments,
                 })
 
@@ -69,8 +60,9 @@ def assign_task(request):
 
 from django.contrib.auth.decorators import login_required
 
-@user_passes_test(is_manager)
+
 @login_required
+@permission_required('timesheet.can_approve')
 def load_tasks(request):
     project_id = request.GET.get('project')
     employee_id = request.GET.get('employee')
@@ -93,8 +85,8 @@ def load_tasks(request):
     
     return JsonResponse(list(tasks.values('id', 'name')), safe=False)
 
-@user_passes_test(is_manager)
 @login_required
+@permission_required('timesheet.can_approve')
 def load_assignments_ajax(request):
     assignments = TaskAssignment.objects.select_related('employee__user', 'project', 'task').order_by('-assigned_date')
     data = [

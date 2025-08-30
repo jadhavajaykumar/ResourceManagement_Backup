@@ -9,7 +9,7 @@ from employee.models import EmployeeProfile
 from expenses.forms import ExpenseForm, AdvanceRequestForm
 from django.db.models import Sum, Prefetch, Q
 from collections import defaultdict
-
+from accounts.access_control import is_manager
 
 @login_required
 def unified_expense_dashboard(request):
@@ -49,8 +49,16 @@ def unified_expense_dashboard(request):
     }
 
     # Reviewer/settlement flags for templates
-    is_reviewer = bool(user.is_staff or role in ["Manager", "Accountant", "Account Manager", "Account_Manager"])
-    can_settle_da = bool(user.is_staff or role in ["Account Manager", "Account_Manager"])
+    is_reviewer = bool(
+        user.has_perm('timesheet.can_approve')
+        or is_manager(user)
+        or role in ["Manager", "Accountant", "Account Manager", "Account_Manager"]
+    )
+    can_settle_da = bool(
+        user.has_perm('timesheet.can_approve')
+        or is_manager(user)
+        or role in ["Account Manager", "Account_Manager"]
+    )
 
     # ------------------------------- Latest advance (for modal messaging only) -------------------------------
     latest_advance = AdvanceRequest.objects.filter(
@@ -183,7 +191,10 @@ def unified_expense_dashboard(request):
         da_entries = da_entries.filter(employee_id=selected_employee)
 
     # ------------------------------- DA Subtabs (NEW) -------------------------------
-    # Approved DA = manager-approved but NOT settled (unreimbursed and no settlement_date)
+    # Pending DA = awaiting approval
+    pending_da = da_entries.filter(approved=False, rejected=False)
+
+    # Approved DA = manager/accountant-approved but NOT settled
     approved_da = da_entries.filter(
         approved=True,
     ).filter(
@@ -222,6 +233,7 @@ def unified_expense_dashboard(request):
         "settled_advances": advances.filter(status="Settled"),
 
         # NEW: DA subtabs
+        "pending_da": pending_da,
         "approved_da": approved_da,
         "settled_da": settled_da,
 
@@ -237,7 +249,7 @@ def unified_expense_dashboard(request):
 
     # --- Account Manager inline settlement summary (approved & unsettled) ---
     am_settlement_summary = None
-    if role in ["Account Manager", "Account_Manager"] or request.user.is_staff:
+    if role in ["Account Manager", "Account_Manager"] or request.user.has_perm('timesheet.can_approve') or is_manager(request.user):
         exp_base = Expense.objects.select_related("employee__user", "project").filter(
             status="Approved"
         )
@@ -326,5 +338,9 @@ def unified_expense_dashboard(request):
         "can_settle_da": can_settle_da,
         "today": now().date(),
         "am_settlement_summary": am_settlement_summary,
-        "is_account_manager": bool(role in ["Account Manager", "Account_Manager"] or request.user.is_staff),
+        "is_account_manager": bool(
+            role in ["Account Manager", "Account_Manager"]
+            or request.user.has_perm('timesheet.can_approve')
+            or is_manager(request.user)
+        ),
     })

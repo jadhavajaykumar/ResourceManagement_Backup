@@ -1,15 +1,16 @@
 # expenses/views/expense_approval.py
 from django.shortcuts import redirect, get_object_or_404
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from ..models import Expense
-from accounts.access_control import is_manager_or_admin
+
 
 
 @login_required
+@user_passes_test(lambda u: u.has_perm('expenses.can_settle') or u.has_perm('timesheet.can_approve'))
 def approve_expense(request, expense_id):
     expense = get_object_or_404(Expense, id=expense_id)
-    if request.user.role in ['Manager', 'Accountant']:
+    if request.user.has_perm('expenses.can_settle') or request.user.has_perm('timesheet.can_approve'):
         if 'reject' in request.GET:
             expense.status = 'Rejected'
             messages.success(request, f"Expense {expense.id} rejected.")

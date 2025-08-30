@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, resolve_url
 from expenses.models import DailyAllowance
 from django.urls import reverse
 
+
 def _back_to_dashboard(request):
     # 1) honor explicit next from the form (best UX, keeps you on DA tab)
     next_url = request.POST.get("next")
@@ -22,20 +23,17 @@ def _back_to_dashboard(request):
 
 def _can_review(user):
     role = getattr(getattr(user, "employeeprofile", None), "role", None) or getattr(user, "role", None)
-    return user.is_staff or role in {"Manager", "Accountant", "Account Manager", "Account_Manager"}
+    return user.has_perm('timesheet.can_approve') or role in {"Manager", "Accountant", "Account Manager", "Account_Manager"}
     
 # granular role checks
 def _is_manager(user):
-    role = getattr(getattr(user, "employeeprofile", None), "role", None) or getattr(user, "role", None)
-    return role == "Manager"
+    return user.has_perm('timesheet.can_approve')
 
 def _is_accountant(user):
-    role = getattr(getattr(user, "employeeprofile", None), "role", None) or getattr(user, "role", None)
-    return role == "Accountant"
+    return user.has_perm('expenses.can_settle')
 
 def _is_account_manager(user):
-    role = getattr(getattr(user, "employeeprofile", None), "role", None) or getattr(user, "role", None)
-    return role in {"Account Manager", "Account_Manager"}    
+    return user.has_perm('expenses.can_settle')    
     
     
 
@@ -125,5 +123,54 @@ def delete_weekend_da(request, pk):
 
     da.delete()
     messages.warning(request, "Weekend DA deleted.")
+    return redirect(_back_to_dashboard(request))
+    
+@login_required
+@require_POST
+def approve_da(request, pk):
+    da = get_object_or_404(DailyAllowance, pk=pk)
+
+    if not _can_review(request.user):
+        messages.error(request, "You are not allowed to approve this DA.")
+        return redirect(_back_to_dashboard(request))
+
+    if da.approved or getattr(da, "rejected", False):
+        messages.info(request, "This DA has already been decided.")
+        return redirect(_back_to_dashboard(request))
+
+    if hasattr(da, "mark_approved"):
+        da.mark_approved(user=request.user, remark="Approved")
+    else:
+        da.approved = True
+        if hasattr(da, "rejected"):
+            da.rejected = False
+        da.save(update_fields=["approved"] + (["rejected"] if hasattr(da, "rejected") else []))
+
+    messages.success(request, "Daily Allowance approved.")
+    return redirect(_back_to_dashboard(request))
+
+
+@login_required
+@require_POST
+def reject_da(request, pk):
+    da = get_object_or_404(DailyAllowance, pk=pk)
+
+    if not _can_review(request.user):
+        messages.error(request, "You are not allowed to reject this DA.")
+        return redirect(_back_to_dashboard(request))
+
+    if da.approved or getattr(da, "rejected", False):
+        messages.info(request, "This DA has already been decided.")
+        return redirect(_back_to_dashboard(request))
+
+    if hasattr(da, "mark_rejected"):
+        da.mark_rejected(user=request.user, remark="Rejected")
+    else:
+        da.approved = False
+        if hasattr(da, "rejected"):
+            da.rejected = True
+        da.save(update_fields=["approved"] + (["rejected"] if hasattr(da, "rejected") else []))
+
+    messages.warning(request, "Daily Allowance rejected.")
     return redirect(_back_to_dashboard(request))
 

@@ -6,13 +6,17 @@ from django.shortcuts import get_object_or_404, redirect
 from django.contrib import messages
 from django.urls import reverse
 from datetime import date
-
+from accounts.access_control import is_manager
 from expenses.models import DailyAllowance
 from expenses.services.da_settlement_service import settle_da
 
 def _is_account_manager(user):
     role = getattr(getattr(user, "employeeprofile", None), "role", None) or getattr(user, "role", None)
-    return user.is_staff or role in {"Account Manager", "Account_Manager"}
+     return (
+        user.has_perm('timesheet.can_approve')
+        or is_manager(user)
+        or role in {"Account Manager", "Account_Manager"}
+    )
 
 def _back_to_da_tab(request):
     nxt = request.POST.get("next")

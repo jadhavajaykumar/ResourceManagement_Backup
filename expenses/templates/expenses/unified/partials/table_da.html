@@ -76,10 +76,10 @@
         <!-- Actions -->
         <td class="text-end">
           {% if show_actions %}
-            {% if da.is_weekend and da.auto_generated and not da.timesheet %}
-              {# Manager-only actions for weekend auto entries #}
-              {% if viewer_role == 'Manager' %}
-                {% if not da.approved and not da.rejected %}
+            {% if not da.approved and not da.rejected %}
+              {% if da.is_weekend and da.auto_generated and not da.timesheet %}
+                {# Manager-only actions for weekend auto entries #}
+                {% if viewer_role == 'Manager' %}
                   <form method="post" action="{% url 'expenses:da_weekend_approve' da.id %}" class="d-inline">
                     {% csrf_token %}
                     <input type="hidden" name="next" value="{% url 'expenses:unified-expense-dashboard' %}?tab=da">
@@ -95,17 +95,27 @@
                     <input type="hidden" name="next" value="{% url 'expenses:unified-expense-dashboard' %}?tab=da">
                     <button class="btn btn-sm btn-outline-secondary">Delete</button>
                   </form>
-                {% endif %}
-              {% elif viewer_role == 'Accountant' %}
-                {% if not da.approved and not da.rejected %}
+                {% elif viewer_role == 'Accountant' %}
                   <form method="post" action="{% url 'expenses:da_weekend_delete' da.id %}" class="d-inline">
                     {% csrf_token %}
                     <input type="hidden" name="next" value="{% url 'expenses:unified-expense-dashboard' %}?tab=da">
                     <button class="btn btn-sm btn-outline-secondary">Delete</button>
                   </form>
                 {% endif %}
+				{% else %}
+                <form method="post" action="{% url 'expenses:da_approve' da.id %}" class="d-inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="next" value="{% url 'expenses:unified-expense-dashboard' %}?tab=da">
+                  <button class="btn btn-sm btn-success">Approve</button>
+                </form>
+                <form method="post" action="{% url 'expenses:da_reject' da.id %}" class="d-inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="next" value="{% url 'expenses:unified-expense-dashboard' %}?tab=da">
+                  <button class="btn btn-sm btn-outline-danger">Reject</button>
+                </form>
               {% endif %}
             {% endif %}
+			
           {% endif %}
         </td>
       </tr>

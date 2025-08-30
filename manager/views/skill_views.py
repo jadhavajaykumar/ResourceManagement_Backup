@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required, permission_required
 from django.http import JsonResponse, HttpResponse
 from django.contrib import messages
 from django.views.decorators.http import require_POST
@@ -7,7 +7,6 @@ from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 import csv
 import logging
-from accounts.access_control import is_manager_or_admin, is_manager
 
 
 from manager.forms import AssignSkillForm, MainSkillForm, SubSkillForm
@@ -19,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 @login_required
-@user_passes_test(is_manager)
+@permission_required('timesheet.can_approve')
 def assign_skills(request):
     try:
         form = AssignSkillForm()
@@ -45,18 +44,7 @@ def assign_skills(request):
                 sub_form = SubSkillForm(request.POST)
                 if sub_form.is_valid():
                     sub_form.save()
-                    messages.success(request, "Subskill added successfully.")
-                    return redirect('manager:assign-skills')
-
-        employees = EmployeeProfile.objects.all()
-        assigned_skills = EmployeeSkill.objects.select_related('employee', 'main_skill', 'subskill')
-        
-        # Calculate percentage for each skill for progress bar
-        for skill in assigned_skills:
-            skill.percentage = (skill.rating / 4) * 100  # 🟢 Attach computed field
-
-        # Build dynamic matrix
-        main_skills = MainSkill.objects.prefetch_related('subskills').all()
+@@ -60,100 +59,100 @@ def assign_skills(request):
         employee_matrix = []
         for emp in employees:
             skills = assigned_skills.filter(employee=emp)
@@ -82,7 +70,7 @@ def assign_skills(request):
         return redirect('manager:manager-dashboard')
 
 @login_required
-@user_passes_test(is_manager)
+@permission_required('timesheet.can_approve')
 def load_subskills(request):
     main_skill_id = request.GET.get('main_skill_id') or request.GET.get('main_skill')
     subskills = SubSkill.objects.filter(main_skill_id=main_skill_id).values('id', 'name')
@@ -90,7 +78,7 @@ def load_subskills(request):
 
 
 @login_required
-@user_passes_test(is_manager)
+@permission_required('timesheet.can_approve')
 def export_skill_matrix(request):
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="skill_matrix.csv"'
@@ -110,7 +98,7 @@ def export_skill_matrix(request):
     return response
 
 @login_required
-@user_passes_test(is_manager)
+@permission_required('timesheet.can_approve')
 def get_employee_skill_data(request):
     employee_id = request.GET.get('employee_id')
     try:
@@ -131,7 +119,7 @@ def get_employee_skill_data(request):
 @csrf_exempt  # Optional: Use only if your AJAX isn't including CSRF (ideally, fix that instead)
 @require_POST
 @login_required
-@user_passes_test(is_manager)
+@permission_required('timesheet.can_approve')
 def edit_skill_assignment(request):
     employee_id = request.POST.get('employee_id')
     ratings_dict = request.POST.getlist('ratings')
@@ -157,9 +145,3 @@ def edit_skill_assignment(request):
                         emp_skill.save()
                     except (SubSkill.DoesNotExist, ValueError):
                         continue
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)})
-
-    return JsonResponse({'success': True})
-    
-    

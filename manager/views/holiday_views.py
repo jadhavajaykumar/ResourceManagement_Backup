@@ -2,13 +2,13 @@
 
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
 from timesheet.models import Attendance
-from accounts.access_control import is_manager_or_admin
 from datetime import date
 
-@user_passes_test(is_manager_or_admin)
 @login_required
+@permission_required('timesheet.can_approve')
 def manage_holidays(request):
     holidays = Attendance.objects.filter(employee__isnull=True, status='Holiday').order_by('-date')
 
@@ -34,7 +34,3 @@ def manage_holidays(request):
             messages.success(request, "Holiday deleted.")
 
         return redirect('manager:manage-holidays')
-
-    return render(request, 'manager/manage_holidays.html', {
-        'holidays': holidays
-    })

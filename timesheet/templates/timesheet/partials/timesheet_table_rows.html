@@ -1,0 +1,48 @@
+<table class="table table-bordered table-striped table-hover mt-4">
+  <thead class="table-dark">
+    <tr>
+      <th>Date</th>
+      <th>Employee</th>
+      <th>Project</th>
+      <th>Time</th>
+      <th>Task</th>
+      <th>Description</th>
+      <th>Status</th>
+      <th>Actions</th>
+    </tr>
+	<tr><td colspan="8">DEBUG VERSION LOADED</td></tr>
+
+  </thead>
+  <tbody>
+    {% for ts in timesheets %}
+      {% for slot in ts.time_slots.all %}
+        <tr>
+          {% if forloop.first %}
+            <td rowspan="{{ ts.time_slots.count }}">{{ ts.date }}</td>
+            <td rowspan="{{ ts.time_slots.count }}">{{ ts.employee.user.get_full_name }}</td>
+          {% endif %}
+          <td>{{ slot.project.name }}</td>
+          <td>{{ slot.time_from }} - {{ slot.time_to }}</td>
+          <td>{{ slot.task.name }}</td>
+          <td>{{ slot.description }}</td>
+          {% if forloop.first %}
+            <td rowspan="{{ ts.time_slots.count }}">{{ ts.status }}</td>
+            <td rowspan="{{ ts.time_slots.count }}">
+			  <form method="post" action="{% url 'timesheet:handle-timesheet-action' ts.id 'approve' %}">
+                {% csrf_token %}
+                <input type="text" name="manager_remark" class="form-control mb-1" placeholder="Remark" required>
+                <button type="submit" class="btn btn-success btn-sm w-100 mb-1">Approve</button>
+			  <form method="post" action="{% url 'timesheet:handle-timesheet-action' ts.id 'reject' %}">
+                {% csrf_token %}
+                <input type="text" name="manager_remark" class="form-control mb-1" placeholder="Remark" required>
+                <button type="submit" class="btn btn-danger btn-sm w-100">Reject</button>
+              </form>
+            </td>
+          {% endif %}
+        </tr>
+      {% endfor %}
+    {% empty %}
+      <tr><td colspan="8" class="text-center">No pending timesheets.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>

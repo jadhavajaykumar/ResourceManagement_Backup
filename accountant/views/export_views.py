@@ -3,11 +3,10 @@ from django.http import HttpResponse
 from expenses.models import AdvanceRequest, Expense
 from employee.models import EmployeeProfile
 from django.db.models import Sum
-from django.contrib.auth.decorators import login_required, user_passes_test
-from accountant.views.common import is_accountant
+from django.contrib.auth.decorators import login_required, permission_required
 
 @login_required
-@user_passes_test(is_accountant)
+@permission_required('expenses.can_settle')
 def export_advance_expense_summary(request):
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="advance_expense_summary.csv"'
@@ -33,5 +32,3 @@ def export_advance_expense_summary(request):
             f"{total_used:.2f}",
             f"{balance:.2f}"
         ])
-
-    return response

@@ -176,7 +176,7 @@
     </div>
 
 	{% endif %}
-	{% if request.user.is_superuser %}
+	{% if perms.timesheet.can_approve %}
 	<!-- SECTION 4: Delete Timesheet, DA, C-Off Data -->
 	<!-- SECTION: Delete Timesheet, DA, C-Off Data -->
 	<div class="card shadow-sm mt-5">

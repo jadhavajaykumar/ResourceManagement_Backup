@@ -1,10 +1,12 @@
 # project/services/da_utils.py
 
 from collections import defaultdict
+from datetime import timedelta
 from decimal import Decimal
 
-from expenses.models import DailyAllowance
-from timesheet.models import TimeSlot  # kept even if unused elsewhere
+
+
+from timesheet.models import TimeSlot, Timesheet  # kept even if unused elsewhere
 from project.services.da_service import (
     calculate_da,
     ensure_weekend_for_timesheet,     # ensure Sat/Sun in same week
@@ -64,7 +66,7 @@ def generate_da_for_timesheet(timesheet):
                     "is_weekend": (slot_date.weekday() in (5, 6)),
                     "auto_generated": False,
                     "source": "TIMESHEET",
-                    "approved": True,  # your existing behavior for timesheet-derived DA
+                    "approved": False,  # require explicit approval for timesheet-derived DA
                     "reimbursed": False,
                     "forwarded_to_accountant": False,
                     "forwarded_to_accountmanager": False,
@@ -102,11 +104,7 @@ def generate_da_for_timesheet(timesheet):
                 da.is_extended = new_is_extended
                 update_fields.append("is_extended")
 
-            # For timesheet-derived DA, ensure approved=True
-            if da.approved is False:
-                da.approved = True
-                update_fields.append("approved")
-
+            
             if update_fields:
                 try:
                     da.save(update_fields=update_fields)
@@ -124,3 +122,70 @@ def generate_da_for_timesheet(timesheet):
         ensure_weekend_from_bridge(timesheet)
     except Exception as e:
         print(f"Bridge weekend DA ensure failed for TS#{timesheet.id}: {e}")
+
+
+def create_weekend_da_entries(timesheet):
+    """Create DA entries for Saturday and Sunday preceding a Monday timesheet.
+
+    If the employee worked on the same project on the previous Friday and the
+    project is Domestic/International, insert DA rows for Saturday and Sunday.
+    Domestic projects get ₹600/day; International use ``off_day_da_rate``.
+    Newly created entries are marked ``approved=False`` and ``auto_generated``.
+    """
+    if not timesheet or timesheet.date.weekday() != 0:  # Only for Mondays
+        return
+
+    employee = timesheet.employee
+    friday_date = timesheet.date - timedelta(days=3)
+    saturday = timesheet.date - timedelta(days=2)
+    sunday = timesheet.date - timedelta(days=1)
+
+    friday_ts = (
+        Timesheet.objects.filter(employee=employee, date=friday_date, status="Approved")
+        .prefetch_related("time_slots__project__location_type")
+        .first()
+    )
+    if not friday_ts:
+        return
+
+    mon_projects = {s.project for s in timesheet.time_slots.all() if s.project}
+    fri_projects = {s.project for s in friday_ts.time_slots.all() if s.project}
+
+    common_projects = [p for p in mon_projects if p in fri_projects]
+    if not common_projects:
+        return
+
+    for project in common_projects:
+        location = getattr(getattr(project, "location_type", None), "name", "")
+        if location == "Domestic":
+            amount = Decimal("600")
+        elif location == "International":
+            amount = project.off_day_da_rate or Decimal("0")
+        else:
+            continue
+
+        currency = getattr(project, "currency", None) or "INR"
+
+        for d in (saturday, sunday):
+            da, created = DailyAllowance.objects.get_or_create(
+                employee=employee,
+                project=project,
+                date=d,
+                defaults={
+                    "da_amount": Decimal(str(amount)),
+                    "currency": currency,
+                    "is_extended": False,
+                    "is_weekend": True,
+                    "auto_generated": True,
+                    "source": "WEEKEND",
+                    "approved": False,
+                    "reimbursed": False,
+                    "forwarded_to_accountant": False,
+                    "forwarded_to_accountmanager": False,
+                    "timesheet": timesheet,
+                },
+            )
+
+            if not created and da.timesheet_id != timesheet.id:
+                da.timesheet = timesheet
+                da.save(update_fields=["timesheet"])

@@ -1,7 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required, permission_required
 from django.http import JsonResponse
-from django.core.exceptions import PermissionDenied
 import logging
 import json
 
@@ -9,27 +8,24 @@ from .models import Project, Task, Subtask
 from .forms import ProjectForm, TaskForm, CountryRateForm
 from .services.project_skill_service import save_required_skills
 from .services.country_service import get_country_rate_details
-from manager.models import MainSkill
+try:
+    from manager.models import MainSkill
+except ImportError:  # Manager app removed
+    MainSkill = None
 from expenses.models import CountryDARate
 # project/views.py
-
-
+from accounts.access_control import is_manager
 
 logger = logging.getLogger(__name__)
 
-def is_manager(user):
-    if not user.is_authenticated:
-        return False
-    if user.role == 'Manager' or user.is_superuser:
-        return True
-    raise PermissionDenied
-
+def has_project_access(user):
+    return user.has_perm('timesheet.can_approve') or is_manager(user)
 
 @login_required
-@user_passes_test(is_manager)
+@user_passes_test(has_project_access)
 def project_dashboard(request):
     projects = Project.objects.prefetch_related('tasks', 'tasks__subtasks', 'required_skills').all()
-
+    #main_skills = MainSkill.objects.all()
     if request.method == 'POST':
         if 'add_project' in request.POST:
             project_id = request.POST.get('project_id')
@@ -46,7 +42,13 @@ def project_dashboard(request):
                 save_required_skills(new_project, selected_skills)
                 return redirect('project:project-dashboard')
             else:
-                return JsonResponse({'success': False, 'errors': project_form.errors})
+                task_form = TaskForm()
+                return render(request, 'project/project_dashboard.html', {
+                    'projects': projects,
+                    'project_form': project_form,
+                    'task_form': task_form,
+                    'main_skills': main_skills,
+                })
 
         elif 'add_task' in request.POST:
             task_form = TaskForm(request.POST)
@@ -54,11 +56,18 @@ def project_dashboard(request):
                 task_form.save()
                 return redirect('project:project-dashboard')
             else:
-                return JsonResponse({'success': False, 'errors': task_form.errors})
+                project_form = ProjectForm()
+                return render(request, 'project/project_dashboard.html', {
+                    'projects': projects,
+                    'project_form': project_form,
+                    'task_form': task_form,
+                    'main_skills': main_skills,
+                })
 
     project_form = ProjectForm()
     task_form = TaskForm()
-    main_skills = MainSkill.objects.all()
+    main_skills = MainSkill.objects.all() if MainSkill else []
+   
 
     return render(request, 'project/project_dashboard.html', {
         'projects': projects,
@@ -69,7 +78,7 @@ def project_dashboard(request):
 
 
 @login_required
-@user_passes_test(is_manager)
+@user_passes_test(has_project_access)
 def edit_task(request, task_id):
     task = get_object_or_404(Task, id=task_id)
     if request.method == 'POST':
@@ -83,7 +92,7 @@ def edit_task(request, task_id):
 
 
 @login_required
-@user_passes_test(is_manager)
+@user_passes_test(has_project_access)
 def delete_project(request, project_id):
     project = get_object_or_404(Project, id=project_id)
     project.delete()
@@ -91,7 +100,7 @@ def delete_project(request, project_id):
 
 
 @login_required
-@user_passes_test(is_manager)
+@user_passes_test(has_project_access)
 def delete_task(request, task_id):
     task = get_object_or_404(Task, id=task_id)
     task.delete()
@@ -107,7 +116,7 @@ def get_country_rates(request):
 
 
 @login_required
-@user_passes_test(is_manager)
+@user_passes_test(has_project_access)
 def manage_country_rates(request):
     rates = CountryDARate.objects.all()
     form = CountryRateForm(request.POST or None)
@@ -123,7 +132,7 @@ def manage_country_rates(request):
 
 
 @login_required
-@user_passes_test(is_manager)
+@user_passes_test(has_project_access)
 def edit_project(request, project_id):
     project = get_object_or_404(Project, id=project_id)
     if request.method == 'POST':

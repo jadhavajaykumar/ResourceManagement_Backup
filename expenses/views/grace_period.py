@@ -2,13 +2,13 @@
 
 from django.shortcuts import render, redirect
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required, permission_required
 from ..forms import GracePeriodForm
 from ..models import SystemSettings
 from accounts.access_control import is_manager_or_admin
 
 @login_required
-@user_passes_test(is_manager_or_admin)
+@permission_required('timesheet.can_approve')
 def manage_expense_settings(request):
     settings_obj, _ = SystemSettings.objects.get_or_create(id=1)
 

@@ -2,7 +2,11 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .models import EmployeeProfile
-from manager.models import EmployeeSkill, TaskAssignment
+try:
+    from manager.models import EmployeeSkill, TaskAssignment
+except ImportError:  # Manager app removed
+    EmployeeSkill = None
+    TaskAssignment = None
 from .forms import EmployeeProfileForm
 
 from .models import LeaveBalance
@@ -45,11 +49,11 @@ def edit_profile(request):
             user_role = request.user.role  # Always use CustomUser.role
 
             if user_role == 'Manager':
-                return redirect('manager:manager-dashboard')
+                return redirect('timesheet:timesheet-approval')
             elif user_role == 'HR':
                 return redirect('hr:dashboard')
             elif user_role == 'Accountant':
-                return redirect('accountant:dashboard')
+                return redirect('expenses:expense-approval-dashboard')
             elif user_role == 'Director':
                 return redirect('director:dashboard')
             else:
@@ -69,17 +73,18 @@ def employee_dashboard(request):
     profile = EmployeeProfile.objects.get(user=request.user)
     leave_balance = LeaveBalance.objects.filter(employee=profile).first()
     # Fetch recent assigned project IDs via TaskAssignment
-    recent_project_ids = (
-        TaskAssignment.objects
-        .filter(employee=profile)
-        .select_related('project')
-        .order_by('-assigned_date')
-        .values_list('project', flat=True)
-        .distinct()[:3]
-    )
-
-    # Fetch actual project objects
-    recent_projects = Project.objects.filter(id__in=recent_project_ids)
+    if TaskAssignment:
+        recent_project_ids = (
+            TaskAssignment.objects
+            .filter(employee=profile)
+            .select_related('project')
+            .order_by('-assigned_date')
+            .values_list('project', flat=True)
+            .distinct()[:3]
+        )
+        recent_projects = Project.objects.filter(id__in=recent_project_ids)
+    else:
+        recent_projects = Project.objects.none()
 
     return render(request, 'employee/employee_dashboard.html', {
         'profile': profile,  # ✅ Now passed to template
@@ -96,27 +101,30 @@ def employee_dashboard(request):
 def my_projects(request):
     profile = EmployeeProfile.objects.get(user=request.user)
 
-    assigned_project_ids = (
-        TaskAssignment.objects
-        .filter(employee=profile)
-        .values_list('project', flat=True)
-        .distinct()
-    )
+    if TaskAssignment:
+        assigned_project_ids = (
+            TaskAssignment.objects
+            .filter(employee=profile)
+            .values_list('project', flat=True)
+            .distinct()
+        )
 
-    assigned_task_ids = (
-        TaskAssignment.objects
-        .filter(employee=profile)
-        .values_list('task', flat=True)
-        .distinct()
-    )
+        assigned_task_ids = (
+            TaskAssignment.objects
+            .filter(employee=profile)
+            .values_list('task', flat=True)
+            .distinct()
+        )
 
-    tasks_qs = Task.objects.filter(id__in=assigned_task_ids).order_by('start_date')
+        tasks_qs = Task.objects.filter(id__in=assigned_task_ids).order_by('start_date')
 
-    projects = (
-        Project.objects
-        .filter(id__in=assigned_project_ids)
-        .prefetch_related(Prefetch('tasks', queryset=tasks_qs))
-    )
+        projects = (
+            Project.objects
+            .filter(id__in=assigned_project_ids)
+            .prefetch_related(Prefetch('tasks', queryset=tasks_qs))
+        )
+    else:
+        projects = Project.objects.none()
 
     return render(request, 'employee/my_projects.html', {
         'projects': projects,

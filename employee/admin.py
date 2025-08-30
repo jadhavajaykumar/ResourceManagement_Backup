@@ -53,12 +53,12 @@ class EmployeeProfileAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        if not request.user.is_superuser:
+        if not request.user.has_perm('timesheet.can_approve'):
             qs = qs.exclude(role='Admin')
         return qs
 
     def has_change_permission(self, request, obj=None):
-        if obj and obj.role == 'Admin' and not request.user.is_superuser:
+        if obj and obj.role == 'Admin' and not request.user.has_perm('timesheet.can_approve'):
             return False
         return super().has_change_permission(request, obj)
 
@@ -94,7 +94,7 @@ class EmployeeProfileAdmin(admin.ModelAdmin):
         return custom_urls + urls
 
     def role_stats_view(self, request):
-        if not request.user.is_superuser:
+        if not request.user.has_perm('timesheet.can_approve'):
             messages.error(request, "You don't have permission to view this page")
             return redirect('admin:index')
             

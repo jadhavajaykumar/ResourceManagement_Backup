@@ -1,0 +1,199 @@
+{% extends 'base.html' %}
+{% load dict_extras_acc %}
+
+{% block content %}
+<div class="container mt-4">
+  <h3 class="mb-4 text-primary">Expense & DA Approval Dashboard</h3>
+
+  <!-- Filter Section -->
+  <form method="get" class="row g-3 mb-4">
+    <div class="col-md-3">
+      <label for="project">Project</label>
+      <select name="project" id="project" class="form-select">
+        <option value="">All</option>
+        {% for proj in projects %}
+          <option value="{{ proj.project__id }}" {% if request.GET.project == proj.project__id|stringformat:"s" %}selected{% endif %}>
+            {{ proj.project__name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label for="start_date">From Date</label>
+      <input type="date" name="start_date" class="form-control" value="{{ request.GET.start_date }}">
+    </div>
+    <div class="col-md-3">
+      <label for="end_date">To Date</label>
+      <input type="date" name="end_date" class="form-control" value="{{ request.GET.end_date }}">
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+      <button class="btn btn-primary">Apply Filters</button>
+    </div>
+  </form>
+
+  <!-- Export -->
+  <div class="mb-3 text-end">
+    <form method="get" id="exportForm" action="">
+      <input type="hidden" name="project" value="{{ request.GET.project }}">
+      <input type="hidden" name="from_date" value="{{ request.GET.from_date }}">
+      <input type="hidden" name="to_date" value="{{ request.GET.to_date }}">
+      <button type="submit" class="btn btn-outline-success">Export Excel</button>
+    </form>
+  </div>
+
+  <!-- Tabs -->
+  <ul class="nav nav-tabs mb-3" id="approvalTabs" role="tablist">
+    {% for tab in tab_names %}
+      <li class="nav-item" role="presentation">
+		  <button class="nav-link {% if forloop.first %}active{% endif %}" id="{{ tab }}-tab" data-bs-toggle="tab" data-bs-target="#{{ tab }}-tab-pane" type="button" role="tab">
+			  {% if tab == "submitted" %}Submitted{% else %}{{ tab|capfirst }}{% endif %}
+			</button>
+      </li>
+    {% endfor %}
+  </ul>
+
+  <!-- Tab Content -->
+  <div class="tab-content" id="approvalTabContent">
+    {% for tab in tab_names %}
+      <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" id="{{ tab }}-tab-pane" role="tabpanel">
+        <table class="table table-bordered table-striped table-sm">
+			<thead class="table-light">
+				<tr>
+					<th>ID</th>
+					<th>Employee</th>
+					<th>Date</th>
+					<th>Project</th>
+					<th>Type</th>
+					<th>Amount</th>
+					<th>From</th>
+					<th>To</th>
+					<th>Receipt</th>
+					<th>Status</th>
+					<th>Actions</th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for expense in tabbed_expenses|get_item:tab %}
+				<tr>
+					<td>{{ expense.id }}</td>
+					<td>{{ expense.employee.user.get_full_name }}</td>
+					<td>{{ expense.date }}</td>
+					<td>{{ expense.project.name }}</td>
+					<td>{{ expense.new_expense_type.name }}</td>
+					<td>₹{{ expense.amount }}</td>
+					<td>{{ expense.from_location|default_if_none:"-" }}</td>
+					<td>{{ expense.to_location|default_if_none:"-" }}</td>
+					
+					<td>
+						{% if expense.receipt %}
+							<a href="{{ expense.receipt }}" target="_blank">View</a>
+						{% else %}
+							-
+						{% endif %}
+						
+					</td>
+					<td>{{ expense.status }}</td>
+					<td>
+						<form method="post" action="{% url 'expenses:expense-action' expense.id 'approve' %}" style="display:inline;">
+							{% csrf_token %}
+							<button type="submit" class="btn btn-success btn-sm">Approve</button>
+						</form>
+
+						<form method="post" action="{% url 'expenses:expense-action' expense.id 'reject' %}" style="display:inline;">
+							{% csrf_token %}
+							<button type="submit" class="btn btn-danger btn-sm">Reject</button>
+						</form>
+
+					</td>
+				</tr>
+				{% endfor %}
+			</tbody>
+
+		</table>
+
+      </div>
+    {% endfor %}
+  </div>
+  
+  <h4 class="mt-5">Pending Daily Allowances</h4>
+  <table class="table table-bordered table-striped table-sm">
+    <thead class="table-light">
+      <tr>
+        <th>ID</th>
+        <th>Employee</th>
+        <th>Date</th>
+        <th>Project</th>
+        <th>Amount</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for da in pending_das %}
+        <tr>
+          <td>{{ da.id }}</td>
+          <td>{{ da.employee.user.get_full_name }}</td>
+          <td>{{ da.date }}</td>
+          <td>{{ da.project.name }}</td>
+          <td>{{ da.da_amount }} {{ da.currency }}</td>
+          <td>
+            <form method="post" action="{% url 'accountant:approve-da' da.id %}" style="display:inline;">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-success btn-sm">Approve</button>
+            </form>
+            <form method="post" action="{% url 'accountant:reject-da' da.id %}" style="display:inline;">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-danger btn-sm">Reject</button>
+            </form>
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="6" class="text-center text-muted">No pending Daily Allowances.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Approval Modal -->
+  <div class="modal fade" id="remarkModal" tabindex="-1">
+    <div class="modal-dialog">
+      <form method="post" id="remarkForm">
+        {% csrf_token %}
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Add Remark</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <textarea name="remark" class="form-control" required></textarea>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">Submit</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  function updateExportLink() {
+    const activeTab = document.querySelector('.nav-link.active').id.replace('-tab', '');
+    const exportForm = document.getElementById('exportForm');
+    exportForm.action = `/expenses/approval/export/${activeTab}/`;
+  }
+
+  updateExportLink();
+  document.querySelectorAll('.nav-link').forEach(btn => {
+    btn.addEventListener('click', () => setTimeout(updateExportLink, 200));
+  });
+
+  function openRemarkModal(expenseId, action) {
+    const form = document.getElementById('remarkForm');
+    form.action = `/expenses/approval/${expenseId}/${action}/`;
+    document.querySelector('#remarkForm textarea').value = "";
+    new bootstrap.Modal(document.getElementById('remarkModal')).show();
+  }
+</script>
+{% endblock %}

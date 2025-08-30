@@ -1,17 +1,16 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, permission_required
 from datetime import date
 from employee.models import EmployeeProfile
 from timesheet.models import Attendance
-from django.contrib.auth.decorators import login_required, user_passes_test
-from accounts.access_control import is_manager_or_admin, is_manager
-@user_passes_test(is_manager)
+
+
+
 @login_required
+@permission_required('timesheet.can_approve')
 def mark_absent_dashboard(request):
-    if not request.user.is_manager:
-        messages.error(request, "Access denied.")
-        return redirect('dashboard')
+    if not (request.user.has_perm('timesheet.can_approve') or is_manager(request.user)):
 
     employees = EmployeeProfile.objects.all()
     context = {'employees': employees}

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Dashboard</h1>
+<ul>
+  {% for item in menu_items %}
+    <li><a href="{{ item.url }}">{{ item.label }}</a></li>
+  {% empty %}
+    <li>No available menus.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

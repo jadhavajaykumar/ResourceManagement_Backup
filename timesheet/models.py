@@ -31,11 +31,7 @@ class Attendance(models.Model):
 
     def __str__(self):
         return f"{self.employee.user.get_full_name()} - {self.date} - {self.status}"
-        
-        
-
-   
-     
+          
 
 class TimeSlot(models.Model):
     """Represents a time slot within a shift"""
@@ -86,6 +82,10 @@ class Timesheet(models.Model):
     daily_allowance_currency = models.CharField(max_length=10, null=True, blank=True)
     rejection_reason = models.TextField(blank=True, null=True)
     rejected_at = models.DateTimeField(blank=True, null=True)
+    class Meta:
+        permissions = [
+            ("can_approve", "Can approve timesheets"),
+        ]
 
     def get_total_hours(self):
         """

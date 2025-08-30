@@ -7,7 +7,7 @@ def get_effective_role(user):
         profile = EmployeeProfile.objects.get(user=user)
         return normalize_role(profile.role)
     except EmployeeProfile.DoesNotExist:
-        if hasattr(user, 'is_staff') and user.is_staff:
+        if user.has_perm('timesheet.can_approve'):
             profile = EmployeeProfile.objects.create(user=user, role='Manager')
             return 'Manager'
         return 'Employee'
@@ -17,25 +17,10 @@ def normalize_role(role):
     return role.strip().replace(" ", "")
 
 def get_dashboard_redirect_url(user):
-    role = get_effective_role(user)
 
-    role_redirects = {
-        'Employee': 'employee:employee-dashboard',
-        'Manager': 'manager:manager-dashboard',
-        'HR': 'hr:dashboard',
-        'Accountant': 'accountant:dashboard',
-        'Director': 'director:dashboard',
-        'Admin': '/admin/',
-        'AccountManager': 'accountmanager:dashboard',  # key normalized
-    }
-
-    destination = role_redirects.get(role, 'employee:employee-dashboard')
-
-    # If it's a namespaced view, reverse it
-    if isinstance(destination, str) and ':' in destination:
-        return reverse(destination)
-
-    return destination  # For hardcoded paths like '/admin/'
+    """Return the unified dashboard home for all users."""
+    return reverse("dashboard:home")
+  
 
 # Role check helpers (also normalized)
 def is_manager(user):
