@@ -4,6 +4,7 @@ from expenses.views.unified_expense_dashboard import unified_expense_dashboard
 from .views import (
     profile_home, edit_profile,
     employee_dashboard,
+    employee_list, employee_create,
     my_projects,
     attendance_report,
     advance_views
@@ -14,6 +15,8 @@ from employee.views.advance_views import raise_advance_request
 app_name = 'employee'
 
 urlpatterns = [
+    path('list/', employee_list, name='employee-list'),
+    path('add/', employee_create, name='add-employee'),
     path('profile/', profile_home, name='employee-profile-home'),
     path('edit-profile/', edit_profile, name='edit-profile'),
     path('dashboard/', employee_dashboard, name='employee-dashboard'),

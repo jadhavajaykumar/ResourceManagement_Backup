@@ -42,21 +42,25 @@ def home(request):
     # Common for all users
     common = [
         item("My Profile",    "bi-person-circle",       ["accounts:profile"]),
-        item("My Projects",   "bi-kanban",              ["project:project_list", "project:projects", "project:home"]),
-        item("My Timesheet",  "bi-calendar-check",      ["timesheet:timesheet-dashboard", "timesheet:dashboard"]),
+        item("My Projects",   "bi-kanban",              ["project:project-dashboard", "employee:my-projects"]),
+        item("My Timesheet",  "bi-calendar-check",      ["timesheet:my-timesheets"]),
         item("Expenses & DA", "bi-cash-coin",           ["expenses:unified-expense-dashboard"]),
-        item("Documents",     "bi-file-earmark",        ["docgen:home"]),
-        item("Skills",        "bi-stars",               ["skills:home", "skills:skills-home"]),
+        item("Documents",     "bi-file-earmark",        ["docgen:list-templates"]),
+        item("Skills",        "bi-stars",               ["skills:skills-home"]),
     ]
 
     # Manager / Approver features
     manager = []
     if is_manager or can_ts_approve:
         manager.append(item("Timesheet Approvals", "bi-clipboard-check",
-                            ["timesheet:approvals", "timesheet:manager-approvals"]))
+                            [
+                                "timesheet:timesheet-approval",
+                                "timesheet:timesheet-approvals",
+                                "timesheet:filtered-timesheet-approvals",
+                            ]))
     if is_manager or can_exp_approve:
         manager.append(item("Expense Approvals", "bi-cash-stack",
-                            ["expenses:approvals", "expenses:expense-approvals"]))
+                            ["expenses:expense-approval-dashboard"]))
 
     # Account Manager
     am = []
@@ -67,8 +71,9 @@ def home(request):
     # HR
     hr = []
     if is_hr or is_staff:
-        hr.append(item("People Directory", "bi-people", ["employee:list", "employee:employees"]))
-        hr.append(item("Add Employee", "bi-person-plus", ["employee:add"]))
+        hr.append(item("People Directory", "bi-people", ["employee:employee-list"]))
+        hr.append(item("Add Employee", "bi-person-plus", ["employee:add-employee"]))
+        
 
     # Admin/Director
     admin = []

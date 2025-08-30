@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Employee Directory{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Employee Directory</h1>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Employee ID</th>
+                <th>Role</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for emp in employees %}
+            <tr>
+                <td>{{ emp.user.get_full_name }}</td>
+                <td>{{ emp.employee_id }}</td>
+                <td>{{ emp.role }}</td>
+            </tr>
+        {% empty %}
+            <tr>
+                <td colspan="3">No employees found.</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
