@@ -1,16 +1,15 @@
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 from timesheet.utils.slot_utils import generate_time_slots
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, PermissionDenied
 from datetime import datetime, time, timedelta, date
-from employee.models import EmployeeProfile
-from project.models import Project, Task
-from expenses.models import DailyAllowance
+from django.shortcuts import render, redirect, get_object_or_404
 from timesheet.services.approval_service import approve_or_reject_timesheet
 from timesheet.services.export_service import export_timesheets_to_csv
 from project.services.da_service import calculate_da
@@ -24,55 +23,52 @@ from timesheet.utils.styled_calendar import StyledCalendar
 from django.db.models import Min, Max
 from django.db import transaction
 from timesheet.utils.time_utils import get_current_slot
-from .models import CompOffApplication
+from ..models import CompOffApplication
 from django.db.models import Q
 
 from accounts.access_control import is_manager
 
-from employee.models import LeaveBalance
+
 from timesheet.utils.calendar_utils import get_timesheet_calendar_data
 from timesheet.utils.calculate_attendance import calculate_attendance
 from timesheet.utils.get_calendar_entries import get_calendar_entries
-from manager.models import TaskAssignment
-from employee.models import AuditLog
-from .services.timesheet_service import process_timesheet_save
+
+from ..services.timesheet_service import process_timesheet_save
 import json
 import math
 from django.forms import modelformset_factory
 from datetime import datetime, timedelta, date as date_class, time as time_class
 from django.http import JsonResponse  # if not already imported
-from .forms import TimesheetForm, TimeSlotForm
+from ..forms import TimesheetForm, TimeSlotForm
 
 from django.contrib.admin.views.decorators import staff_member_required
 
-from timesheet.models import Timesheet, CompensatoryOff, CompOffBalance, TimeSlot, Attendance, Timesheet, TimeSlot
+from timesheet.models import (
+    Timesheet,
+    CompensatoryOff,
+    CompOffBalance,
+    TimeSlot,
+    Attendance,
+)
 
-#from timesheet.utils import generate_time_slots  # ensure this is correct
-import logging
+
 
 @login_required
 def load_tasks_for_employee(request):
     
-    slot.timesheet = updated_entry
-                slot.slot_date = updated_entry.date  # ✅ Fixed for C-Off eligibility
-                slot.save()
+    project_id = request.GET.get("project")
+    if not project_id:
+        return JsonResponse([], safe=False)
 
-            for deleted_form in formset.deleted_objects:
-                deleted_form.delete()
+    from skills.models import TaskAssignment
+    from project.models import Task
 
-            messages.success(request, "Timesheet resubmitted for approval.")
-            return redirect('timesheet:my-timesheets')
-        else:
-            print("Form or formset invalid")
-    else:
-        form = TimesheetForm(instance=timesheet, employee=employee)
-        formset = TimeSlotFormSet(queryset=timesheet.time_slots.all(), form_kwargs={'employee': employee})
-
-    return render(request, 'timesheet/resubmit_timesheet.html', {
-        'form': form,
-        'formset': formset,
-        'original_entry': timesheet
-    })
+    employee = request.user.employeeprofile
+    task_ids = TaskAssignment.objects.filter(
+        employee=employee, project_id=project_id
+    ).values_list("task_id", flat=True)
+    tasks = Task.objects.filter(id__in=task_ids).values("id", "name")
+    return JsonResponse(list(tasks), safe=False)
 
 
 
@@ -169,8 +165,10 @@ def resubmit_timesheet(request, pk):
 
 
 #Comp off application approval
-@login_required 
+@login_required
 def comp_off_approval_view(request):
+    from employee.models import LeaveBalance
+
     if not (request.user.has_perm('timesheet.can_approve') or is_manager(request.user)):
         messages.error(request, "Access denied.")
         return redirect('dashboard')
@@ -254,6 +252,8 @@ def merge_timesheets_for_employee(employee, project, date):
 
 @login_required
 def my_timesheets(request):
+    from project.models import Project
+    
     employee = request.user.employeeprofile
 
     # ✅ Fix: use working project assignment logic
@@ -425,6 +425,8 @@ def edit_timesheet(request, pk):
     
 @login_required
 def delete_timesheet(request, timesheet_id):
+    from expenses.models import DailyAllowance
+    
     try:
         timesheet = get_object_or_404(
             Timesheet,
@@ -555,6 +557,9 @@ def submit_timesheet(request):
 @staff_member_required  # only admins
 @login_required
 def delete_employee_timesheet_data(request, employee_id):
+    from employee.models import EmployeeProfile
+    from expenses.models import DailyAllowance
+    
     manager = request.user
     employee = get_object_or_404(EmployeeProfile, id=employee_id)
 
@@ -593,5 +598,4 @@ def delete_employee_timesheet_data(request, employee_id):
         'start_date': start_date,
         'end_date': end_date
     })
-
     

@@ -3,8 +3,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .models import EmployeeProfile
 try:
-    from manager.models import EmployeeSkill, TaskAssignment
-except ImportError:  # Manager app removed
+    from skills.models import EmployeeSkill, TaskAssignment
+except ImportError:  # Skills app may not be installed
     EmployeeSkill = None
     TaskAssignment = None
 from .forms import EmployeeProfileForm

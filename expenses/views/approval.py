@@ -1,11 +1,15 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.decorators import (
+    login_required,
+    permission_required,
+    user_passes_test,
+    )   
 from django.views.decorators.http import require_POST
 from django.contrib import messages
 from collections import defaultdict
 from django.db.models import Sum
 from expenses.models import AdvanceAdjustmentLog
-
+from accounts.access_control import is_accountant
 from utils.currency import format_currency
 import io
 import xlsxwriter
@@ -203,7 +207,7 @@ def approve_daily_allowance(request, da_id):
 
 
 @login_required
-@user_passes_test(is_accountant)
+@permission_required('expenses.can_approve')
 @require_POST
 def reject_daily_allowance(request, da_id):
     da = get_object_or_404(DailyAllowance, id=da_id)

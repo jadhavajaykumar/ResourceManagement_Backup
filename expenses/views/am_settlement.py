@@ -8,13 +8,16 @@ from django.urls import reverse
 from employee.models import EmployeeProfile
 from expenses.services.settlement_summary import build_unsettled_summary, settle_everything_for_employee
 from accounts.access_control import is_manager
+
+
 def _is_account_manager(user):
     role = getattr(getattr(user, "employeeprofile", None), "role", None) or getattr(user, "role", None)
-     return bool(
-        user.has_perm('timesheet.can_approve')
+    return bool(
+        user.has_perm("timesheet.can_approve")
         or is_manager(user)
         or role in ["Account Manager", "Account_Manager"]
-    ))
+    )
+
 
 @login_required
 def am_unsettled_summary(request):
@@ -33,10 +36,15 @@ def am_unsettled_summary(request):
         for emp, data in summary.items()
     ]
 
-    return render(request, "expenses/am_unsettled_summary.html", {
-        "rows": rows,
-        "today": now().date(),
-    })
+    return render(
+        request,
+        "expenses/am_unsettled_summary.html",
+        {
+            "rows": rows,
+            "today": now().date(),
+        },
+    )
+
 
 @login_required
 @require_POST

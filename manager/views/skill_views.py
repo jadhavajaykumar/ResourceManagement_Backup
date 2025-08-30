@@ -10,7 +10,7 @@ import logging
 
 
 from manager.forms import AssignSkillForm, MainSkillForm, SubSkillForm
-from manager.models import MainSkill, SubSkill, EmployeeSkill
+from skills.models import MainSkill, SubSkill, EmployeeSkill
 from employee.models import EmployeeProfile
 
 logger = logging.getLogger(__name__)

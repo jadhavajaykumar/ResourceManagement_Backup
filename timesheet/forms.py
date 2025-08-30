@@ -4,8 +4,8 @@ from django.utils import timezone
 from .models import Timesheet, TimeSlot
 from project.models import Project, Task
 try:
-    from manager.models import TaskAssignment
-except ImportError:  # Manager app removed
+    from skills.models import TaskAssignment
+except ImportError:  # Skills app may not be installed
     TaskAssignment = None
 from datetime import datetime, timedelta
 from expenses.models import GlobalExpenseSettings, EmployeeExpenseGrace

@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import JsonResponse
 import logging
 import json
@@ -9,8 +9,8 @@ from .forms import ProjectForm, TaskForm, CountryRateForm
 from .services.project_skill_service import save_required_skills
 from .services.country_service import get_country_rate_details
 try:
-    from manager.models import MainSkill
-except ImportError:  # Manager app removed
+    from skills.models import MainSkill
+except ImportError:  # Skills app may not be installed
     MainSkill = None
 from expenses.models import CountryDARate
 # project/views.py

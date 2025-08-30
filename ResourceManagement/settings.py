@@ -19,8 +19,9 @@ INSTALLED_APPS = [
     #'accountant',
     'project',
     'expenses',
-    'timesheet',
+    'timesheet.apps.TimesheetConfig',
     #'manager',
+    'skills.apps.SkillsConfig',
     'import_export',
     'widget_tweaks',
     'crispy_forms',
@@ -47,7 +48,7 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',x
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]

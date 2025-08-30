@@ -1,12 +1,59 @@
 {% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block extra_styles %}
+<style>
+  .dash-header { display:flex; align-items:center; justify-content:space-between; gap:1rem; }
+  .card-link { text-decoration:none; color:inherit; }
+  .feature-card {
+    border:0; border-radius:1rem; box-shadow:0 6px 18px rgba(0,0,0,.06);
+    transition: transform .15s ease, box-shadow .15s ease, opacity .2s ease;
+    height:100%;
+    background: var(--bs-body-bg);
+  }
+  .feature-card:hover { transform: translateY(-3px); box-shadow:0 10px 24px rgba(0,0,0,.10); }
+  .feature-card.disabled { opacity:.55; pointer-events:none; }
+  .feature-icon {
+    width:44px; height:44px; display:grid; place-items:center;
+    border-radius:.75rem; background:var(--bs-secondary-bg, #f1f3f5);
+    font-size:1.25rem;
+  }
+  .section-title { font-size: .95rem; letter-spacing:.02em; color: var(--bs-secondary-color); margin: 1.5rem 0 .75rem; }
+</style>
+{% endblock %}
 
 {% block content %}
-<h1>Dashboard</h1>
-<ul>
-  {% for item in menu_items %}
-    <li><a href="{{ item.url }}">{{ item.label }}</a></li>
-  {% empty %}
-    <li>No available menus.</li>
-  {% endfor %}
-</ul>
+<div class="dash-header mb-3">
+  <div>
+    <h3 class="text-primary m-0">Welcome</h3>
+    <div class="text-muted small">Unified dashboard — features unlocked by your access level</div>
+  </div>
+</div>
+
+{% for section in sections %}
+  <div class="section-title">{{ section.label }}</div>
+  <div class="row g-3 mb-2">
+    {% for it in section.items %}
+      <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+        <a class="card-link" href="{{ it.url }}">
+          <div class="feature-card card {% if not it.enabled %}disabled{% endif %}">
+            <div class="card-body d-flex align-items-start gap-3">
+              <div class="feature-icon">
+                <i class="bi {{ it.icon }}"></i>
+              </div>
+              <div>
+                <div class="fw-semibold">{{ it.title }}</div>
+                {% if not it.enabled %}
+                  <div class="text-muted small">Not configured yet</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </a>
+      </div>
+    {% endfor %}
+  </div>
+{% endfor %}
 {% endblock %}

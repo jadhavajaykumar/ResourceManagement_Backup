@@ -12,11 +12,11 @@ from expenses.services.da_settlement_service import settle_da
 
 def _is_account_manager(user):
     role = getattr(getattr(user, "employeeprofile", None), "role", None) or getattr(user, "role", None)
-     return (
+    return (
         user.has_perm('timesheet.can_approve')
         or is_manager(user)
         or role in {"Account Manager", "Account_Manager"}
-    )
+        )
 
 def _back_to_da_tab(request):
     nxt = request.POST.get("next")

@@ -6,8 +6,8 @@ from employee.services.project_access import get_assigned_projects_with_tasks
 from project.models import Project, Task
 from django.db.models import Prefetch
 try:
-    from manager.models import TaskAssignment
-except ImportError:  # Manager app removed
+    from skills.models import TaskAssignment
+except ImportError:  # Skills app may not be installed
     TaskAssignment = None
 
 

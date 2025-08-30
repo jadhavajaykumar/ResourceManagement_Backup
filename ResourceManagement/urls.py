@@ -26,6 +26,7 @@ urlpatterns = [
     #path('accountant/', include('accountant.urls')),
     path('unified-expenses/', unified_expense_dashboard, name='unified-expense-dashboard'),
     path('dashboard/', include(('dashboard.urls', 'dashboard'), namespace='dashboard')),
+    path('skills/', include('skills.urls')),
     
     
 

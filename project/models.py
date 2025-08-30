@@ -1,4 +1,5 @@
 from django.db import models
+#from skills.models import MainSkill, SubSkill
 
 class ProjectType(models.Model):
     name = models.CharField(max_length=100)
@@ -120,8 +121,8 @@ class ProjectExpensePolicy(models.Model):
 
 class ProjectRequiredSkill(models.Model):
     project = models.ForeignKey('Project', on_delete=models.CASCADE, related_name='required_skills')
-    main_skill = models.ForeignKey('manager.MainSkill', on_delete=models.CASCADE)
-    subskill = models.ForeignKey('manager.SubSkill', on_delete=models.CASCADE)
+    main_skill = models.ForeignKey('skills.MainSkill', on_delete=models.PROTECT, related_name='project_requirements')
+    subskill   = models.ForeignKey('skills.SubSkill',   on_delete=models.PROTECT, related_name='project_requirements')
 
     def __str__(self):
         return f"{self.project.name} → {self.main_skill.name} → {self.subskill.name}"
