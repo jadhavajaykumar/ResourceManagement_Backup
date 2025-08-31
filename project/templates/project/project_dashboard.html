@@ -9,18 +9,13 @@
 
   <!-- Add Buttons -->
   <div class="d-flex justify-content-start mb-3">
-    <button class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#addProjectModal">
+    <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#addProjectModal">
       <i class="fa fa-plus-circle"></i> Add Project
     </button>
-    <button class="btn btn-info me-2" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+    <button type="button" class="btn btn-info me-2" data-bs-toggle="modal" data-bs-target="#addTaskModal">
       <i class="fa fa-tasks"></i> Add Task
     </button>
-    <form method="post" action="{% url 'accounts:profile' %}">
-      {% csrf_token %}
-      <!--<button type="submit" class="btn btn-secondary">
-        <i class="bi bi-house me-2"></i>Dashboard
-      </button>-->
-    </form>
+    
   </div>
 
   <!-- Filter Block (if activated in future) -->
@@ -49,6 +44,7 @@
     const projectModal = new bootstrap.Modal(document.getElementById('addProjectModal'));
     projectModal.show();
   </script>
+  <script src="{% static 'js/add_project_modal.js' %}"></script>
   {% endif %}
   {% if task_form.errors %}
   <script>

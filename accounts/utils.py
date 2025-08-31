@@ -15,7 +15,7 @@ def get_dashboard_redirect_url(user):
     # Unified landing for all roles
     return _try([
         "dashboard:home",
-        "accounts:profile",
+        #"accounts:profile",
         "expenses:unified-expense-dashboard",
     ])        
 

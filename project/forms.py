@@ -33,8 +33,8 @@ class CountryRateForm(forms.ModelForm):
 
 
 class ProjectForm(forms.ModelForm):
-    start_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
-    end_date = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date'}))
+    start_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}))
+    end_date = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}))
 
     class Meta:
         model = Project
@@ -59,14 +59,14 @@ class ProjectForm(forms.ModelForm):
             'daily_rate': 'Standard daily charge for Service-based projects.',
          }
 
-    def clean(self):
-        cleaned_data = super().clean()
-        project_type = cleaned_data.get('project_type')
-        location = cleaned_data.get('location_type')
-
-        project_type_name = project_type.name.lower() if project_type else ""
-        location_name = location.name.lower() if location else ""
-
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            existing_classes = field.widget.attrs.get('class', '')
+            classes = existing_classes.split()
+            if 'form-control' not in classes:
+                classes.append('form-control')
+            field.widget.attrs['class'] = ' '.join(classes)
         if project_type_name == 'service':
             if not cleaned_data.get('rate_type'):
                 self.add_error('rate_type', 'Billing method is required for service projects.')

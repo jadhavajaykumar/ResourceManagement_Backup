@@ -1,8 +1,9 @@
+# accounts/urls.py
 from django.urls import path
 from employee.views.attendance_views import attendance_c_off_report
 from expenses.views.unified_expense_dashboard import unified_expense_dashboard
 from .views import (
-    profile_home, edit_profile,
+    edit_profile,
     employee_dashboard,
     employee_list, employee_create,
     my_projects,
@@ -10,6 +11,9 @@ from .views import (
     advance_views
 )
 from employee.views.advance_views import raise_advance_request
+from employee.views.profile_views import profile_home
+
+
 
 
 app_name = 'employee'

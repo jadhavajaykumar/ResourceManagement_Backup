@@ -41,8 +41,8 @@ def home(request):
 
     # Common for all users
     common = [
-        item("My Profile",    "bi-person-circle",       ["accounts:profile"]),
-        item("My Projects",   "bi-kanban",              ["project:project-dashboard", "employee:my-projects"]),
+        item("My Profile",    "bi-person-circle",       ["employee:employee-profile-home"]),
+        item("My Projects",   "bi-kanban",              ["employee:my-projects"]),
         item("My Timesheet",  "bi-calendar-check",      ["timesheet:my-timesheets"]),
         item("Expenses & DA", "bi-cash-coin",           ["expenses:unified-expense-dashboard"]),
         item("Documents",     "bi-file-earmark",        ["docgen:list-templates"]),
@@ -61,6 +61,10 @@ def home(request):
     if is_manager or can_exp_approve:
         manager.append(item("Expense Approvals", "bi-cash-stack",
                             ["expenses:expense-approval-dashboard"]))
+                            
+    if is_manager or is_director or is_staff:
+        manager.append(item("Add New Projects/Tasks", "bi-kanban",
+                            ["project:project-dashboard"]))                        
 
     # Account Manager
     am = []

@@ -13,13 +13,15 @@ try:
 except ImportError:  # Skills app may not be installed
     MainSkill = None
 from expenses.models import CountryDARate
-# project/views.py
-from accounts.access_control import is_manager
 
 logger = logging.getLogger(__name__)
 
 def has_project_access(user):
-    return user.has_perm('timesheet.can_approve') or is_manager(user)
+    return (
+        user.has_perm("timesheet.can_approve")
+        or user.groups.filter(name="Director").exists()
+        or user.is_staff
+    )
 
 @login_required
 @user_passes_test(has_project_access)

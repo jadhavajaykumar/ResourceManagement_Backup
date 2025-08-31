@@ -19,10 +19,10 @@
     <button type="submit" class="btn">Save Changes</button>
 </form>
 
-						<form method="post" action="{% url 'accounts:profile' %}">
-							{% csrf_token %}
-							<button type="submit" class="btn btn-secondary btn-lg shadow-sm">
-								<i class="bi bi-house me-2"></i>Dashboard
-							</button>
-						</form>
+	  <form method="post" action="{% url 'dashboard:home' %}">
+        {% csrf_token %}
+            <button type="submit" class="btn btn-secondary btn-lg shadow-sm">
+                <i class="bi bi-house me-2"></i>Dashboard
+            </button>
+      </form>
 {% endblock %}
