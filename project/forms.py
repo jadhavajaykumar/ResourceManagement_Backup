@@ -60,38 +60,45 @@ class ProjectForm(forms.ModelForm):
          }
 
     def __init__(self, *args, **kwargs):
+        project_type = kwargs.pop("project_type", None)
         super().__init__(*args, **kwargs)
+        
+        project_type = project_type or getattr(self.instance, "project_type", None)
+        project_type_name = project_type.name.lower() if project_type else ""
+        location = getattr(self.instance, "location_type", None)
+        location_name = location.name.lower() if location else ""
+        
         for field in self.fields.values():
             existing_classes = field.widget.attrs.get('class', '')
             classes = existing_classes.split()
             if 'form-control' not in classes:
                 classes.append('form-control')
             field.widget.attrs['class'] = ' '.join(classes)
-        if project_type_name == 'service':
-            if not cleaned_data.get('rate_type'):
-                self.add_error('rate_type', 'Billing method is required for service projects.')
-            if not cleaned_data.get('rate_value'):
-                self.add_error('rate_value', 'Rate value is required for service projects.')
+            
+    
+    def clean(self):
+        cleaned_data = super().clean()
 
-        if project_type_name == 'turnkey':
-            if not cleaned_data.get('budget'):
-                self.add_error('budget', 'Budget is required for Turnkey projects.')
+        project_type = cleaned_data.get('project_type')
+        project_type_name = project_type.name.lower() if project_type else ''
+
+        location_type = cleaned_data.get('location_type')
+        location_name = location_type.name.lower() if location_type else ''
+        
+        if project_type_name == 'service':
+            self.fields['rate_type'].required = True
+            self.fields['rate_value'].required = True
+        elif project_type_name == 'turnkey':
+            self.fields['budget'].required = True
 
         if location_name in ['local', 'domestic', 'international']:
-            if not cleaned_data.get('da_rate_per_unit'):
-                self.add_error('da_rate_per_unit', 'DA rate per day is required.')
+            self.fields['da_rate_per_unit'].required = True
 
         if location_name == 'international':
-            if not cleaned_data.get('da_type'):
-                self.add_error('da_type', 'DA type is required for international projects.')
-            if not cleaned_data.get('extended_hours_threshold'):
-                self.add_error('extended_hours_threshold', 'Threshold is required for extra hours DA.')
-            if not cleaned_data.get('extended_hours_da_rate'):
-                self.add_error('extended_hours_da_rate', 'Extra hours DA rate is required.')
-            if not cleaned_data.get('off_day_da_rate'):
-                self.add_error('off_day_da_rate', 'Off-day DA is required for international projects.')
-
-        return cleaned_data
+            self.fields['da_type'].required = True
+            self.fields['extended_hours_threshold'].required = True
+            self.fields['extended_hours_da_rate'].required = True
+            self.fields['off_day_da_rate'].required = True
 
 
 

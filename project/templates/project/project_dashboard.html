@@ -39,12 +39,12 @@
 
 {% block scripts %}
   <script src="{% static 'js/project.js' %}"></script>
+  <script src="{% static 'js/add_project_modal.js' %}"></script>
   {% if project_form.errors %}
   <script>
-    const projectModal = new bootstrap.Modal(document.getElementById('addProjectModal'));
-    projectModal.show();
+    const addProjectModal = new bootstrap.Modal(document.getElementById('addProjectModal'));
+    addProjectModal.show();
   </script>
-  <script src="{% static 'js/add_project_modal.js' %}"></script>
   {% endif %}
   {% if task_form.errors %}
   <script>
