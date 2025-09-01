@@ -1,7 +1,8 @@
 from django import forms
+from django.forms import inlineformset_factory
 from expenses.models import CountryDARate
 import pycountry
-from .models import Project, LocationType, ProjectType, ProjectStatus, Task, Subtask
+from .models import Project, LocationType, ProjectType, ProjectStatus, Task, Subtask, ProjectMaterial
 
 
 CURRENCY_CHOICES = [(c.alpha_3, f"{c.name} ({c.alpha_3})") for c in pycountry.currencies]
@@ -29,12 +30,35 @@ class CountryRateForm(forms.ModelForm):
         fields = ['country', 'currency', 'da_rate_per_hour', 'extra_hour_rate']
 
 
+class ProjectMaterialForm(forms.ModelForm):
+    class Meta:
+        model = ProjectMaterial
+        fields = ['name', 'make', 'quantity', 'price']
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            existing_classes = field.widget.attrs.get('class', '')
+            classes = existing_classes.split()
+            if 'form-control' not in classes:
+                classes.append('form-control')
+            field.widget.attrs['class'] = ' '.join(classes)
+
+
+ProjectMaterialFormSet = inlineformset_factory(
+    Project,
+    ProjectMaterial,
+    form=ProjectMaterialForm,
+    extra=1,
+    can_delete=True,
+)
 
 
 class ProjectForm(forms.ModelForm):
     start_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}))
     end_date = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}))
+    customer_start_date = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}))
+    customer_end_date = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}))
 
     class Meta:
         model = Project
@@ -46,6 +70,7 @@ class ProjectForm(forms.ModelForm):
             'extended_hours_da_rate': 'Extra Hours DA Rate',
             'extended_hours_threshold': 'Extra Hours Threshold (Weekly)',
             'off_day_da_rate': 'Weekend Off-Day DA',
+            'is_onsite': 'Employee onsite',
          }
         help_texts = {
             'rate_type': 'Choose how you will bill the customer – per hour or per day.',
@@ -71,8 +96,12 @@ class ProjectForm(forms.ModelForm):
         for field in self.fields.values():
             existing_classes = field.widget.attrs.get('class', '')
             classes = existing_classes.split()
-            if 'form-control' not in classes:
-                classes.append('form-control')
+            if isinstance(field, forms.BooleanField):
+                if 'form-check-input' not in classes:
+                    classes.append('form-check-input')
+            else:
+                if 'form-control' not in classes:
+                    classes.append('form-control')
             field.widget.attrs['class'] = ' '.join(classes)
             
     
@@ -84,21 +113,51 @@ class ProjectForm(forms.ModelForm):
 
         location_type = cleaned_data.get('location_type')
         location_name = location_type.name.lower() if location_type else ''
-        
+        is_onsite = cleaned_data.get('is_onsite')
         if project_type_name == 'service':
             self.fields['rate_type'].required = True
             self.fields['rate_value'].required = True
+            for f in [
+                'customer_rate_type',
+                'customer_rate_value',
+                'customer_currency',
+                'customer_da_rate_type',
+                'customer_da_rate_value',
+                'customer_weekend_rate',
+                'customer_start_date',
+                'customer_end_date',
+            ]:
+                self.fields[f].required = True
         elif project_type_name == 'turnkey':
             self.fields['budget'].required = True
+            for f in ['quoted_hours', 'quoted_days', 'quoted_price']:
+                self.fields[f].required = True
 
-        if location_name in ['local', 'domestic', 'international']:
+        if location_name in ['local', 'domestic']:
+            self.fields['da_rate_per_unit'].required = True
+        elif location_name == 'international' and is_onsite:
             self.fields['da_rate_per_unit'].required = True
 
-        if location_name == 'international':
             self.fields['da_type'].required = True
             self.fields['extended_hours_threshold'].required = True
             self.fields['extended_hours_da_rate'].required = True
             self.fields['off_day_da_rate'].required = True
+                    
+                    
+        customer_start = cleaned_data.get('customer_start_date')
+        customer_end = cleaned_data.get('customer_end_date')
+        if customer_start and customer_end and customer_end < customer_start:
+            self.add_error('customer_end_date', 'Customer end date cannot be earlier than start date.')
 
+        return cleaned_data   
+
+# Formset for project materials
+ProjectMaterialFormSet = inlineformset_factory(
+    Project,
+    ProjectMaterial,
+    fields=['name', 'make', 'quantity', 'price'],
+    extra=1,
+    can_delete=True,
+)        
 
 

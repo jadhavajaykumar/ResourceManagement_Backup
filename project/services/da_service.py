@@ -25,7 +25,10 @@ def _eligible_projects_from_timesheet(ts):
         if not p:
             continue
         loc = getattr(getattr(p, 'location_type', None), 'name', '')
-        if str(loc).upper() in {'DOMESTIC', 'INTERNATIONAL'}:
+        loc_upper = str(loc).upper()
+        if loc_upper == 'DOMESTIC':
+            elig.add(p)
+        elif loc_upper == 'INTERNATIONAL' and getattr(p, 'is_onsite', False):
             elig.add(p)
     return elig
 
@@ -177,23 +180,24 @@ def calculate_da(slot) -> Tuple[Decimal, str]:
 
     # Default currency fallback
     currency = getattr(project, 'currency', None) or "INR"
-
+    if location_type == "Office":
+        return Decimal("0.0"), currency
     if location_type == "Local":
         # Local project DA: flat rate per day (your current rule)
         return Decimal("300.00"), currency
 
-    elif location_type == "Domestic":
-        # Domestic project DA: ₹600 per day (your current rule)
+    if location_type == "Domestic":
         return Decimal("600.00"), currency
 
-    elif location_type == "International":
-        # Weekend / off-day DA (Sat/Sun) - when actually worked on weekend
+    if location_type == "International":
+        if not getattr(project, 'is_onsite', False):
+            return Decimal("0.0"), currency
         if weekday in [5, 6] and total_hours > 0:
             return (getattr(project, 'off_day_da_rate', None) or Decimal("0.0")), currency
 
         if da_type == "Hourly":
             return da_rate * Decimal(str(total_hours)), currency
-        elif da_type == "Daily":
+        if da_type == "Daily":
             return da_rate, currency
 
     # Fallback (config incomplete)
@@ -207,9 +211,14 @@ def _is_weekend(d: date) -> bool:
     return d.weekday() in WEEKEND_DAYS
 
 def _eligible_for_weekend_da(project) -> bool:
-    """Weekend entitlement applies only to Domestic / International."""
+    """Weekend entitlement applies only to Domestic or onsite International."""
     loc = getattr(getattr(project, 'location_type', None), 'name', '')
-    return str(loc).upper() in {"DOMESTIC", "INTERNATIONAL"}
+    loc_upper = str(loc).upper()
+    if loc_upper == 'DOMESTIC':
+        return True
+    if loc_upper == 'INTERNATIONAL':
+        return getattr(project, 'is_onsite', False)
+    return False
 
 def _weekend_entitlement_amount(project) -> Tuple[Decimal, str]:
     """
@@ -226,7 +235,7 @@ def _weekend_entitlement_amount(project) -> Tuple[Decimal, str]:
     if str(loc) == "Domestic":
         return Decimal("600.00"), currency
 
-    if str(loc) == "International":
+    if str(loc) == "International" and getattr(project, 'is_onsite', False):
         off_day = getattr(project, 'off_day_da_rate', None)
         if off_day:
             return off_day, currency

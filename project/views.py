@@ -5,7 +5,7 @@ import logging
 import json
 
 from .models import Project, Task, Subtask
-from .forms import ProjectForm, TaskForm, CountryRateForm
+from .forms import ProjectForm, TaskForm, CountryRateForm, ProjectMaterialFormSet 
 from .services.project_skill_service import save_required_skills
 from .services.country_service import get_country_rate_details
 try:
@@ -28,14 +28,18 @@ def has_project_access(user):
 def project_dashboard(request):
     projects = Project.objects.prefetch_related('tasks', 'tasks__subtasks', 'required_skills').all()
     #main_skills = MainSkill.objects.all()
+    main_skills = MainSkill.objects.all() if MainSkill else []
     if request.method == 'POST':
         if 'add_project' in request.POST:
             project_id = request.POST.get('project_id')
             instance = Project.objects.get(id=project_id) if project_id else None
             project_form = ProjectForm(request.POST, request.FILES, instance=instance)
+            material_formset = ProjectMaterialFormSet(request.POST, instance=instance, prefix='materials')
 
-            if project_form.is_valid():
+            if project_form.is_valid() and material_formset.is_valid():
                 new_project = project_form.save()
+                material_formset.instance = new_project
+                material_formset.save()
                 selected_skills = json.loads(request.POST.get('selected_skills') or '[]')
 
                 if instance:
@@ -49,6 +53,7 @@ def project_dashboard(request):
                     'projects': projects,
                     'project_form': project_form,
                     'task_form': task_form,
+                    'material_formset': material_formset,
                     'main_skills': main_skills,
                 })
 
@@ -59,22 +64,25 @@ def project_dashboard(request):
                 return redirect('project:project-dashboard')
             else:
                 project_form = ProjectForm()
+                material_formset = ProjectMaterialFormSet(prefix='materials')
                 return render(request, 'project/project_dashboard.html', {
                     'projects': projects,
                     'project_form': project_form,
                     'task_form': task_form,
+                    'material_formset': material_formset,
                     'main_skills': main_skills,
                 })
 
     project_form = ProjectForm()
     task_form = TaskForm()
-    main_skills = MainSkill.objects.all() if MainSkill else []
+    material_formset = ProjectMaterialFormSet(prefix='materials')
    
 
     return render(request, 'project/project_dashboard.html', {
         'projects': projects,
         'project_form': project_form,
         'task_form': task_form,
+        'material_formset': material_formset,
         'main_skills': main_skills,
     })
 
@@ -139,14 +147,18 @@ def edit_project(request, project_id):
     project = get_object_or_404(Project, id=project_id)
     if request.method == 'POST':
         form = ProjectForm(request.POST, request.FILES, instance=project)
-        if form.is_valid():
+        material_formset = ProjectMaterialFormSet(request.POST, instance=project, prefix='materials')
+        if form.is_valid() and material_formset.is_valid():
             form.save()
+            material_formset.save()
             return redirect('project:project-dashboard')
     else:
         form = ProjectForm(instance=project)
+        material_formset = ProjectMaterialFormSet(instance=project, prefix='materials')
 
     return render(request, 'project/edit_project.html', {
         'form': form,
+        'material_formset': material_formset,
         'project': project
     })
 

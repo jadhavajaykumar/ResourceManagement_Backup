@@ -1,33 +1,25 @@
-
-# Register your models here.
-from django.contrib import admin
-
-# ✅ Correct (new)
-from .models import Project, Task, Subtask, ProjectExpensePolicy
 from expenses.models import CountryDARate
 from django.contrib.auth.admin import UserAdmin
 from accounts.models import CustomUser
 from django.utils.translation import gettext_lazy as _
 
 from django.contrib import admin
-from .models import Project, ProjectType, LocationType, DASetting
+from .models import (
+    Project,
+    Task,
+    Subtask,
+    ProjectExpensePolicy,
+    ProjectMaterial,
+    ProjectType,
+    LocationType,
+    DASetting,
+    ProjectStatus,
+)
 
-#admin.site.register(Project)
 admin.site.register(ProjectType)
 admin.site.register(LocationType)
 admin.site.register(DASetting)
-
-    
-
-
-#admin.site.register(Project)
-#admin.site.register(Task)
-#admin.site.register(Subtask)
-#admin.site.register(TaskAssignment)  # Add clearly
-
-#admin.site.register(ProjectExpensePolicy)
-#admin.site.register(CountryDASettings)
-
+admin.site.register(ProjectStatus)
 
 
 @admin.register(CustomUser)
@@ -50,13 +42,17 @@ class CustomUserAdmin(UserAdmin):
     search_fields = ("username", "email", "first_name", "last_name")
     ordering = ("username",)
     
+class ProjectMaterialInline(admin.TabularInline):
+    model = ProjectMaterial
+    extra = 1
+
 
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
     list_display = ['name', 'customer_name', 'project_type', 'location_type', 'status_type']  # ✅ fixed
     list_filter = ['project_type', 'location_type', 'status_type']  # ✅ fixed
-
+    inlines = [ProjectMaterialInline]
 
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):

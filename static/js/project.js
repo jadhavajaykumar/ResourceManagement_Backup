@@ -60,7 +60,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Skill mapping section
   const mainSkillDropdown = document.getElementById('main_skill');
   const subskillDropdown = document.getElementById('subskill');
-  const addSkillBtn = document.getElementById('add-skill-btn');
+  const addSkillButton = document.getElementById('add-skill-btn');
   const addedSkillsList = document.getElementById('added-skills-list');
   const selectedSkillsInput = document.getElementById('selected_skills');
   let selectedSkills = [];
@@ -84,7 +84,7 @@ document.addEventListener("DOMContentLoaded", function () {
       });
   });
 
-  addSkillBtn?.addEventListener('click', function () {
+  addSkillButton?.addEventListener('click', function () {
     const mainSkillText = mainSkillDropdown.options[mainSkillDropdown.selectedIndex]?.text;
     const mainSkillId = mainSkillDropdown.value;
     const subskillText = subskillDropdown.options[subskillDropdown.selectedIndex]?.text;

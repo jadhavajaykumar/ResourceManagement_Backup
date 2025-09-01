@@ -40,11 +40,13 @@ class Project(models.Model):
     customer_name = models.CharField(max_length=255)
     start_date = models.DateField()
     end_date = models.DateField(blank=True, null=True)
+    customer_start_date = models.DateField(blank=True, null=True)
+    customer_end_date = models.DateField(blank=True, null=True)
     description = models.TextField(blank=True, null=True)
     status_type = models.ForeignKey('ProjectStatus', on_delete=models.SET_NULL, null=True, verbose_name='Project Status')
     project_type = models.ForeignKey('ProjectType', on_delete=models.SET_NULL, null=True, verbose_name='Project Type')
     location_type = models.ForeignKey('LocationType', on_delete=models.SET_NULL, null=True, verbose_name='Project Location')
-
+    is_onsite = models.BooleanField(default=False, verbose_name='Employee onsite')
     # Country and currency
     country = models.CharField(max_length=100, blank=True, null=True)
     currency = models.CharField(max_length=10, blank=True, null=True)
@@ -71,6 +73,23 @@ class Project(models.Model):
 
     # Weekend Off-Day DA (International only)
     off_day_da_rate = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, verbose_name="Weekend Off-Day DA")
+    
+     # Customer Billing Details
+    customer_rate_type = models.CharField(max_length=10, choices=RATE_TYPE_CHOICES, blank=True, null=True)
+    customer_rate_value = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+    customer_currency = models.CharField(max_length=10, blank=True, null=True)
+
+    customer_da_rate_type = models.CharField(max_length=10, choices=DA_TYPE_CHOICES, blank=True, null=True)
+    customer_da_rate_value = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    customer_weekend_rate = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+
+    customer_start_date = models.DateField(blank=True, null=True)
+    customer_end_date = models.DateField(blank=True, null=True)
+
+    # Turnkey Quoted Values
+    quoted_hours = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    quoted_days = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    quoted_price = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
 
     def __str__(self):
         return self.name
@@ -118,6 +137,16 @@ class ProjectExpensePolicy(models.Model):
 
     def __str__(self):
         return f"Expense Policy ({self.project.name})"
+        
+class ProjectMaterial(models.Model):
+    project = models.ForeignKey('Project', related_name='materials', on_delete=models.CASCADE)
+    name = models.CharField(max_length=255)
+    make = models.CharField(max_length=255, blank=True, null=True)
+    quantity = models.PositiveIntegerField(default=1)
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    def __str__(self):
+        return f"{self.name} ({self.project.name})"        
 
 class ProjectRequiredSkill(models.Model):
     project = models.ForeignKey('Project', on_delete=models.CASCADE, related_name='required_skills')
