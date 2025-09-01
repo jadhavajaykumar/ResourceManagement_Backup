@@ -2,6 +2,7 @@ from django import forms
 from django.forms import inlineformset_factory
 from expenses.models import CountryDARate
 import pycountry
+from skills.models import TaskAssignment
 from .models import Project, LocationType, ProjectType, ProjectStatus, Task, Subtask, ProjectMaterial
 
 
@@ -24,6 +25,12 @@ class SubtaskForm(forms.ModelForm):
         model = Subtask
         fields = ['task', 'name', 'completed']
 
+
+class TaskAssignmentForm(forms.ModelForm):
+    class Meta:
+        model = TaskAssignment
+        fields = ['employee', 'project', 'task']
+        
 class CountryRateForm(forms.ModelForm):
     class Meta:
         model = CountryDARate

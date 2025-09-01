@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Project Tracking Dashboard</h1>
+<table class="table">
+  <thead>
+    <tr><th>Project</th><th>Expenses</th><th>Earnings</th><th>Days Worked</th><th>Budget Utilized (%)</th></tr>
+  </thead>
+  <tbody>
+    {% for item in projects %}
+    <tr>
+      <td>{{ item.project.name }}</td>
+      <td>{{ item.expenses }}</td>
+      <td>{{ item.earnings }}</td>
+      <td>{{ item.days_worked }}</td>
+      <td>{{ item.budget_utilized|floatformat:2 }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="5">No project data available.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

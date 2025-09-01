@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import views, assignment_views
 from .views_reporting import (
     export_project_profitability_excel,
     export_project_profitability_pdf,
@@ -34,6 +35,16 @@ urlpatterns = [
     path('report/earnings/<int:project_id>/excel/', export_timesheet_earnings_excel, name='export_timesheet_earnings_excel'),
     
     path('api/get-tasks-by-project/', get_tasks_by_project, name='get_tasks_by_project'),
+    
+    # Task assignments
+    path('assign-task/', assignment_views.assign_task, name='assign-task'),
+    path('assign-task/load-tasks/', assignment_views.load_tasks, name='load-tasks'),
+    path('assign-task/load-assignments/', assignment_views.load_assignments_ajax, name='load-assignments-ajax'),
+
+    # Project dashboards
+    path('summary/', assignment_views.project_summary_dashboard, name='project-summary-dashboard'),
+    path('tracking/', assignment_views.project_tracking_dashboard, name='project-tracking-dashboard'),
+
 ]
 
 

@@ -1,11 +1,16 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, permission_required
 from django.http import JsonResponse
-from ..models import TaskAssignment
+from django.db.models import Sum
+from datetime import datetime
+
+from skills.models import TaskAssignment
 from employee.models import EmployeeProfile
-from project.models import Task
-from ..forms import TaskAssignmentForm
-from django.db import transaction
+from .models import Project, Task
+from .forms import TaskAssignmentForm
+from .services.progress_service import calculate_project_progress
+from timesheet.models import Timesheet
+from expenses.models import Expense
 
 
 @login_required
@@ -21,11 +26,11 @@ def assign_task(request):
                 TaskAssignment.objects.filter(id=assignment_id).delete()
                 if request.headers.get('x-requested-with') == 'XMLHttpRequest':
                     return JsonResponse({'success': True})
-                return redirect('manager:assign-task')
+                return redirect('project:assign-task')
             else:
                 if request.headers.get('x-requested-with') == 'XMLHttpRequest':
                     return JsonResponse({'success': False, 'error': 'Invalid assignment ID'})
-                return redirect('manager:assign-task')
+                return redirect('project:assign-task')
 
         # Edit task assignment
         elif 'edit_task' in request.POST:
@@ -35,8 +40,8 @@ def assign_task(request):
             if form.is_valid():
                 form.save()
                 if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-                    'assignments': assignments,
-                })
+                    return JsonResponse({'success': True})
+                return redirect('project:assign-task')
 
         # New task assignment
         else:
@@ -45,7 +50,7 @@ def assign_task(request):
                 form.save()
                 if request.headers.get('x-requested-with') == 'XMLHttpRequest':
                     return JsonResponse({'success': True})
-                return redirect('manager:assign-task')
+                return redirect('project:assign-task')
             else:
                 if request.headers.get('x-requested-with') == 'XMLHttpRequest':
                     return JsonResponse({'success': False, 'errors': form.errors})
@@ -100,3 +105,44 @@ def load_assignments_ajax(request):
         for a in assignments
     ]
     return JsonResponse({'assignments': data})
+    
+@login_required
+@permission_required('timesheet.can_approve')
+def project_summary_dashboard(request):
+    projects = Project.objects.all()
+    project_data = []
+
+    for project in projects:
+        timesheets = Timesheet.objects.filter(project=project, status='Approved')
+        expenses_qs = Expense.objects.filter(project=project, status='Approved')
+        total_hours = sum(
+            (datetime.combine(t.date, t.time_to) - datetime.combine(t.date, t.time_from)).total_seconds() / 3600
+            for t in timesheets
+        )
+        total_expenses = expenses_qs.aggregate(total=Sum('amount'))['total'] or 0
+        project_data.append({
+            'project': project,
+            'total_hours': total_hours,
+            'total_expenses': total_expenses,
+        })
+
+    return render(request, 'project/project_summary_dashboard.html', {'projects': project_data})
+
+
+@login_required
+@permission_required('timesheet.can_approve')
+def project_tracking_dashboard(request):
+    projects = Project.objects.all()
+    project_data = []
+
+    for project in projects:
+        data = calculate_project_progress(project)
+        project_data.append({
+            'project': project,
+            'expenses': data['total_expense'],
+            'earnings': data['earnings'],
+            'days_worked': data['days_worked'],
+            'budget_utilized': data['budget_utilized'],
+        })
+
+    return render(request, 'project/project_tracking_dashboard.html', {'projects': project_data})    

@@ -22,6 +22,7 @@ urlpatterns = [
     #path("accountmanager/", include("accountmanager.urls")),
     path('expenses/', include(('expenses.urls', 'expenses'), namespace='expenses')),
     #path('manager/', include('manager.urls')),
+    #path('manager/', include(('manager.urls', 'manager'), namespace='manager')),
     #path('docgen/', include('docgen.urls')),
     path('docgen/', include(('docgen.urls', 'docgen'), namespace='docgen')),
     #path('accountant/', include('accountant.urls')),

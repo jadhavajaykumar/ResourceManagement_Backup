@@ -15,6 +15,6 @@ class PermissionTests(TestCase):
         response = self.client.get(reverse("timesheet:comp-off-approvals"))
         self.assertEqual(response.status_code, 302)
 
-    def test_mark_absent_requires_permission(self):
-        response = self.client.get(reverse("manager:mark-absent-dashboard"))
+    def test_assign_task_requires_permission(self):
+        response = self.client.get(reverse("project:assign-task"))
         self.assertEqual(response.status_code, 302)
