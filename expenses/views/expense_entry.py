@@ -40,6 +40,7 @@ def employee_expenses(request):
     active_tab = request.GET.get('tab', 'new_expense')
     expense_form = ExpenseForm(employee=employee)
     advance_form = AdvanceRequestForm(employee=employee)
+    expenses = Expense.objects.filter(employee=employee)
 
     if request.method == 'POST':
         if 'advance_submit' in request.POST:
@@ -156,8 +157,11 @@ def employee_expenses(request):
 @login_required
 def new_expense_form(request):
     employee = request.user.employeeprofile
-    form = ExpenseForm()
-    form.fields['project'].queryset = Project.objects.filter(taskassignment__employee=employee).distinct()
+    employee = request.user.employeeprofile
+    form = ExpenseForm(employee=employee)
+    form.fields['project'].queryset = Project.objects.filter(
+        taskassignment__employee=employee
+    ).distinct()
 
     form_html = render_to_string(
         "expenses/expense_form_partial.html",

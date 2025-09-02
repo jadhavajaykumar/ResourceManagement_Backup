@@ -20,7 +20,7 @@ INSTALLED_APPS = [
     'project',
     'expenses',
     'timesheet.apps.TimesheetConfig',
-    #'manager',
+    'manager',
     'skills.apps.SkillsConfig',
     'import_export',
     'widget_tweaks',
@@ -58,6 +58,7 @@ ROOT_URLCONF = 'ResourceManagement.urls'
 TEMPLATES = [{
     'BACKEND': 'django.template.backends.django.DjangoTemplates',
     'DIRS': [os.path.join(BASE_DIR, 'templates')],
+    'DIRS': [BASE_DIR / 'templates', BASE_DIR / 'manager' / 'templates'],
     'APP_DIRS': True,
     'OPTIONS': {
         'context_processors': [

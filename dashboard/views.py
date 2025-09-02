@@ -68,7 +68,7 @@ def home(request):
                                 
     if is_manager or is_director or is_staff:
         manager.append(item("Assign Projects/Tasks", "bi-kanban",
-                            ["project:project-assignment"]))                             
+                            ["project:assign-task"]))                             
 
     # Account Manager
     am = []
