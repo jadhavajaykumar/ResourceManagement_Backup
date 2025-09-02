@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     'utils',
     #'accountmanager',
     'dashboard',
+    
 ]
 
 GRAPH_MODELS = {
@@ -40,6 +41,8 @@ GRAPH_MODELS = {
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
+
+
 
 AUTH_USER_MODEL = 'accounts.CustomUser'
 
