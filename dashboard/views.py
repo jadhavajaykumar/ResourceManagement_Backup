@@ -44,7 +44,7 @@ def home(request):
         item("My Profile",    "bi-person-circle",       ["employee:employee-profile-home"]),
         item("My Projects",   "bi-kanban",              ["employee:my-projects"]),
         item("My Timesheet",  "bi-calendar-check",      ["timesheet:my-timesheets"]),
-        item("Expenses & DA", "bi-cash-coin",           ["expenses:unified-expense-dashboard"]),
+        item("Expenses & DA", "bi-cash-coin",           ["employee:unified-expense-dashboard"]),
         item("Documents",     "bi-file-earmark",        ["docgen:list-templates"]),
         item("Skills",        "bi-stars",               ["skills:skills-home"]),
     ]

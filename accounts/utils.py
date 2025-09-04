@@ -16,7 +16,7 @@ def get_dashboard_redirect_url(user):
     return _try([
         "dashboard:home",
         #"accounts:profile",
-        "expenses:unified-expense-dashboard",
+        "employee:unified-expense-dashboard",
     ])        
 
 def get_effective_role(user):

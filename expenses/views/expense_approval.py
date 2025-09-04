@@ -19,4 +19,5 @@ def approve_expense(request, expense_id):
             expense.status = 'Approved'
             messages.success(request, f"Expense {expense.id} approved.")
         expense.save()
-    return redirect('expenses:unified-expense-dashboard')
+    # Redirect back to the unified expense dashboard after handling the expense
+    return redirect("expenses:unified-expense-dashboard")

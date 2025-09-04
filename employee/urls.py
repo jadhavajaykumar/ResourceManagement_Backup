@@ -8,7 +8,7 @@ from .views import (
     employee_list, employee_create,
     my_projects,
     attendance_report,
-    advance_views
+    
 )
 from employee.views.profile_views import profile_home
 

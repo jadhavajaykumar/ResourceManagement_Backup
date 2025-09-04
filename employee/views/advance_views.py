@@ -1,7 +1,5 @@
-from django.shortcuts import render
-from django.urls import reverse
+from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from expenses.views.unified_expense_dashboard import unified_expense_dashboard
 from expenses.models import AdvanceRequest
 
 
@@ -9,7 +7,7 @@ from expenses.models import AdvanceRequest
 
 @login_required
 def raise_advance_request(request):
-    return redirect('expenses:unified-expense-dashboard')
+    return redirect('employee:unified-expense-dashboard')
 
 
 

@@ -14,17 +14,12 @@ from project.models import Project
 from .unified_expense_dashboard import unified_expense_dashboard
 
 
-@login_required
-def employee_expenses(request):
-    """Legacy wrapper that delegates to the unified dashboard view."""
-    return redirect('expenses:unified-expense-dashboard')
 
 @login_required
 def new_expense_form(request):
-    employee = request.user.employeeprofile
-    form = ExpenseForm(employee=employee)
+    form = ExpenseForm(employee=request.user.employeeprofile)
     form.fields['project'].queryset = Project.objects.filter(
-        taskassignment__employee=employee
+        taskassignment__employee=request.user.employeeprofile
     ).distinct()
 
     form_html = render_to_string(
