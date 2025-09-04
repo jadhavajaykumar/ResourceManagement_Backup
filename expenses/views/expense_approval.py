@@ -9,6 +9,7 @@ from ..models import Expense
 @login_required
 @user_passes_test(lambda u: u.has_perm('expenses.can_settle') or u.has_perm('timesheet.can_approve'))
 def approve_expense(request, expense_id):
+    """Approve or reject an expense and redirect to the unified dashboard."""
     expense = get_object_or_404(Expense, id=expense_id)
     if request.user.has_perm('expenses.can_settle') or request.user.has_perm('timesheet.can_approve'):
         if 'reject' in request.GET:
@@ -18,4 +19,4 @@ def approve_expense(request, expense_id):
             expense.status = 'Approved'
             messages.success(request, f"Expense {expense.id} approved.")
         expense.save()
-    return redirect('expenses:employee-expenses')
+    return redirect('expenses:unified-expense-dashboard')

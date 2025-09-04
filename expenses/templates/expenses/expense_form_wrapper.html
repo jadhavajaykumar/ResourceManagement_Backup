@@ -1,0 +1,8 @@
+{% load static %}
+{% include 'expenses/expense_form_partial.html' %}
+<script src="{% static 'js/expense_form.js' %}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        initExpenseForm();
+    });
+</script>

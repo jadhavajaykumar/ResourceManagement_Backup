@@ -1,0 +1,16 @@
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+select = ["E","F","W","I","B","UP","DJ"]
+ignore = ["E501"]  # optional
+exclude = ["migrations"]
+
+[tool.mypy]
+python_version = "3.13"
+plugins = ["mypy_django_plugin.main"]
+ignore_missing_imports = true
+strict_optional = true
+warn_unused_ignores = true
+
+[tool.django-stubs]
+django_settings_module = "ResourceManagement.settings"

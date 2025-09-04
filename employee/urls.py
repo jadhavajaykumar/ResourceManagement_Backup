@@ -10,7 +10,6 @@ from .views import (
     attendance_report,
     advance_views
 )
-from employee.views.advance_views import raise_advance_request
 from employee.views.profile_views import profile_home
 
 
@@ -27,9 +26,6 @@ urlpatterns = [
     path('my-projects/', my_projects, name='my-projects'),
     path('attendance-report/', attendance_report, name='attendance-report'),
     path('attendance-c-off-report/', attendance_c_off_report, name='attendance-c-off-report'),
-    path('raise-advance/', raise_advance_request, name='raise-advance-request'),
-    #path('unified-expenses/', unified_expense_dashboard, name='unified-expense-dashboard'),
-    #path('my-expenses/', unified_expense_dashboard, name='employee-expenses'),
     path('unified-expenses/', unified_expense_dashboard, name='unified-expense-dashboard'),
 
     

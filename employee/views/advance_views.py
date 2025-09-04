@@ -1,54 +1,15 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render
+from django.urls import reverse
 from django.contrib.auth.decorators import login_required
-from expenses.forms import AdvanceRequestForm
+from expenses.views.unified_expense_dashboard import unified_expense_dashboard
 from expenses.models import AdvanceRequest
-from expenses.models import ExpenseType
-from project.services.assignment import get_assigned_projects
 
-
-import logging
-logger = logging.getLogger(__name__)
 
 
 
 @login_required
 def raise_advance_request(request):
-    employee = request.user.employeeprofile
-    last_advance = AdvanceRequest.objects.filter(
-        employee=employee,
-        approved_by_accountant=True
-    ).order_by('-date_requested').first()
-    
-    if last_advance:
-        logger.info(f"Advance ID: {last_advance.id}, Balance: {last_advance.current_balance()}")
-
-    # ❌ Block only if balance is positive
-    if last_advance and last_advance.current_balance() > 0:
-        balance = last_advance.current_balance()
-        return render(request, 'employee/advance_blocked.html', {
-            'advance': last_advance,
-            'balance': balance,
-        })
-    
-    form = AdvanceRequestForm(request.POST or None, employee=employee)
-    if form.is_valid():
-        advance = form.save(commit=False)
-        advance.employee = employee
-        advance.save()
-        return redirect('employee:advance-requests')
-
-    
-
-    return render(request, 'expenses/my_expenses.html', {
-        'form': AdvanceRequestForm(employee=request.user.employeeprofile),
-        'advance_form': form,
-        'editing': False,
-        'expense_types': ExpenseType.objects.all(),
-        'projects': get_assigned_projects(request.user.employeeprofile),
-        'tabbed_expenses': {},  # or fetch actual data if needed
-        'active_tab': 'advance',
-})
-
+    return redirect('expenses:unified-expense-dashboard')
 
 
 
