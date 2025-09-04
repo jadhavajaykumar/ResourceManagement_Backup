@@ -1,0 +1,13 @@
+{% include 'expenses/advance_form_partial.html' %}
+<script>
+    (function() {
+        const container = document.getElementById('advance-form-body');
+        if (!container) return;
+        {% comment %}Disable fields when editing not allowed{% endcomment %}
+        {% if editing and advance %}
+            {% if advance.status != "Submitted" or advance.current_stage != "MANAGER" %}
+                container.querySelectorAll('input, select, textarea').forEach(el => el.setAttribute('disabled', true));
+            {% endif %}
+        {% endif %}
+    })();
+</script>

@@ -8,7 +8,7 @@ import io
 import xlsxwriter
 from employee.models import EmployeeProfile
 from expenses.models import Expense, DailyAllowance, AdvanceRequest
-from expenses.forms import ExpenseForm, AdvanceRequestForm
+from expenses.forms import ExpenseForm
 from django.template.loader import render_to_string
 from project.models import Project
 from .unified_expense_dashboard import unified_expense_dashboard
@@ -59,62 +59,6 @@ def edit_expense_json(request, expense_id):
     )
     return JsonResponse({"form_html": form_html})
     
-@login_required
-def delete_advance(request, advance_id):
-    advance = get_object_or_404(AdvanceRequest, id=advance_id, employee=request.user.employeeprofile)
-
-    if advance.status == "Submitted" and advance.current_stage == "MANAGER":
-        advance.delete()
-        messages.success(request, "Advance request deleted successfully.")
-    else:
-        messages.error(request, "Only submitted advances at Manager stage can be deleted.")
-
-    return redirect('expenses:unified-expense-dashboard')
-
-
-@login_required
-def edit_advance(request, advance_id):
-    advance = get_object_or_404(AdvanceRequest, id=advance_id, employee=request.user.employeeprofile)
-
-    if request.method == "POST":
-        form = AdvanceRequestForm(request.POST, instance=advance)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Advance request updated successfully.")
-            return redirect('expenses:unified-expense-dashboard')
-        else:
-            messages.error(request, "Please correct the errors below.")
-            return redirect('expenses:unified-expense-dashboard')
-
-    return redirect('expenses:unified-expense-dashboard')
-
-
-@login_required
-def edit_advance_json(request, advance_id):
-    advance = get_object_or_404(AdvanceRequest, pk=advance_id, employee__user=request.user)
-
-    # 🔒 Allow edit only if still at MANAGER stage + Submitted
-    if not (advance.status == "Submitted" and advance.current_stage == "MANAGER"):
-        return JsonResponse({"error": "Editing is allowed only at Manager stage while Submitted."}, status=403)
-
-    form = AdvanceRequestForm(instance=advance, employee=request.user.employeeprofile)
-    form_html = render_to_string(
-        "expenses/advance_form_partial.html",
-        {"form": form, "editing": True, "advance": advance},
-        request=request
-    )
-    return JsonResponse({"form_html": form_html})
-
-
-
-
-
-    
-
-
-
-
-
 
 @login_required
 def get_expense_data(request, expense_id):

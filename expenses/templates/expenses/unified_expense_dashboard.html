@@ -368,7 +368,7 @@
             <form method="post" id="advanceForm">
               {% csrf_token %}
               <div id="advance-form-body">
-                {% include "expenses/advance_form_partial.html" with form=advance_form editing=False %}
+                {% include "expenses/advance_form_wrapper.html" with form=advance_form editing=False %}
               </div>
               <div class="mt-3 text-end">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -380,7 +380,7 @@
             <form method="post" id="advanceForm">
               {% csrf_token %}
               <div id="advance-form-body">
-                {% include "expenses/advance_form_partial.html" with form=advance_form editing=False %}
+                {% include "expenses/advance_form_wrapper.html" with form=advance_form editing=False %}
               </div>
               <div class="mt-3 text-end">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -392,7 +392,7 @@
             <form method="post" id="advanceForm">
               {% csrf_token %}
               <div id="advance-form-body">
-                {% include "expenses/advance_form_partial.html" with form=advance_form editing=False %}
+                {% include "expenses/advance_form_wrapper.html" with form=advance_form editing=False %}
               </div>
               <div class="mt-3 text-end">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>

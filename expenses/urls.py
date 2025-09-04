@@ -5,7 +5,10 @@ from expenses.views.am_settlement import am_unsettled_summary, am_bulk_settle_em
 from expenses.views.expense_entry import (
     edit_expense, delete_expense,
     export_expense_tab, edit_expense_json, get_expense_data,
-    new_expense_form, edit_advance_json, edit_advance, delete_advance,
+    new_expense_form,
+)
+from expenses.views.advance_views import (
+    edit_advance_json, edit_advance, delete_advance,
 )
 
 from .views.expense_type_settings import (
