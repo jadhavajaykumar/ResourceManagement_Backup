@@ -1,8 +1,19 @@
 {% load static %}
-{% include 'expenses/expense_form_partial.html' %}
-<script src="{% static 'js/expense_form.js' %}"></script>
-<script>
+{# expense_form_wrapper.html - wrapper that provides a prefix and initializes the form JS #}
+{% with pf=prefix|default:"expense" %}
+  <div id="{{ pf }}_expense_wrapper" class="expense-form-wrapper" data-prefix="{{ pf }}">
+    {# Pass prefix into partial so IDs/labels become unique #}
+    {% include 'expenses/expense_form_partial.html' with form=form prefix=pf %}
+  </div>
+
+  {# The shared script is idempotent and supports scoped initialization #}
+  <script src="{% static 'js/expense_form.js' %}"></script>
+  <script>
     document.addEventListener('DOMContentLoaded', function () {
-        initExpenseForm();
+      var root = document.getElementById('{{ pf }}_expense_wrapper');
+      if (typeof initExpenseForm === 'function') {
+        initExpenseForm(root);
+      }
     });
-</script>
+  </script>
+{% endwith %}

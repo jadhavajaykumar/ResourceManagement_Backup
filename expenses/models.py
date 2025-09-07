@@ -31,7 +31,8 @@ class ExpenseType(models.Model):
     requires_travel_locations = models.BooleanField(default=False)
     requires_cooldown = models.BooleanField(default=False)
     cooldown_days = models.PositiveIntegerField(null=True, blank=True)
-    
+    timesheet_required = models.BooleanField(default=False, help_text="Require timesheet for expenses of this type")
+
 
     def __str__(self):
         return self.name

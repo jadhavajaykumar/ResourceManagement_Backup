@@ -29,15 +29,18 @@
             <td rowspan="{{ ts.time_slots.count }}">{{ ts.status }}</td>
             <td rowspan="{{ ts.time_slots.count }}">
 			  <form method="post" action="{% url 'timesheet:handle-timesheet-action' ts.id 'approve' %}">
-                {% csrf_token %}
-                <input type="text" name="manager_remark" class="form-control mb-1" placeholder="Remark" required>
-                <button type="submit" class="btn btn-success btn-sm w-100 mb-1">Approve</button>
+				{% csrf_token %}
+				<input type="text" name="approve_remark" class="form-control mb-1" placeholder="Approval remark" required>
+				<button type="submit" class="btn btn-success btn-sm w-100 mb-1">Approve</button>
+			  </form>
+
 			  <form method="post" action="{% url 'timesheet:handle-timesheet-action' ts.id 'reject' %}">
-                {% csrf_token %}
-                <input type="text" name="manager_remark" class="form-control mb-1" placeholder="Remark" required>
-                <button type="submit" class="btn btn-danger btn-sm w-100">Reject</button>
-              </form>
-            </td>
+				{% csrf_token %}
+				<input type="text" name="reject_remark" class="form-control mb-1" placeholder="Rejection remark" required>
+				<button type="submit" class="btn btn-danger btn-sm w-100">Reject</button>
+			  </form>
+			</td>
+
           {% endif %}
         </tr>
       {% endfor %}

@@ -1,5 +1,3 @@
-
-
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
@@ -12,22 +10,111 @@ from expenses.forms import ExpenseForm
 from django.template.loader import render_to_string
 from project.models import Project
 from .unified_expense_dashboard import unified_expense_dashboard
+import uuid
+import json
 
+
+# ... other imports above remain ...
+
+def _build_expense_type_meta(field_queryset):
+    """
+    Build a mapping of expense_type_id -> meta attributes consumed by JS.
+    Defensive about attribute names on the model.
+    """
+    meta = {}
+    if not field_queryset:
+        return meta
+
+    for et in field_queryset:
+        try:
+            requires_km = bool(
+                getattr(et, "requires_kilometers", None)
+                or getattr(et, "requiresKm", None)
+                or getattr(et, "requires_km", None)
+            )
+        except Exception:
+            requires_km = False
+
+        # rate field name may vary
+        rate = None
+        for candidate in ("rate_per_km", "rate", "km_rate", "rate_per_km_inr"):
+            rate = getattr(et, candidate, None)
+            if rate is not None:
+                break
+        try:
+            rate = float(rate) if rate is not None else 0.0
+        except Exception:
+            rate = 0.0
+
+        # receipt, travel flags and max cap (optional)
+        requires_receipt = bool(getattr(et, "requires_receipt", getattr(et, "requiresReceipt", False)))
+        requires_travel = bool(getattr(et, "requires_travel", getattr(et, "requiresTravel", False)))
+        max_cap = None
+        for cand in ("max_cap", "maxCap", "cap"):
+            max_cap = getattr(et, cand, None)
+            if max_cap is not None:
+                try:
+                    max_cap = float(max_cap)
+                except Exception:
+                    max_cap = None
+                break
+
+        meta[str(et.pk)] = {
+            "requires_km": requires_km,
+            "rate": rate,
+            "requires_receipt": requires_receipt,
+            "requires_travel": requires_travel,
+            "max_cap": max_cap or 0
+        }
+    return meta
 
 
 @login_required
 def new_expense_form(request):
+    prefix = "exp_" + uuid.uuid4().hex[:8]
+
     form = ExpenseForm(employee=request.user.employeeprofile)
     form.fields['project'].queryset = Project.objects.filter(
         taskassignment__employee=request.user.employeeprofile
     ).distinct()
 
+    # --- Set widget attrs so rendered HTML contains ids/placeholders/etc. ---
+    for fname, field in form.fields.items():
+        fid = f"{prefix}_{fname}"
+        attrs = field.widget.attrs or {}
+        # checkbox detection
+        base_class = attrs.get("class", "")
+        if field.widget.__class__.__name__.lower().find("checkbox") != -1 or getattr(field.widget, "input_type", "") == "checkbox":
+            attrs["class"] = (base_class + " form-check-input").strip()
+        else:
+            attrs["class"] = (base_class + " form-control").strip()
+
+        lab = getattr(field, "label", fname).capitalize()
+        attrs.setdefault("id", fid)
+        attrs.setdefault("placeholder", lab)
+        attrs.setdefault("title", lab)
+        attrs.setdefault("aria-label", lab)
+
+        field.widget.attrs = attrs
+
+    # Build expense-type metadata (if the field has a queryset)
+    expense_type_field = form.fields.get("new_expense_type")
+    meta = {}
+    if expense_type_field is not None and getattr(expense_type_field, "queryset", None) is not None:
+        meta = _build_expense_type_meta(expense_type_field.queryset)
+
     form_html = render_to_string(
         "expenses/expense_form_wrapper.html",
-        {"form": form, "editing": False},
+        {"form": form, "editing": False, "prefix": prefix},
         request=request
     )
-    return JsonResponse({"form_html": form_html})
+
+    # Append metadata as an accessible JSON <script> for client-side JS
+    meta_script = f'<script type="application/json" id="{prefix}_expense_type_meta">{json.dumps(meta)}</script>'
+    form_html_with_meta = form_html + meta_script
+
+    return JsonResponse({"form_html": form_html_with_meta, "prefix": prefix, "editing": False})
+
 
 
 @login_required
@@ -44,8 +131,13 @@ def edit_expense_json(request, expense_id):
         taskassignment__employee=employee
     ).distinct()
 
-    # Determine if kilometers should be shown initially
-    requires_km = getattr(expense.new_expense_type, "requires_kilometers", False)
+    # Build meta from the expense type field's queryset (same helper)
+    expense_type_field = form.fields.get("new_expense_type")
+    meta = {}
+    if expense_type_field is not None and getattr(expense_type_field, "queryset", None) is not None:
+        meta = _build_expense_type_meta(expense_type_field.queryset)
+
+    requires_km = bool(getattr(expense.new_expense_type, "requires_kilometers", False))
 
     form_html = render_to_string(
         "expenses/expense_form_wrapper.html",
@@ -53,11 +145,19 @@ def edit_expense_json(request, expense_id):
             "form": form,
             "editing": True,
             "expense": expense,
-            "requires_km": requires_km  # Pass to JS/UI
+            "requires_km": requires_km,
+            "prefix": f"exp_edit_{expense.id}"
         },
         request=request
     )
-    return JsonResponse({"form_html": form_html})
+
+    # append meta script
+    prefix = f"exp_edit_{expense.id}"
+    meta_script = f'<script type="application/json" id="{prefix}_expense_type_meta">{json.dumps(meta)}</script>'
+    form_html_with_meta = form_html + meta_script
+
+    return JsonResponse({"form_html": form_html_with_meta, "prefix": prefix, "editing": True})
+
     
 
 @login_required

@@ -1,12 +1,11 @@
 # docgen/views.py
-  # Save the new document
+
 from datetime import datetime
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, permission_required
 from accounts.access_control import is_manager
 from .models import DocumentTemplate, GeneratedDocument
 from .forms import DocumentTemplateForm
-from django.http import HttpResponse
 from docx import Document as DocxDocument
 import re
 import os
@@ -15,14 +14,19 @@ from django.urls import reverse
 from django.contrib import messages
 from django.utils import timezone
 from docx.text.run import Run
-from django.http import HttpResponse
 from openpyxl import load_workbook
 from pdf2docx import Converter
-
-from django.http import FileResponse
 from PyPDF2 import PdfMerger
 from .forms import PDFMergeForm, PDFToWordForm
 import io
+
+
+# add these imports near top of docgen/views.py
+import tempfile
+import shutil
+
+
+from django.http import FileResponse, HttpResponse
 
 
 
@@ -180,52 +184,99 @@ def fill_template(request, template_id):
 
 
 
+@login_required
+@permission_required('timesheet.can_approve')
 def combined_pdf_tools_view(request):
     merge_form = PDFMergeForm()
     convert_form = PDFToWordForm()
+    error_message = None
 
     if request.method == 'POST':
+        # -------------------- PDF Merge --------------------
         if 'merge_submit' in request.POST:
             merge_form = PDFMergeForm(request.POST, request.FILES)
             if merge_form.is_valid():
-                pdf1 = request.FILES['pdf1']
-                pdf2 = request.FILES['pdf2']
-                merger = PdfMerger()
-                merger.append(pdf1)
-                merger.append(pdf2)
-                output = io.BytesIO()
-                merger.write(output)
-                merger.close()
-                output.seek(0)
-                return FileResponse(output, as_attachment=True, filename="merged.pdf")
+                # Expecting fields named 'pdf1' and 'pdf2' in the form
+                f1 = request.FILES.get('pdf1')
+                f2 = request.FILES.get('pdf2')
 
+                if not f1 or not f2:
+                    error_message = "Please upload both PDF files to merge."
+                else:
+                    # Use PdfMerger directly with file-like objects when possible
+                    try:
+                        merger = PdfMerger()
+                        # PyPDF2 PdfMerger accepts file-like objects; ensure pointer at 0
+                        f1.seek(0)
+                        f2.seek(0)
+                        merger.append(f1)
+                        merger.append(f2)
+                        out = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+                        try:
+                            merger.write(out)
+                            merger.close()
+                            out.flush()
+                            out.seek(0)
+                            resp = FileResponse(open(out.name, "rb"), as_attachment=True, filename="merged.pdf")
+                            return resp
+                        finally:
+                            out.close()
+                    except Exception as e:
+                        error_message = f"Failed to merge PDFs: {e}"
+
+        # -------------------- PDF -> Word --------------------
         elif 'convert_submit' in request.POST:
             convert_form = PDFToWordForm(request.POST, request.FILES)
             if convert_form.is_valid():
-                uploaded_pdf = request.FILES['pdf_file']
-                if not uploaded_pdf.name.lower().endswith('.pdf'):
-                    return HttpResponse("Please upload a PDF file", status=400)
-                temp_pdf_path = 'temp_input.pdf'
-                with open(temp_pdf_path, 'wb') as f:
-                    f.write(uploaded_pdf.read())
+                uploaded_pdf = request.FILES.get('pdf_file')
+                if not uploaded_pdf:
+                    error_message = "Please select a PDF file to convert."
+                elif not uploaded_pdf.name.lower().endswith('.pdf'):
+                    error_message = "Please upload a valid PDF file."
+                else:
+                    # Write uploaded PDF to temp file and convert using pdf2docx
+                    in_tmp = None
+                    out_tmp = None
+                    try:
+                        in_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+                        in_tmp.write(uploaded_pdf.read())
+                        in_tmp.flush()
+                        in_tmp.close()
 
-                docx_path = 'converted_output.docx'
-                cv = Converter(temp_pdf_path)
-                cv.convert(docx_path, start=0, end=None)
-                cv.close()
+                        out_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".docx")
+                        out_tmp.close()  # pdf2docx will create/overwrite file
 
-                output = io.BytesIO()
-                with open(docx_path, 'rb') as docx_file:
-                    output.write(docx_file.read())
-                output.seek(0)
+                        cv = Converter(in_tmp.name)
+                        try:
+                            cv.convert(out_tmp.name, start=0, end=None)
+                        finally:
+                            cv.close()
 
-                # Clean up temp files
-                os.remove(temp_pdf_path)
-                os.remove(docx_path)
+                        # return docx as FileResponse
+                        resp = FileResponse(open(out_tmp.name, "rb"), as_attachment=True, filename="converted.docx")
+                        return resp
 
-                return FileResponse(output, as_attachment=True, filename="converted.docx")
+                    except Exception as e:
+                        error_message = f"Conversion failed: {e}"
+                    finally:
+                        # cleanup temp files (if they exist)
+                        try:
+                            if in_tmp and os.path.exists(in_tmp.name):
+                                os.remove(in_tmp.name)
+                        except Exception:
+                            pass
+                        # Note: do not remove out_tmp before returning file — handled by OS after close
+                        # We'll attempt to remove it as well (safe if file still closed)
+                        try:
+                            if out_tmp and os.path.exists(out_tmp.name):
+                                os.remove(out_tmp.name)
+                        except Exception:
+                            pass
 
-    return render(request, 'docgen/combined_pdf_tools.html', {
+    context = {
         'merge_form': merge_form,
-        'convert_form': convert_form
-    })
+        'convert_form': convert_form,
+        'error_message': error_message,
+    }
+    return render(request, 'docgen/combined_pdf_tools.html', context)
+

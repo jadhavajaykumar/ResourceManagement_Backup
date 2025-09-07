@@ -45,7 +45,7 @@ def home(request):
         item("My Projects",   "bi-kanban",              ["employee:my-projects"]),
         item("My Timesheet",  "bi-calendar-check",      ["timesheet:my-timesheets"]),
         item("Expenses & DA", "bi-cash-coin",           ["employee:unified-expense-dashboard"]),
-        item("Documents",     "bi-file-earmark",        ["docgen:list-templates"]),
+        
         item("Skills",        "bi-stars",               ["skills:skills-home"]),
     ]
 
@@ -58,9 +58,7 @@ def home(request):
                                 "timesheet:timesheet-approvals",
                                 "timesheet:filtered-timesheet-approvals",
                             ]))
-    if is_manager or can_exp_approve:
-        manager.append(item("Expense Approvals", "bi-cash-stack",
-                            ["expenses:expense-approval-dashboard"]))
+    
                             
     if is_manager or is_director or is_staff:
         manager.append(item("Add New Projects/Tasks", "bi-kanban",
@@ -68,13 +66,27 @@ def home(request):
                                 
     if is_manager or is_director or is_staff:
         manager.append(item("Assign Projects/Tasks", "bi-kanban",
-                            ["project:assign-task"]))                             
+                            ["project:assign-task"]))     
+
+                                
+                                
+    if is_manager or is_director or is_staff:
+        manager.append(item("Documents", "bi-file-earmark",
+                            ["docgen:list-templates"]))                    
 
     # Account Manager
     am = []
     if is_am or is_staff:
         am.append(item("Settlement Summary", "bi-journal-check",
                        ["expenses:am-unsettled-summary"]))
+                       
+    if is_am or can_ts_approve:
+        am.append(item("Timesheet Approvals", "bi-clipboard-check",
+                            [
+                                "timesheet:timesheet-approval",
+                                "timesheet:timesheet-approvals",
+                                "timesheet:filtered-timesheet-approvals",
+                            ]))                   
 
     # HR
     hr = []

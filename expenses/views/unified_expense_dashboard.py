@@ -10,6 +10,10 @@ from expenses.forms import ExpenseForm, AdvanceRequestForm
 from django.db.models import Sum, Prefetch, Q
 from collections import defaultdict
 from accounts.access_control import is_manager
+import logging
+
+logger = logging.getLogger("expenses")
+
 
 @login_required
 def unified_expense_dashboard(request):
@@ -103,8 +107,36 @@ def unified_expense_dashboard(request):
                 messages.success(request, "✅ Expense submitted successfully.")
                 return redirect("expenses:unified-expense-dashboard")
             else:
+                # Keep modal open and show actual form errors instead of a vague message
                 show_expense_modal = True
-                messages.error(request, "❌ Timesheet required for that date before you can submit an expense.")
+
+                # Collect and format errors
+                errs = []
+                # non-field errors first
+                for e in expense_form.non_field_errors():
+                    errs.append(str(e))
+
+                for fname, ferrs in expense_form.errors.items():
+                    if fname == "__all__":
+                        # already included as non-field, skip
+                        continue
+                    # Try to grab a friendly label; fallback to field name
+                    label = getattr(expense_form.fields.get(fname), "label", fname) if fname in expense_form.fields else fname
+                    for err in ferrs:
+                        errs.append(f"{label}: {err}")
+
+                # If nothing specific, fallback to generic message
+                if not errs:
+                    messages.error(request, "❌ Please correct the errors in the expense form.")
+                else:
+                    # Log server-side for debugging (dev)
+                    logger.debug("Expense form submission failed: %s", errs)
+
+                    # Show joined errors to user (first few only)
+                    display = "; ".join(errs[:6])
+                    if len(errs) > 6:
+                        display += f" (and {len(errs)-6} more...)"
+                    messages.error(request, "❌ " + display)
 
         elif "submit_advance" in request.POST:
             if not allow_new_advance:
@@ -132,8 +164,25 @@ def unified_expense_dashboard(request):
         (9, "September"), (10, "October"), (11, "November"), (12, "December")
     ]
 
-    selected_year = request.GET.get("year", current_year)
-    selected_month = request.GET.get("month", "")
+    # Normalize selected_year/month to ints where applicable (defensive)
+    raw_year = request.GET.get("year", None)
+    if raw_year in (None, ""):
+        selected_year = current_year
+    else:
+        try:
+            selected_year = int(raw_year)
+        except Exception:
+            selected_year = current_year
+
+    raw_month = request.GET.get("month", "")
+    if raw_month in (None, "", "0"):
+        selected_month = ""
+    else:
+        try:
+            selected_month = int(raw_month)
+        except Exception:
+            selected_month = ""
+
     selected_project = request.GET.get("project", "")
     selected_employee = request.GET.get("employee", "")
 
@@ -190,21 +239,37 @@ def unified_expense_dashboard(request):
         advances = advances.filter(employee_id=selected_employee)
         da_entries = da_entries.filter(employee_id=selected_employee)
 
-    # ------------------------------- DA Subtabs (NEW) -------------------------------
-    # Pending DA = awaiting approval
-    pending_da = da_entries.filter(approved=False, rejected=False)
+    # ------------------------------- DA Subtabs (robust) -------------------------------
+    # Defensive: ensure da_entries is a queryset and has select_related applied
+    try:
+        if hasattr(da_entries, "select_related"):
+            da_entries = da_entries.select_related("employee__user", "project")
+    except Exception:
+        # fallback to empty queryset if something goes wrong
+        da_entries = DailyAllowance.objects.none()
+
+    # Pending DA = awaiting approval (not approved and not rejected)
+    pending_da = da_entries.filter(Q(approved=False) | Q(approved__isnull=True)).filter(Q(rejected=False) | Q(rejected__isnull=True))
 
     # Approved DA = manager/accountant-approved but NOT settled
-    approved_da = da_entries.filter(
-        approved=True,
-    ).filter(
-        Q(reimbursed=False) & Q(settlement_date__isnull=True)
+    approved_da = da_entries.filter(approved=True).filter(
+        Q(reimbursed=False) | Q(reimbursed__isnull=True)
     )
 
     # Settled DA = reimbursed True OR settlement_date present (covers both cash & advance settlements)
     settled_da = da_entries.filter(
         Q(reimbursed=True) | Q(settlement_date__isnull=False)
     )
+
+    # Ensure ordering for UI stability
+    pending_da = pending_da.order_by("-date", "-id")
+    approved_da = approved_da.order_by("-date", "-id")
+    settled_da = settled_da.order_by("-date", "-id")
+
+    # Debug counters to help verify why something might not show up
+    debug_da_total_count = da_entries.count()
+    debug_pending_da_count = pending_da.count()
+    debug_approved_da_count = approved_da.count()
 
     # ------------------------------- Approval Rights -------------------------------
     for exp in expenses:
@@ -308,6 +373,7 @@ def unified_expense_dashboard(request):
                         "grand_total": grand_total,
                     })
 
+    # ------------------------------- Render -------------------------------
     return render(request, "expenses/unified_expense_dashboard.html", {
         "tabs": tabs,
         "settled_page": settled_page,
@@ -343,4 +409,9 @@ def unified_expense_dashboard(request):
             or request.user.has_perm('timesheet.can_approve')
             or is_manager(request.user)
         ),
+
+        # DEBUG counters for DA (remove in production if desired)
+        "debug_da_total_count": debug_da_total_count,
+        "debug_pending_da_count": debug_pending_da_count,
+        "debug_approved_da_count": debug_approved_da_count,
     })

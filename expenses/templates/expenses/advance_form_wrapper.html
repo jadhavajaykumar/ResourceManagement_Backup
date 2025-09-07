@@ -1,13 +1,18 @@
-{% include 'expenses/advance_form_partial.html' %}
-<script>
+{% with pf=prefix|default:"advance" %}
+  <div id="{{ pf }}_advance_wrapper" class="advance-form-wrapper" data-prefix="{{ pf }}">
+    {% include 'expenses/advance_form_partial.html' with form=form prefix=pf %}
+  </div>
+
+  <script>
     (function() {
-        const container = document.getElementById('advance-form-body');
-        if (!container) return;
-        {% comment %}Disable fields when editing not allowed{% endcomment %}
-        {% if editing and advance %}
-            {% if advance.status != "Submitted" or advance.current_stage != "MANAGER" %}
-                container.querySelectorAll('input, select, textarea').forEach(el => el.setAttribute('disabled', true));
-            {% endif %}
+      const container = document.getElementById('{{ pf }}_advance_wrapper');
+      if (!container) return;
+      {% comment %}Disable fields when editing not allowed - scoped to this container{% endcomment %}
+      {% if editing and advance %}
+        {% if advance.status != "Submitted" or advance.current_stage != "MANAGER" %}
+          container.querySelectorAll('input, select, textarea').forEach(el => el.setAttribute('disabled', true));
         {% endif %}
+      {% endif %}
     })();
-</script>
+  </script>
+{% endwith %}

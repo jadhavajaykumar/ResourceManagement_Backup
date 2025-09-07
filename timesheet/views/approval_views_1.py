@@ -1,4 +1,3 @@
-# timesheet/views/approval_views.py
 from django.views.decorators.http import require_POST
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, permission_required
@@ -22,9 +21,8 @@ from timesheet.models import (
 from project.services.da_utils import (
     generate_da_for_timesheet,
     create_weekend_da_entries,
-)
-
-from accounts.access_control import is_manager  # existing helper you use elsewhere
+    )  # ✅ DA generation utilit
+from project.services.da_utils import generate_da_for_timesheet  # ✅ DA generation utility
 
 logger = logging.getLogger(__name__)
 
@@ -33,43 +31,12 @@ def get_reportee_queryset(manager):
     return EmployeeProfile.objects.filter(reporting_manager=manager)
 
 
-def _can_approve_timesheets(user):
-    """
-    Allow timesheet approval if:
-      - user has explicit permission 'timesheet.can_approve'
-      - OR user is recognized as a manager via is_manager(user)
-      - OR user has role/group 'Account Manager' (role on employeeprofile or user.group)
-    """
-    try:
-        if user.has_perm('timesheet.can_approve'):
-            return True
-    except Exception:
-        # safe fallback if something odd with permission backend
-        pass
-
-    if is_manager(user):
-        return True
-
-    ep = getattr(user, "employeeprofile", None)
-    role = getattr(ep, "role", None) or getattr(user, "role", None)
-    if role in ["Account Manager", "Account_Manager"]:
-        return True
-
-    if user.groups.filter(name__in=["Account Manager", "Account_Manager", "Manager"]).exists():
-        return True
-
-    return False
-
-
 @login_required
+@permission_required('timesheet.can_approve')
 def filtered_timesheet_approvals(request):
-    if not _can_approve_timesheets(request.user):
-        # return 403 to avoid redirect-to-login behaviour
-        return HttpResponseForbidden("You are not authorized to view timesheet approvals.")
-
     employees = get_reportee_queryset(request.user)
-    timesheets = Timesheet.objects.select_related('employee__user') \
-        .prefetch_related(Prefetch('time_slots', queryset=TimeSlot.objects.select_related('project', 'task'))) \
+    timesheets = Timesheet.objects.select_related('employee__user')\
+        .prefetch_related(Prefetch('time_slots', queryset=TimeSlot.objects.select_related('project', 'task')))\
         .filter(employee__in=employees)
 
     # Filters
@@ -93,11 +60,12 @@ def filtered_timesheet_approvals(request):
     return render(request, 'timesheet/timesheet_filtered_dashboard.html', context)
 
 
-@login_required
-def timesheet_approval_dashboard(request):
-    if not _can_approve_timesheets(request.user):
-        return HttpResponseForbidden("You are not authorized to view timesheet approvals.")
 
+
+
+@login_required
+@permission_required('timesheet.can_approve')
+def timesheet_approval_dashboard(request):
     employees = get_reportee_queryset(request.user)
 
     timesheets = Timesheet.objects.select_related(
@@ -136,14 +104,16 @@ def timesheet_approval_dashboard(request):
     })
 
 
-@login_required
-def timesheet_approvals(request):
-    if not _can_approve_timesheets(request.user):
-        return HttpResponseForbidden("You are not authorized to view timesheet approvals.")
 
+
+
+
+@login_required
+@permission_required('timesheet.can_approve')
+def timesheet_approvals(request):
     employees = get_reportee_queryset(request.user)
-    timesheets = Timesheet.objects.filter(status='SUBMITTED', employee__in=employees) \
-        .select_related('employee__user') \
+    timesheets = Timesheet.objects.filter(status='SUBMITTED', employee__in=employees)\
+        .select_related('employee__user')\
         .prefetch_related(Prefetch('time_slots', queryset=TimeSlot.objects.select_related('project', 'task')))
 
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
@@ -155,98 +125,62 @@ def timesheet_approvals(request):
 
 
 @login_required
-#@permission_required('timesheet.can_approve')
+@permission_required('timesheet.can_approve')
 @require_POST
-def handle_timesheet_action(request, timesheet_id, action=None):
-    """
-    Handle approve/reject. Only requires the remark field corresponding to the chosen action:
-      - approve -> 'approve_remark'
-      - reject  -> 'reject_remark'
-    The action is taken from the URL (preferred) or from POST keys.
-    """
-    # Lightweight debug logging (useful during development)
-    try:
-        logger.debug("handle_timesheet_action called. URL-action=%s, POST-keys=%s",
-                     action, list(request.POST.keys()))
-    except Exception:
-        pass
-
-    # Determine action: prefer URL action, then POST['action'], then button name/value heuristics
-    detected_action = None
-    if action:
-        detected_action = str(action).lower()
-    elif 'action' in request.POST:
-        detected_action = str(request.POST.get('action', '')).lower()
-    else:
-        for key in ('approve', 'approve_submit', 'reject', 'reject_submit', 'submit'):
-            if key in request.POST:
-                v = (request.POST.get(key) or "").lower()
-                if 'approve' in v:
-                    detected_action = 'approve'
-                    break
-                if 'reject' in v:
-                    detected_action = 'reject'
-                    break
-
-    if not detected_action:
-        messages.error(request, "No action specified. Please use the Approve or Reject button.")
-        return redirect('timesheet:timesheet-approval')
-
-    if detected_action not in ('approve', 'reject'):
-        messages.error(request, "Unknown action specified.")
-        return redirect('timesheet:timesheet-approval')
-
-    # Permission check
-    if not _can_approve_timesheets(request.user):
-        messages.error(request, "You are not allowed to approve/reject timesheets.")
-        return redirect('timesheet:timesheet-approval')
-
+def handle_timesheet_action(request, timesheet_id, action):
     timesheet = get_object_or_404(Timesheet, id=timesheet_id)
 
-    # Allow explicit permission holders to act on any timesheet; otherwise only reporting_manager
-    if not (request.user.has_perm('timesheet.can_approve') or timesheet.employee.reporting_manager == request.user):
+    if timesheet.employee.reporting_manager != request.user:
         messages.error(request, "You can only approve/reject timesheets for your direct reports.")
         return redirect('timesheet:timesheet-approval')
 
-    # Validate only the relevant remark
-    if detected_action == 'approve':
-        remark = (request.POST.get('approve_remark') or "").strip()
-        if not remark:
-            messages.error(request, "Please enter an approval remark before approving.")
-            return redirect('timesheet:timesheet-approval')
+    remark = request.POST.get('manager_remark', '').strip()
+    if not remark:
+        messages.error(request, "Manager remark is required.")
+        return redirect('timesheet:timesheet-approval')
 
+    if action == 'approve':
         timesheet.status = 'Approved'
         timesheet.manager_remark = remark
         timesheet.save()
 
-        # DA generation and weekend entries (unchanged)
+        # ✅ Trigger DA generation logic
+        print("⏳ Calling generate_da_for_timesheet...")
         try:
             generate_da_for_timesheet(timesheet)
             if timesheet.date.weekday() == 0:
                 create_weekend_da_entries(timesheet)
-        except Exception:
-            logger.exception("DA generation failed during approve for TS %s", timesheet_id)
+            print("✅ DA generation completed.")
+        except Exception as e:
+            logger.error(f"DA generation failed for Timesheet ID {timesheet.id}: {str(e)}", exc_info=True)
             messages.warning(request, "Timesheet approved, but DA generation failed.")
 
-        # Comp-off logic (same as before)
+        # ✅ Comp-off logic for weekends or holidays
         try:
             timesheet_date = timesheet.date
-            is_weekend = timesheet_date.weekday() in [5, 6]
+            is_weekend = timesheet_date.weekday() in [5, 6]  # Saturday or Sunday
             is_holiday = Holiday.objects.filter(date=timesheet_date).exists()
 
+            print(f"🔍 C-OFF Eligibility Check: {timesheet_date} | Weekend={is_weekend}, Holiday={is_holiday}")
+
             if is_weekend or is_holiday:
+                # Debug time slot values
+                print("📋 Time Slots Data:", list(timesheet.time_slots.values('date', 'time_from', 'time_to')))
+
                 total_seconds = 0
                 for slot in timesheet.time_slots.all():
-                    slot_date = getattr(slot, 'date', None) or timesheet.date
+                    slot_date = slot.date or timesheet.date  # Fallback to timesheet.date
                     if slot.time_from and slot.time_to:
                         try:
                             time_from = datetime.combine(slot_date, slot.time_from)
                             time_to = datetime.combine(slot_date, slot.time_to)
                             total_seconds += (time_to - time_from).total_seconds()
-                        except Exception:
-                            logger.exception("Error computing slot duration for TS %s", timesheet_id)
+                        except Exception as inner_e:
+                            logger.warning(f"⚠️ Error in slot time calculation: {inner_e}")
 
                 hours = total_seconds / 3600
+                print(f"🕒 Total Worked Hours on {timesheet_date}: {hours:.2f}")
+
                 if hours >= 4:
                     credited_days = Decimal("1.0")
                 elif hours > 0:
@@ -254,26 +188,30 @@ def handle_timesheet_action(request, timesheet_id, action=None):
                 else:
                     credited_days = Decimal("0.0")
 
+                print(f"✅ Creditable C-OFF: {credited_days} days")
+
                 if credited_days > 0:
-                    balance, _ = CompOffBalance.objects.get_or_create(employee=timesheet.employee)
+                    balance, created = CompOffBalance.objects.get_or_create(employee=timesheet.employee)
+                    before = balance.balance
                     balance.balance += credited_days
                     balance.save()
+
+                    logger.info(
+                        f"[C-OFF BALANCE] {timesheet.employee.user.username} | Date={timesheet_date} | "
+                        f"Worked Hours={hours:.2f} | Credited={credited_days} | Balance: {before} ➜ {balance.balance}"
+                    )
+                    print(f"💾 Saved new balance: {before} ➜ {balance.balance}")
                     messages.info(request, f"Comp-off granted: {credited_days} day(s)")
-        except Exception:
-            logger.exception("Comp-off calc failed for TS %s", timesheet_id)
+        except Exception as e:
+            logger.error(f"❌ Comp-off calculation error for Timesheet {timesheet.id}: {str(e)}", exc_info=True)
             messages.warning(request, "Approved but comp-off calculation failed.")
 
-    else:  # reject
-        remark = (request.POST.get('reject_remark') or "").strip()
-        if not remark:
-            messages.error(request, "Please enter a rejection remark before rejecting.")
-            return redirect('timesheet:timesheet-approval')
-
+    elif action == 'reject':
         timesheet.status = 'Rejected'
         timesheet.manager_remark = remark
         timesheet.save()
 
-    messages.success(request, f"Timesheet {detected_action}d successfully.")
+    messages.success(request, f"Timesheet {action}d successfully.")
     return redirect('timesheet:timesheet-approval')
 
 
@@ -281,11 +219,13 @@ def handle_timesheet_action(request, timesheet_id, action=None):
 
 
 
-@login_required
-def timesheet_history_view(request):
-    if not _can_approve_timesheets(request.user):
-        return HttpResponseForbidden("You are not authorized to view timesheet history for approvals.")
 
+
+
+
+@login_required
+@permission_required('timesheet.can_approve')
+def timesheet_history_view(request):
     employees = get_reportee_queryset(request.user)
     projects = Project.objects.all()
 

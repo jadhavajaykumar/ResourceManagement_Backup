@@ -3,7 +3,7 @@
 from collections import defaultdict
 from datetime import timedelta
 from decimal import Decimal
-
+import logging
 
 
 from timesheet.models import TimeSlot, Timesheet  # kept even if unused elsewhere
@@ -12,7 +12,9 @@ from project.services.da_service import (
     ensure_weekend_for_timesheet,     # ensure Sat/Sun in same week
     ensure_weekend_from_bridge,       # Fri<->Mon bridge inference
 )
+from expenses.models import DailyAllowance
 
+logger = logging.getLogger("project.da_utils")
 
 def generate_da_for_timesheet(timesheet):
     """

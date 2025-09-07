@@ -16,23 +16,14 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('accounts.urls')),
     path('employee/', include('employee.urls')),
-    #path('project/', include('project.urls')),
     path('project/', include(('project.urls', 'project'), namespace='project')),
-    # main urls.py
     path("timesheet/", include(("timesheet.urls", "timesheet"), namespace="timesheet")),
-    #path("accountmanager/", include("accountmanager.urls")),
     path('expenses/', include(('expenses.urls', 'expenses'), namespace='expenses')),
-    #path('manager/', include('manager.urls')),
-    #path('manager/', include(('manager.urls', 'manager'), namespace='manager')),
-    #path('docgen/', include('docgen.urls')),
     path('docgen/', include(('docgen.urls', 'docgen'), namespace='docgen')),
-    #path('accountant/', include('accountant.urls')),
     path('unified-expenses/', unified_expense_dashboard, name='unified-expense-dashboard'),
     path('dashboard/', include(('dashboard.urls', 'dashboard'), namespace='dashboard')),
     path('skills/', include(('skills.urls', 'skills'), namespace='skills')),
     
-    
-
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

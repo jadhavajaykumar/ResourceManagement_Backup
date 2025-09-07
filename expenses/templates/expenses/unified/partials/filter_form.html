@@ -1,67 +1,75 @@
-{# templates/expenses/_filter_form.html #}
-<div class="card border-0 shadow-sm">
-  <div class="card-body">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <h6 class="m-0">Filters</h6>
-      <button class="btn btn-sm btn-outline-secondary d-none d-md-inline-flex"
-              type="button" data-bs-toggle="collapse"
-              data-bs-target="#filtersCollapse"
-              aria-expanded="true" aria-controls="filtersCollapse">
-        Toggle
-      </button>
-    </div>
+{# templates/expenses/unified/partials/filter_form.html #}
+{% load unique_id %}
+{# Use the provided prefix, or default to "filters" #}
+{% with pf=prefix|default:"filters" %}
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="m-0">Filters</h6>
+        {# generate a unique collapse id per include #}
+        {% unique_id "filtersCollapse" as collapse_uid %}
+        <button class="btn btn-sm btn-outline-secondary d-none d-md-inline-flex"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#{{ pf }}_collapse_{{ collapse_uid }}"
+                aria-expanded="true"
+                aria-controls="{{ pf }}_collapse_{{ collapse_uid }}">
+          Toggle
+        </button>
+      </div>
 
-    <div class="collapse show" id="filtersCollapse">
-      <form method="get" class="row g-3">
-        <div class="col-12">
-          <label for="year" class="form-label">Year</label>
-          <select name="year" id="year" class="form-select">
-            {% for y in year_range %}
-              <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>
-            {% endfor %}
-          </select>
-        </div>
+      <div class="collapse show" id="{{ pf }}_collapse_{{ collapse_uid }}">
+        <form method="get" class="row g-3" role="search" aria-label="Expense filters">
+          <div class="col-12">
+            <label for="{{ pf }}_year" class="form-label">Year</label>
+            <select name="year" id="{{ pf }}_year" class="form-select">
+              {% for y in year_range %}
+                <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>
+              {% endfor %}
+            </select>
+          </div>
 
-        <div class="col-12">
-          <label for="month" class="form-label">Month</label>
-          <select name="month" id="month" class="form-select">
-            <option value="">All</option>
-            {% for num, name in month_choices %}
-              <option value="{{ num }}" {% if selected_month|stringformat:"s" == num|stringformat:"s" %}selected{% endif %}>{{ name }}</option>
-            {% endfor %}
-          </select>
-        </div>
+          <div class="col-12">
+            <label for="{{ pf }}_month" class="form-label">Month</label>
+            <select name="month" id="{{ pf }}_month" class="form-select">
+              <option value="">All</option>
+              {% for num, name in month_choices %}
+                <option value="{{ num }}" {% if selected_month|stringformat:"s" == num|stringformat:"s" %}selected{% endif %}>{{ name }}</option>
+              {% endfor %}
+            </select>
+          </div>
 
-        <div class="col-12">
-          <label for="project" class="form-label">Project</label>
-          <select name="project" id="project" class="form-select">
-            <option value="">All</option>
-            {% for proj in projects %}
-              <option value="{{ proj.project_id }}" {% if selected_project|stringformat:"s" == proj.project_id|stringformat:"s" %}selected{% endif %}>
-                {{ proj.project__name }}
-              </option>
-            {% endfor %}
-          </select>
-        </div>
+          <div class="col-12">
+            <label for="{{ pf }}_project" class="form-label">Project</label>
+            <select name="project" id="{{ pf }}_project" class="form-select" aria-label="Project filter">
+              <option value="">All</option>
+              {% for proj in projects %}
+                <option value="{{ proj.project_id }}" {% if selected_project|stringformat:"s" == proj.project_id|stringformat:"s" %}selected{% endif %}>
+                  {{ proj.project__name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
 
-        {% if employees %}
-        <div class="col-12">
-          <label for="employee" class="form-label">Employee</label>
-          <select name="employee" id="employee" class="form-select">
-            <option value="">All</option>
-            {% for emp in employees %}
-              <option value="{{ emp.id }}" {% if selected_employee|stringformat:"s" == emp.id|stringformat:"s" %}selected{% endif %}>
-                {{ emp.user.get_full_name }}
-              </option>
-            {% endfor %}
-          </select>
-        </div>
-        {% endif %}
+          {% if employees %}
+            <div class="col-12">
+              <label for="{{ pf }}_employee" class="form-label">Employee</label>
+              <select name="employee" id="{{ pf }}_employee" class="form-select">
+                <option value="">All</option>
+                {% for emp in employees %}
+                  <option value="{{ emp.id }}" {% if selected_employee|stringformat:"s" == emp.id|stringformat:"s" %}selected{% endif %}>
+                    {{ emp.user.get_full_name }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+          {% endif %}
 
-        <div class="col-12 d-grid">
-          <button type="submit" class="btn btn-primary">Apply Filters</button>
-        </div>
-      </form>
+          <div class="col-12 d-grid">
+            <button type="submit" class="btn btn-primary">Apply Filters</button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
-</div>
+{% endwith %}

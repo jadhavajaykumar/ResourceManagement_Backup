@@ -15,6 +15,10 @@ from utils.grace_period import get_allowed_grace_days, is_within_grace
 from timesheet.models import Timesheet
 
 
+import logging
+logger = logging.getLogger('expenses')
+
+
 class ExpenseForm(forms.ModelForm):
     class Meta:
         model = Expense
@@ -46,6 +50,15 @@ class ExpenseForm(forms.ModelForm):
         if self.employee:
             self.fields['project'].queryset = get_assigned_projects(self.employee)
 
+        # Ensure basic accessibility attributes for widgets (helps DevTools warnings)
+        for name, field in self.fields.items():
+            attrs = field.widget.attrs or {}
+            label = field.label or name.replace('_', ' ').capitalize()
+            attrs.setdefault('placeholder', label)
+            attrs.setdefault('title', label)
+            attrs.setdefault('aria-label', label)
+            field.widget.attrs = attrs
+
     def clean_date(self):
         submitted_date = self.cleaned_data['date']
         today = date.today()
@@ -61,18 +74,18 @@ class ExpenseForm(forms.ModelForm):
                     f"You can only submit expenses within the last {grace_days} days."
                 )
             # ✅ Cooldown validation
-            if expense_type and expense_type.requires_cooldown:
-                from expenses.models import Expense
-                latest_same_type = Expense.objects.filter(
+            if expense_type and getattr(expense_type, 'requires_cooldown', False):
+                from expenses.models import Expense as ExpenseModel
+                latest_same_type = ExpenseModel.objects.filter(
                     employee=self.employee,
                     new_expense_type=expense_type
                 ).order_by('-date').first()
 
                 if latest_same_type:
-                    min_allowed_date = latest_same_type.date + timedelta(days=expense_type.cooldown_days or 365)
+                    min_allowed_date = latest_same_type.date + timedelta(days=getattr(expense_type, 'cooldown_days', 365) or 365)
                     if submitted_date < min_allowed_date:
                         raise forms.ValidationError(
-                            f"You can only submit this expense once every {expense_type.cooldown_days or 365} days. "
+                            f"You can only submit this expense once every {getattr(expense_type, 'cooldown_days', 365) or 365} days. "
                             f"Last claimed on {latest_same_type.date}. Next eligible date: {min_allowed_date}"
                         )
 
@@ -88,53 +101,82 @@ class ExpenseForm(forms.ModelForm):
         to_location = cleaned_data.get('to_location')
         submitted_date = cleaned_data.get('date')
 
-        # ✅ NEW: Require a timesheet (Pending or Approved) for the same employee & date
-        # Change status__in to ["Approved"] if you want *only* approved timesheets to qualify.
-        if self.employee and submitted_date:
-            has_ts = Timesheet.objects.filter(
-                employee=self.employee,
-                date=submitted_date,
-                status__in=["Pending", "Approved"]
-            ).exists()
+        # ---- TIMESHEET requirement: only if the ExpenseType explicitly requests it ----
+        timesheet_required = False
+        if expense_type:
+            # support multiple possible attribute names on ExpenseType to be robust
+            for attr in ('requires_timesheet', 'timesheet_required', 'requires_timesheet_check', 'requires_ts'):
+                try:
+                    if getattr(expense_type, attr, False):
+                        timesheet_required = True
+                        break
+                except Exception:
+                    continue
+
+        if timesheet_required and self.employee and submitted_date:
+            # require timesheet with status Pending or Approved (same as before)
+            try:
+                has_ts = Timesheet.objects.filter(
+                    employee=self.employee,
+                    date=submitted_date,
+                    status__in=["Pending", "Approved"]
+                ).exists()
+            except Exception as e:
+                logger.exception("Timesheet lookup failed: %s", e)
+                has_ts = False
+
             if not has_ts:
+                # attach error to date field so user sees it near the date input
                 self.add_error(
                     'date',
                     f"Please submit your timesheet for {submitted_date} first, then submit the expense."
                 )
 
+        # ---- Existing validation logic (unchanged) ----
         if expense_type:
-            # ✅ Validate kilometers requirement
-            if expense_type.requires_kilometers:
+            # Validate kilometers requirement
+            if getattr(expense_type, 'requires_kilometers', False):
                 if not kilometers:
                     self.add_error('kilometers', f"Kilometers required for {expense_type.name}.")
-                elif expense_type.rate_per_km is None:
+                elif getattr(expense_type, 'rate_per_km', None) is None and getattr(expense_type, 'rate', None) is None:
                     self.add_error('new_expense_type', f"Rate per km not defined for {expense_type.name}.")
                 else:
-                    calculated_amount = kilometers * expense_type.rate_per_km
-                    cleaned_data['amount'] = calculated_amount
-                    amount = calculated_amount  # update for cap check
+                    # try both common attribute names
+                    rate = getattr(expense_type, 'rate_per_km', None) or getattr(expense_type, 'rate', 0)
+                    try:
+                        calculated_amount = float(kilometers) * float(rate)
+                        cleaned_data['amount'] = calculated_amount
+                        amount = calculated_amount  # update for cap check
+                    except Exception:
+                        # ignore calculation error but leave validation to max cap/amount presence
+                        pass
 
-            # ✅ Validate receipt requirement
-            if expense_type.requires_receipt and not receipt:
+            # Validate receipt requirement
+            if getattr(expense_type, 'requires_receipt', False) and not receipt:
                 self.add_error('receipt', f"Receipt required for {expense_type.name}.")
 
-            # ✅ Validate amount for non-kilometer-based expenses
-            if not expense_type.requires_kilometers and not amount:
+            # Validate amount for non-kilometer-based expenses
+            if not getattr(expense_type, 'requires_kilometers', False) and not amount:
                 self.add_error('amount', "Amount is required.")
 
-            # ✅ Validate travel location fields
-            if expense_type.requires_travel_locations:
+            # Validate travel location fields
+            if getattr(expense_type, 'requires_travel_locations', False):
                 if not from_location:
                     self.add_error('from_location', "From location is required for this expense type.")
                 if not to_location:
                     self.add_error('to_location', "To location is required for this expense type.")
 
-            # ✅ Validate max cap if defined
-            if expense_type.max_amount_allowed is not None and amount is not None:
-                if amount > expense_type.max_amount_allowed:
-                    self.add_error('amount', f"Amount exceeds cap of ₹{expense_type.max_amount_allowed} for this expense type.")
+            # Validate max cap if defined
+            max_allowed = getattr(expense_type, 'max_amount_allowed', None)
+            if max_allowed is not None and amount is not None:
+                try:
+                    if float(amount) > float(max_allowed):
+                        self.add_error('amount', f"Amount exceeds cap of ₹{max_allowed} for this expense type.")
+                except Exception:
+                    logger.debug("Could not compare amount vs max cap: amount=%s cap=%s", amount, max_allowed)
 
         return cleaned_data
+
 
 
 # ---------------------- Global Grace Period Settings ----------------------

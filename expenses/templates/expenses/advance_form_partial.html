@@ -1,48 +1,36 @@
-{% load widget_tweaks %}
-<div class="card mb-4">
-  <div class="card-body">
-    <div class="row g-3">
-
-      <!-- Project -->
-      <div class="col-md-6">
-        <label for="{{ form.project.id_for_label }}" class="form-label">Project</label>
-        {{ form.project|add_class:"form-select" }}
+{# templates/expenses/advance_form_partial.html #}
+<div class="row g-3">
+  {% if form.non_field_errors %}
+    <div class="col-12">
+      <div class="alert alert-danger">
+        {% for e in form.non_field_errors %}
+          {{ e }}{% if not forloop.last %}<br>{% endif %}
+        {% endfor %}
       </div>
-
-      <!-- Purpose -->
-      <div class="col-md-6">
-        <label for="{{ form.purpose.id_for_label }}" class="form-label">Purpose</label>
-        {{ form.purpose|add_class:"form-control" }}
-      </div>
-
-      
-      <!-- Amount -->
-      <div class="col-md-4">
-        <label for="{{ form.amount.id_for_label }}" class="form-label">Amount (₹)</label>
-        {{ form.amount|add_class:"form-control" }}
-      </div>
-
-      
     </div>
-  </div>
+  {% endif %}
+
+  {% for field in form %}
+    {% if field.is_hidden %}
+      <div class="d-none">
+        {{ field }}
+      </div>
+    {% else %}
+      <div class="col-12">
+        <label for="{{ field.id_for_label }}" class="form-label">
+          {{ field.label|default:field.name|capfirst }}
+        </label>
+
+        {{ field }}
+
+        {% if field.help_text %}
+          <div class="form-text small">{{ field.help_text }}</div>
+        {% endif %}
+
+        {% for err in field.errors %}
+          <div class="text-danger small">{{ err }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endfor %}
 </div>
-
-	{% if editing and advance %}
-	  {% if advance.status != "Submitted" %}
-		<script>
-		document.addEventListener("DOMContentLoaded", function() {
-		  document.querySelectorAll('#advance-form-body input, #advance-form-body select, #advance-form-body textarea')
-			.forEach(el => el.setAttribute('disabled', true));
-		});
-		</script>
-	  {% elif advance.current_stage != "MANAGER" %}
-		<script>
-		document.addEventListener("DOMContentLoaded", function() {
-		  document.querySelectorAll('#advance-form-body input, #advance-form-body select, #advance-form-body textarea')
-			.forEach(el => el.setAttribute('disabled', true));
-		});
-		</script>
-	  {% endif %}
-	{% endif %}
-
-

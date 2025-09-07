@@ -3,27 +3,38 @@
 {% block content %}
 <h2>PDF Merge + Convert Tools</h2>
 
-<div style="display: flex; gap: 50px; flex-wrap: wrap; margin-top: 30px;">
+{% if error_message %}
+  <div class="alert alert-danger">{{ error_message }}</div>
+{% endif %}
 
-  <!-- PDF Merger -->
-  <div style="flex: 1; min-width: 350px;">
-    <h3>Merge Two PDFs</h3>
-    <form method="post" enctype="multipart/form-data">
-      {% csrf_token %}
-      {{ merge_form.as_p }}
-      <button type="submit" name="merge_submit">Merge PDFs</button>
-    </form>
+<div class="row mt-3">
+  <div class="col-md-6">
+    <div class="card p-3">
+      <h5>Merge Two PDFs</h5>
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ merge_form.non_field_errors }}
+        <div class="mb-2">{{ merge_form.pdf1.label_tag }} {{ merge_form.pdf1 }}</div>
+        <div class="mb-2">{{ merge_form.pdf2.label_tag }} {{ merge_form.pdf2 }}</div>
+        <button class="btn btn-primary" type="submit" name="merge_submit">Merge PDFs</button>
+      </form>
+    </div>
   </div>
 
-  <!-- PDF to Word Converter -->
-  <div style="flex: 1; min-width: 350px;">
-    <h3>Convert PDF to Word</h3>
-    <form method="post" enctype="multipart/form-data">
-      {% csrf_token %}
-      {{ convert_form.as_p }}
-      <button type="submit" name="convert_submit">Convert to Word</button>
-    </form>
+  <div class="col-md-6">
+    <div class="card p-3">
+      <h5>Convert PDF → Word</h5>
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ convert_form.non_field_errors }}
+        <div class="mb-2">{{ convert_form.pdf_file.label_tag }} {{ convert_form.pdf_file }}</div>
+        <button class="btn btn-success" type="submit" name="convert_submit">Convert to DOCX</button>
+      </form>
+    </div>
   </div>
+</div>
 
+<div class="mt-3">
+  <a href="{% url 'docgen:list-templates' %}" class="btn btn-secondary btn-sm">Back to Templates</a>
 </div>
 {% endblock %}
