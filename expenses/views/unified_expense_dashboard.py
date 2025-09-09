@@ -15,18 +15,53 @@ import logging
 logger = logging.getLogger("expenses")
 
 
+# --- simple helper: determine which expense ids are currently assigned to `user` ---
+def get_pending_expense_ids_for_user(user):
+    """
+    Return a list of Expense IDs that the current user is expected to act on,
+    based on the 'current_stage' field and the user's role/reportees.
+    This is a short-term fallback until a full ApprovalFlow engine is used.
+    """
+    from expenses.models import Expense
+    try:
+        ep = getattr(user, "employeeprofile", None)
+        role = getattr(ep, "role", None) or getattr(user, "role", None) or ""
+        role_key = role.strip().lower().replace(" ", "-")
+    except Exception:
+        role_key = (getattr(user, "role", "") or "").strip().lower().replace(" ", "-")
+
+    qs = Expense.objects.none()
+
+    if role_key == "accountant":
+        qs = Expense.objects.filter(current_stage="ACCOUNTANT",
+                                    status__in=["Submitted", "Forwarded to Manager", "Forwarded to Account Manager"])
+    elif role_key == "manager":
+        reportees = EmployeeProfile.objects.filter(reporting_manager=user)
+        qs = Expense.objects.filter(employee__in=reportees, current_stage="MANAGER",
+                                    status__in=["Submitted", "Forwarded to Manager", "Forwarded to Account Manager"])
+    elif role_key in ("account-manager", "account_manager"):
+        qs = Expense.objects.filter(current_stage__in=["ACCOUNT_MANAGER", "APPROVED"],
+                                    status__in=["Submitted", "Forwarded to Account Manager", "Approved"])
+    else:
+        qs = Expense.objects.none()
+
+    return list(qs.values_list("id", flat=True))
+
+
 @login_required
 def unified_expense_dashboard(request):
     user = request.user
-    role = getattr(user.employeeprofile, "role", None)
-    employee = getattr(user, "employeeprofile", None)
+    # safer role detection
+    ep = getattr(user, "employeeprofile", None)
+    role = getattr(ep, "role", "") or getattr(user, "role", "") or ""
+    employee = ep
 
     # ------------------------------- Forms -------------------------------
     expense_form = ExpenseForm(request.POST or None, request.FILES or None, employee=employee)
     advance_form = AdvanceRequestForm(request.POST or None, employee=employee)
 
     # ------------------------------- Advance Summary (authoritative) -------------------------------
-    employee_for_summary = request.user.employeeprofile
+    employee_for_summary = employee
 
     settled_advances_qs = AdvanceRequest.objects.filter(
         employee=employee_for_summary, status="Settled"
@@ -104,35 +139,41 @@ def unified_expense_dashboard(request):
                     expense.current_stage = "APPROVED"
 
                 expense.save()
+
+                # 🔽 NEW: hook into approvals engine (defensive)
+                try:
+                    from approvals.models import ApprovalFlow  # type: ignore
+                    from approvals.services import create_instance_for  # type: ignore
+
+                    flow = None
+                    if ep and getattr(ep, "role", "").strip().lower() == "accountant":
+                        flow = ApprovalFlow.objects.filter(slug="expenses-accountant-only").first()
+                    if not flow:
+                        flow = ApprovalFlow.objects.filter(slug="expenses-default").first()
+                    if flow:
+                        create_instance_for(expense, flow)
+                except Exception:
+                    logger.exception("Approvals: failed to create instance (non-fatal).")
+
                 messages.success(request, "✅ Expense submitted successfully.")
                 return redirect("expenses:unified-expense-dashboard")
-            else:
-                # Keep modal open and show actual form errors instead of a vague message
-                show_expense_modal = True
 
-                # Collect and format errors
+            else:
+                # Keep modal open and show actual form errors
+                show_expense_modal = True
                 errs = []
-                # non-field errors first
                 for e in expense_form.non_field_errors():
                     errs.append(str(e))
-
                 for fname, ferrs in expense_form.errors.items():
                     if fname == "__all__":
-                        # already included as non-field, skip
                         continue
-                    # Try to grab a friendly label; fallback to field name
                     label = getattr(expense_form.fields.get(fname), "label", fname) if fname in expense_form.fields else fname
                     for err in ferrs:
                         errs.append(f"{label}: {err}")
-
-                # If nothing specific, fallback to generic message
                 if not errs:
                     messages.error(request, "❌ Please correct the errors in the expense form.")
                 else:
-                    # Log server-side for debugging (dev)
                     logger.debug("Expense form submission failed: %s", errs)
-
-                    # Show joined errors to user (first few only)
                     display = "; ".join(errs[:6])
                     if len(errs) > 6:
                         display += f" (and {len(errs)-6} more...)"
@@ -190,7 +231,6 @@ def unified_expense_dashboard(request):
     if role == "Employee":
         expenses = expense_qs.filter(employee=employee)
         advances = AdvanceRequest.objects.filter(employee=employee)
-        # Show ALL DA for this employee
         da_entries = DailyAllowance.objects.filter(employee=employee).select_related("employee__user", "project")
         projects = expenses.values("project_id", "project__name").distinct()
         employees = None
@@ -240,46 +280,77 @@ def unified_expense_dashboard(request):
         da_entries = da_entries.filter(employee_id=selected_employee)
 
     # ------------------------------- DA Subtabs (robust) -------------------------------
-    # Defensive: ensure da_entries is a queryset and has select_related applied
     try:
         if hasattr(da_entries, "select_related"):
             da_entries = da_entries.select_related("employee__user", "project")
     except Exception:
-        # fallback to empty queryset if something goes wrong
         da_entries = DailyAllowance.objects.none()
 
-    # Pending DA = awaiting approval (not approved and not rejected)
     pending_da = da_entries.filter(Q(approved=False) | Q(approved__isnull=True)).filter(Q(rejected=False) | Q(rejected__isnull=True))
 
-    # Approved DA = manager/accountant-approved but NOT settled
+    # use the simple fallback helper to compute pending ids (works until ApprovalFlow is active)
+    pending_ids = get_pending_expense_ids_for_user(request.user)
+
     approved_da = da_entries.filter(approved=True).filter(
         Q(reimbursed=False) | Q(reimbursed__isnull=True)
     )
 
-    # Settled DA = reimbursed True OR settlement_date present (covers both cash & advance settlements)
     settled_da = da_entries.filter(
         Q(reimbursed=True) | Q(settlement_date__isnull=False)
     )
 
-    # Ensure ordering for UI stability
     pending_da = pending_da.order_by("-date", "-id")
     approved_da = approved_da.order_by("-date", "-id")
     settled_da = settled_da.order_by("-date", "-id")
 
-    # Debug counters to help verify why something might not show up
     debug_da_total_count = da_entries.count()
     debug_pending_da_count = pending_da.count()
     debug_approved_da_count = approved_da.count()
 
-    # ------------------------------- Approval Rights -------------------------------
+    # ------------------------------- Approval Rights (legacy flags) -------------------------------
     for exp in expenses:
+        # legacy "can_approve" helper (keeps existing behaviour)
         exp.can_approve = False
-        if role == "Accountant" and exp.current_stage == "ACCOUNTANT":
+        if role == "Accountant" and getattr(exp, "current_stage", "") == "ACCOUNTANT":
             exp.can_approve = True
-        elif role == "Manager" and exp.current_stage == "MANAGER":
+        elif role == "Manager" and getattr(exp, "current_stage", "") == "MANAGER":
             exp.can_approve = True
-        elif role == "Account Manager" and exp.current_stage in ["ACCOUNT_MANAGER", "APPROVED"]:
+        elif role == "Account Manager" and getattr(exp, "current_stage", "") in ["ACCOUNT_MANAGER", "APPROVED"]:
             exp.can_approve = True
+
+        # NEW: mark whether the expense is assigned to current user (safe, simple boolean)
+        try:
+            exp.pending_for_me = (exp.id in pending_ids)
+        except Exception:
+            exp.pending_for_me = False
+
+
+    # 🔽 NEW: approvals engine checks (non-fatal fallback)
+    try:
+        from approvals.utils import get_instance_for_object, user_matches_selector  # type: ignore
+        expenses_pending_for_me = set()
+        advances_pending_for_me = set()
+        for exp in expenses:
+            try:
+                inst = get_instance_for_object(exp)
+                if inst:
+                    step = inst.current_step()
+                    if step and user_matches_selector(request.user, step.selector_type, step.selector_value):
+                        expenses_pending_for_me.add(exp.id)
+            except Exception:
+                logger.exception("Approvals: error while checking instance for Expense %s", getattr(exp, "id", None))
+        for adv in advances:
+            try:
+                inst = get_instance_for_object(adv)
+                if inst:
+                    step = inst.current_step()
+                    if step and user_matches_selector(request.user, step.selector_type, step.selector_value):
+                        advances_pending_for_me.add(adv.id)
+            except Exception:
+                logger.exception("Approvals: error while checking instance for Advance %s", getattr(adv, "id", None))
+    except Exception:
+        expenses_pending_for_me = set()
+        advances_pending_for_me = set()
 
     # ------------------------------- Tabs -------------------------------
     tabs = {
@@ -297,12 +368,9 @@ def unified_expense_dashboard(request):
         "rejected_advances": advances.filter(status="Rejected"),
         "settled_advances": advances.filter(status="Settled"),
 
-        # NEW: DA subtabs
         "pending_da": pending_da,
         "approved_da": approved_da,
         "settled_da": settled_da,
-
-        # Kept for any other consumers/includes that still use it
         "da_entries": da_entries,
     }
 
@@ -312,15 +380,11 @@ def unified_expense_dashboard(request):
     page_number = request.GET.get("page")
     settled_page = paginator.get_page(page_number)
 
-    # --- Account Manager inline settlement summary (approved & unsettled) ---
+    # --- Account Manager inline settlement summary ---
     am_settlement_summary = None
     if role in ["Account Manager", "Account_Manager"] or request.user.has_perm('timesheet.can_approve') or is_manager(request.user):
-        exp_base = Expense.objects.select_related("employee__user", "project").filter(
-            status="Approved"
-        )
-        da_base = DailyAllowance.objects.select_related("employee__user", "project").filter(
-            approved=True,
-        ).filter(reimbursed=False)  # unreimbursed DA only
+        exp_base = Expense.objects.select_related("employee__user", "project").filter(status="Approved")
+        da_base = DailyAllowance.objects.select_related("employee__user", "project").filter(approved=True).filter(reimbursed=False)
 
         if selected_year:
             exp_base = exp_base.filter(date__year=selected_year)
@@ -336,15 +400,9 @@ def unified_expense_dashboard(request):
             da_base = da_base.filter(employee_id=selected_employee)
 
         am_settlement_summary = []
-        emp_ids = set(exp_base.values_list("employee_id", flat=True)) | set(
-            da_base.values_list("employee_id", flat=True)
-        )
+        emp_ids = set(exp_base.values_list("employee_id", flat=True)) | set(da_base.values_list("employee_id", flat=True))
         if emp_ids:
-            emp_map = {
-                e.id: e
-                for e in EmployeeProfile.objects.select_related("user").filter(id__in=emp_ids)
-            }
-
+            emp_map = { e.id: e for e in EmployeeProfile.objects.select_related("user").filter(id__in=emp_ids) }
             from collections import defaultdict
             emp_expenses = defaultdict(list)
             emp_das = defaultdict(list)
@@ -372,6 +430,9 @@ def unified_expense_dashboard(request):
                         "da_total": da_total,
                         "grand_total": grand_total,
                     })
+                    
+    slug_role = (role or "").strip().lower().replace(" ", "-")
+    
 
     # ------------------------------- Render -------------------------------
     return render(request, "expenses/unified_expense_dashboard.html", {
@@ -410,8 +471,15 @@ def unified_expense_dashboard(request):
             or is_manager(request.user)
         ),
 
-        # DEBUG counters for DA (remove in production if desired)
+        # DEBUG counters for DA
         "debug_da_total_count": debug_da_total_count,
         "debug_pending_da_count": debug_pending_da_count,
         "debug_approved_da_count": debug_approved_da_count,
+
+        # approvals integration helpers
+        "expenses_pending_for_me": expenses_pending_for_me,
+        "advances_pending_for_me": advances_pending_for_me,
+        "pending_ids": pending_ids,
+        "role": role,
+        "slug_role": slug_role
     })

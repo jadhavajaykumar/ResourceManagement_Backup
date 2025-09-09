@@ -16,7 +16,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django_extensions',
     'accounts',
-    #'accountant',
     'project',
     'expenses',
     'timesheet.apps.TimesheetConfig',
@@ -29,8 +28,8 @@ INSTALLED_APPS = [
     'employee.apps.EmployeeConfig',    # Use the AppConfig class
     'docgen',
     'utils',
-    #'accountmanager',
     'dashboard',
+    'approvals.apps.ApprovalsConfig',
     
 ]
 

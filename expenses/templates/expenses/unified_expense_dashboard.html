@@ -164,16 +164,16 @@
           </div>
 
           <div data-expense-panel="pending">
-            {% include "expenses/unified/partials/table_expenses.html" with items=tabs.pending_expenses role=role action=expense_action %}
+			{% include "expenses/unified/partials/table_expenses.html" with items=tabs.pending_expenses role=role action=expense_action pending_ids=expenses_pending_for_me %}
           </div>
           <div data-expense-panel="approved" class="d-none">
-            {% include "expenses/unified/partials/table_expenses.html" with items=tabs.approved_expenses role=role action=expense_action %}
+            {% include "expenses/unified/partials/table_expenses.html" with items=tabs.approved_expenses role=role action=expense_action pending_ids=expenses_pending_for_me %}
           </div>
           <div data-expense-panel="rejected" class="d-none">
-            {% include "expenses/unified/partials/table_expenses.html" with items=tabs.rejected_expenses role=role action=expense_action %}
+            {% include "expenses/unified/partials/table_expenses.html" with items=tabs.rejected_expenses role=role action=expense_action pending_ids=expenses_pending_for_me %}
           </div>
           <div data-expense-panel="settled" class="d-none">
-            {% include "expenses/unified/partials/table_expenses.html" with items=tabs.settled_expenses role=role action="none" %}
+            {% include "expenses/unified/partials/table_expenses.html" with items=tabs.settled_expenses role=role action="none" pending_ids=expenses_pending_for_me%}
           </div>
         </div>
 

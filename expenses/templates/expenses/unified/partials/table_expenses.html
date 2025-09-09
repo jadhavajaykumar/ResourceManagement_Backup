@@ -13,7 +13,7 @@
       <th>Status</th>
       <th>Remark</th>
       {% if action != "none" %}
-      <th>Actions</th>
+        <th>Actions</th>
       {% endif %}
     </tr>
   </thead>
@@ -74,7 +74,6 @@
         {% endif %}
       </td>
 
-      {# ✅ REMARKS: show all reviewer remarks; fallback to employee comments #}
       <td>
         {% if exp.accountant_remark %}
           <div><small class="text-muted">Accountant:</small> {{ exp.accountant_remark }}</div>
@@ -92,87 +91,89 @@
 
       {% if action != "none" %}
       <td>
-        {% with r=role|slugify %}
-          {% if r == "accountant" and exp.current_stage == "ACCOUNTANT" %}
-            <form method="post" action="{% url 'expenses:unified-action' 'expense' exp.id 'approve' %}" class="d-inline">
-              {% csrf_token %}
-              <input type="text" name="remark" class="form-control form-control-sm mb-1" placeholder="Remark (optional)">
-              <button type="submit" class="btn btn-success btn-sm">Approve</button>
-            </form>
-            <form method="post" action="{% url 'expenses:unified-action' 'expense' exp.id 'reject' %}" class="d-inline">
-              {% csrf_token %}
-              <input type="text" name="remark" class="form-control form-control-sm mb-1" placeholder="Remark (optional)">
-              <button type="submit" class="btn btn-danger btn-sm">Reject</button>
-            </form>
 
-          {% elif r == "manager" and exp.current_stage == "MANAGER" %}
-            <form method="post" action="{% url 'expenses:unified-action' 'expense' exp.id 'approve' %}" class="d-inline">
-              {% csrf_token %}
-              <input type="text" name="remark" class="form-control form-control-sm mb-1" placeholder="Remark (optional)">
-              <button type="submit" class="btn btn-success btn-sm">Approve</button>
-            </form>
-            <form method="post" action="{% url 'expenses:unified-action' 'expense' exp.id 'reject' %}" class="d-inline">
-              {% csrf_token %}
-              <input type="text" name="remark" class="form-control form-control-sm mb-1" placeholder="Remark (optional)">
-              <button type="submit" class="btn btn-danger btn-sm">Reject</button>
-            </form>
+        {# Decide visibility: legacy exp.can_approve OR assigned to current user via exp.pending_for_me #}
+        {% if exp.can_approve or exp.pending_for_me %}
 
-          {% elif r == "account-manager" and exp.current_stage == "ACCOUNT_MANAGER" %}
-            <form method="post" action="{% url 'expenses:unified-action' 'expense' exp.id 'approve' %}" class="d-inline">
-              {% csrf_token %}
-              <input type="text" name="remark" class="form-control form-control-sm mb-1" placeholder="Remark (optional)">
-              <button type="submit" class="btn btn-success btn-sm">Approve</button>
-            </form>
-            <form method="post" action="{% url 'expenses:unified-action' 'expense' exp.id 'reject' %}" class="d-inline">
-              {% csrf_token %}
-              <input type="text" name="remark" class="form-control form-control-sm mb-1" placeholder="Remark (optional)">
-              <button type="submit" class="btn btn-danger btn-sm">Reject</button>
-            </form>
-
-            {% if exp.status == "Approved" and not exp.reimbursed %}
-              <form method="post"
-                    action="{% url 'expenses:unified-action' 'expense' exp.id 'settle' %}"
-                    class="d-inline mt-1 d-flex gap-2 align-items-center flex-wrap">
+          {# Accountant role branch #}
+          {% if slug_role == "accountant" %}
+            {% if exp.current_stage == "ACCOUNTANT" or exp.pending_for_me %}
+              <form method="post" action="{% url 'expenses:unified-action' 'expense' exp.id 'approve' %}" class="d-inline">
                 {% csrf_token %}
-                <input type="date" name="settlement_date" class="form-control form-control-sm" required>
-                <input type="text" name="remark" class="form-control form-control-sm" placeholder="Cash settlement remark (optional)">
-                <button type="submit" class="btn btn-outline-primary btn-sm">Settle by Cash</button>
+                <input type="text" name="remark" class="form-control form-control-sm mb-1" placeholder="Remark (optional)">
+                <button type="submit" class="btn btn-success btn-sm">Approve</button>
               </form>
-            {% endif %}
-
-          {% elif r == "account-manager" and exp.current_stage == "APPROVED" %}
-            {% if exp.status == "Approved" and not exp.reimbursed %}
-              <form method="post"
-                    action="{% url 'expenses:unified-action' 'expense' exp.id 'settle' %}"
-                    class="d-inline d-flex gap-2 align-items-center flex-wrap">
+              <form method="post" action="{% url 'expenses:unified-action' 'expense' exp.id 'reject' %}" class="d-inline">
                 {% csrf_token %}
-                <input type="date" name="settlement_date" class="form-control form-control-sm" required>
-                <input type="text" name="remark" class="form-control form-control-sm" placeholder="Cash settlement remark (optional)">
-                <button type="submit" class="btn btn-outline-primary btn-sm">Settle by Cash</button>
+                <input type="text" name="remark" class="form-control form-control-sm mb-1" placeholder="Remark (optional)">
+                <button type="submit" class="btn btn-danger btn-sm">Reject</button>
               </form>
             {% else %}
-              <span class="badge bg-secondary">No action</span>
+              <span class="badge bg-info">Observer</span>
             {% endif %}
 
-          {% elif exp.employee.user == request.user and exp.current_stage == "ACCOUNTANT" and exp.status == "Submitted" %}
-            <button class="btn btn-warning btn-sm edit-expense-btn"
-                    data-expense-id="{{ exp.id }}"
-                    data-bs-toggle="modal"
-                    data-bs-target="#expenseModal">Edit</button>
-            <a href="{% url 'expenses:delete-expense' exp.id %}"
-               class="btn btn-danger btn-sm"
-               onclick="return confirm('Are you sure you want to delete this expense?');">Delete</a>
+          {# Manager role branch #}
+          {% elif slug_role == "manager" %}
+            {% if exp.current_stage == "MANAGER" or exp.pending_for_me %}
+              <form method="post" action="{% url 'expenses:unified-action' 'expense' exp.id 'approve' %}" class="d-inline">
+                {% csrf_token %}
+                <input type="text" name="remark" class="form-control form-control-sm mb-1" placeholder="Remark (optional)">
+                <button type="submit" class="btn btn-success btn-sm">Approve</button>
+              </form>
+              <form method="post" action="{% url 'expenses:unified-action' 'expense' exp.id 'reject' %}" class="d-inline">
+                {% csrf_token %}
+                <input type="text" name="remark" class="form-control form-control-sm mb-1" placeholder="Remark (optional)">
+                <button type="submit" class="btn btn-danger btn-sm">Reject</button>
+              </form>
+            {% else %}
+              <span class="badge bg-info">Observer</span>
+            {% endif %}
 
+          {# Account Manager role branch #}
+          {% elif slug_role == "account-manager" %}
+            {% if exp.current_stage == "ACCOUNT_MANAGER" or exp.current_stage == "APPROVED" or exp.pending_for_me %}
+              <form method="post" action="{% url 'expenses:unified-action' 'expense' exp.id 'approve' %}" class="d-inline">
+                {% csrf_token %}
+                <input type="text" name="remark" class="form-control form-control-sm mb-1" placeholder="Remark (optional)">
+                <button type="submit" class="btn btn-success btn-sm">Approve</button>
+              </form>
+              <form method="post" action="{% url 'expenses:unified-action' 'expense' exp.id 'reject' %}" class="d-inline">
+                {% csrf_token %}
+                <input type="text" name="remark" class="form-control form-control-sm mb-1" placeholder="Remark (optional)">
+                <button type="submit" class="btn btn-danger btn-sm">Reject</button>
+              </form>
+
+              {% if exp.status == "Approved" and not exp.reimbursed %}
+                <form method="post" action="{% url 'expenses:unified-action' 'expense' exp.id 'settle' %}" class="d-inline mt-1 d-flex gap-2 align-items-center flex-wrap">
+                  {% csrf_token %}
+                  <input type="date" name="settlement_date" class="form-control form-control-sm" required>
+                  <input type="text" name="remark" class="form-control form-control-sm" placeholder="Cash settlement remark (optional)">
+                  <button type="submit" class="btn btn-outline-primary btn-sm">Settle by Cash</button>
+                </form>
+              {% endif %}
+            {% else %}
+              <span class="badge bg-info">Observer</span>
+            {% endif %}
+
+          {# Employee edit if allowed #}
           {% else %}
-            <span class="badge bg-info">Observer</span>
+            {% if exp.employee.user == request.user and exp.current_stage == "ACCOUNTANT" and exp.status == "Submitted" %}
+              <button class="btn btn-warning btn-sm edit-expense-btn" data-expense-id="{{ exp.id }}" data-bs-toggle="modal" data-bs-target="#expenseModal">Edit</button>
+              <a href="{% url 'expenses:delete-expense' exp.id %}" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this expense?');">Delete</a>
+            {% else %}
+              <span class="badge bg-info">Observer</span>
+            {% endif %}
           {% endif %}
-        {% endwith %}
+
+        {% else %}
+          <span class="badge bg-info">Observer</span>
+        {% endif %}
       </td>
       {% endif %}
     </tr>
     {% empty %}
     <tr>
-      <td colspan="10" class="text-center text-muted">No expenses found.</td>
+      <td colspan="12" class="text-center text-muted">No expenses found.</td>
     </tr>
     {% endfor %}
   </tbody>
