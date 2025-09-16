@@ -141,19 +141,32 @@ def unified_expense_dashboard(request):
                 expense.save()
 
                 # 🔽 NEW: hook into approvals engine (defensive)
+                # 🔽 NEW: hook into approvals engine (defensive & tolerant)
                 try:
                     from approvals.models import ApprovalFlow  # type: ignore
                     from approvals.services import create_instance_for  # type: ignore
 
                     flow = None
+                    # If submitter is in role 'accountant' use the accountant-specific flow (try multiple slug/name variants)
                     if ep and getattr(ep, "role", "").strip().lower() == "accountant":
-                        flow = ApprovalFlow.objects.filter(slug="expenses-accountant-only").first()
+                        flow = (
+                            ApprovalFlow.objects.filter(slug__iexact="expenses-accountant").first()
+                            or ApprovalFlow.objects.filter(slug__iexact="expenses-accountant-only").first()
+                            or ApprovalFlow.objects.filter(name__icontains="Accountant").first()
+                        )
+                    # fallback defaults: try common slugs/names
                     if not flow:
-                        flow = ApprovalFlow.objects.filter(slug="expenses-default").first()
+                        flow = (
+                            ApprovalFlow.objects.filter(slug__iexact="expenseemployee").first()
+                            or ApprovalFlow.objects.filter(slug__iexact="expenses-default").first()
+                            or ApprovalFlow.objects.filter(name__icontains="Expense").first()
+                            or ApprovalFlow.objects.first()
+                        )
                     if flow:
                         create_instance_for(expense, flow)
                 except Exception:
                     logger.exception("Approvals: failed to create instance (non-fatal).")
+
 
                 messages.success(request, "✅ Expense submitted successfully.")
                 return redirect("expenses:unified-expense-dashboard")
@@ -308,34 +321,19 @@ def unified_expense_dashboard(request):
     debug_approved_da_count = approved_da.count()
 
     # ------------------------------- Approval Rights (legacy flags) -------------------------------
-    for exp in expenses:
-        # legacy "can_approve" helper (keeps existing behaviour)
-        exp.can_approve = False
-        if role == "Accountant" and getattr(exp, "current_stage", "") == "ACCOUNTANT":
-            exp.can_approve = True
-        elif role == "Manager" and getattr(exp, "current_stage", "") == "MANAGER":
-            exp.can_approve = True
-        elif role == "Account Manager" and getattr(exp, "current_stage", "") in ["ACCOUNT_MANAGER", "APPROVED"]:
-            exp.can_approve = True
-
-        # NEW: mark whether the expense is assigned to current user (safe, simple boolean)
-        try:
-            exp.pending_for_me = (exp.id in pending_ids)
-        except Exception:
-            exp.pending_for_me = False
-
-
+    # NOTE: we'll compute approvals-based flags and then apply legacy fallback (legacy flags kept)
     # 🔽 NEW: approvals engine checks (non-fatal fallback)
     try:
         from approvals.utils import get_instance_for_object, user_matches_selector  # type: ignore
         expenses_pending_for_me = set()
         advances_pending_for_me = set()
+        # We will also build a map of expense_id -> whether it is pending for current user
         for exp in expenses:
             try:
                 inst = get_instance_for_object(exp)
                 if inst:
                     step = inst.current_step()
-                    if step and user_matches_selector(request.user, step.selector_type, step.selector_value):
+                    if step and user_matches_selector(request.user, step.selector_type, step.selector_value, exp):
                         expenses_pending_for_me.add(exp.id)
             except Exception:
                 logger.exception("Approvals: error while checking instance for Expense %s", getattr(exp, "id", None))
@@ -344,13 +342,44 @@ def unified_expense_dashboard(request):
                 inst = get_instance_for_object(adv)
                 if inst:
                     step = inst.current_step()
-                    if step and user_matches_selector(request.user, step.selector_type, step.selector_value):
+                    if step and user_matches_selector(request.user, step.selector_type, step.selector_value, adv):
                         advances_pending_for_me.add(adv.id)
             except Exception:
                 logger.exception("Approvals: error while checking instance for Advance %s", getattr(adv, "id", None))
     except Exception:
         expenses_pending_for_me = set()
         advances_pending_for_me = set()
+
+    # ------------------------------- Synchronise row-level flags used by templates -------------------------------
+    # Ensure template uses approvals result (exp.pending_for_me / exp.can_approve)
+    try:
+        for exp in expenses:
+            # default values
+            exp.can_approve = False
+            exp.pending_for_me = False
+
+        # legacy stage-based can_approve (keep for fallback)
+        for exp in expenses:
+            if role == "Accountant" and getattr(exp, "current_stage", "") == "ACCOUNTANT":
+                exp.can_approve = True
+            elif role == "Manager" and getattr(exp, "current_stage", "") == "MANAGER":
+                exp.can_approve = True
+            elif role == "Account Manager" and getattr(exp, "current_stage", "") in ["ACCOUNT_MANAGER", "APPROVED"]:
+                exp.can_approve = True
+
+        # override with approvals engine result (if present)
+        for exp in expenses:
+            try:
+                if exp.id in expenses_pending_for_me:
+                    exp.pending_for_me = True
+                    exp.can_approve = True
+            except Exception:
+                exp.pending_for_me = False
+    except Exception:
+        # fallback: keep whatever is already present
+        for exp in expenses:
+            exp.pending_for_me = getattr(exp, "pending_for_me", False)
+            exp.can_approve = getattr(exp, "can_approve", False)
 
     # ------------------------------- Tabs -------------------------------
     tabs = {

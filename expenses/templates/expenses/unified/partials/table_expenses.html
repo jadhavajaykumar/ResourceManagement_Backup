@@ -92,12 +92,12 @@
       {% if action != "none" %}
       <td>
 
-        {# Decide visibility: legacy exp.can_approve OR assigned to current user via exp.pending_for_me #}
-        {% if exp.can_approve or exp.pending_for_me %}
+        {# Use legacy exp.can_approve OR per-instance pending_for_me OR authoritative pending_ids set #}
+        {% if exp.can_approve or exp.pending_for_me or exp.id in pending_ids %}
 
-          {# Accountant role branch #}
+          {# Accountant branch #}
           {% if slug_role == "accountant" %}
-            {% if exp.current_stage == "ACCOUNTANT" or exp.pending_for_me %}
+            {% if exp.current_stage == "ACCOUNTANT" or exp.pending_for_me or exp.id in pending_ids %}
               <form method="post" action="{% url 'expenses:unified-action' 'expense' exp.id 'approve' %}" class="d-inline">
                 {% csrf_token %}
                 <input type="text" name="remark" class="form-control form-control-sm mb-1" placeholder="Remark (optional)">
@@ -112,9 +112,9 @@
               <span class="badge bg-info">Observer</span>
             {% endif %}
 
-          {# Manager role branch #}
+          {# Manager branch #}
           {% elif slug_role == "manager" %}
-            {% if exp.current_stage == "MANAGER" or exp.pending_for_me %}
+            {% if exp.current_stage == "MANAGER" or exp.pending_for_me or exp.id in pending_ids %}
               <form method="post" action="{% url 'expenses:unified-action' 'expense' exp.id 'approve' %}" class="d-inline">
                 {% csrf_token %}
                 <input type="text" name="remark" class="form-control form-control-sm mb-1" placeholder="Remark (optional)">
@@ -129,9 +129,9 @@
               <span class="badge bg-info">Observer</span>
             {% endif %}
 
-          {# Account Manager role branch #}
+          {# Account Manager branch #}
           {% elif slug_role == "account-manager" %}
-            {% if exp.current_stage == "ACCOUNT_MANAGER" or exp.current_stage == "APPROVED" or exp.pending_for_me %}
+            {% if exp.current_stage == "ACCOUNT_MANAGER" or exp.current_stage == "APPROVED" or exp.pending_for_me or exp.id in pending_ids %}
               <form method="post" action="{% url 'expenses:unified-action' 'expense' exp.id 'approve' %}" class="d-inline">
                 {% csrf_token %}
                 <input type="text" name="remark" class="form-control form-control-sm mb-1" placeholder="Remark (optional)">
@@ -155,7 +155,7 @@
               <span class="badge bg-info">Observer</span>
             {% endif %}
 
-          {# Employee edit if allowed #}
+          {# Employee edit branch #}
           {% else %}
             {% if exp.employee.user == request.user and exp.current_stage == "ACCOUNTANT" and exp.status == "Submitted" %}
               <button class="btn btn-warning btn-sm edit-expense-btn" data-expense-id="{{ exp.id }}" data-bs-toggle="modal" data-bs-target="#expenseModal">Edit</button>
