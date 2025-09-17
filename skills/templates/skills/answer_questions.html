@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-3">
+  <h4>Answer questions for {{ main_skill.name }}</h4>
+  <form method="post">
+    {% csrf_token %}
+    <table class="table">
+      <thead><tr><th>#</th><th>Question</th><th>Your answer</th></tr></thead>
+      <tbody>
+        {% for ans in answers %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td>{{ ans.question.text }}</td>
+          <td>
+            <textarea name="answer_{{ ans.question.id }}" class="form-control" rows="3">{{ ans.answer_text }}</textarea>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <button class="btn btn-primary">Save Answers</button>
+    <a href="{% url 'skills:my-skills' %}" class="btn btn-secondary">Back</a>
+  </form>
+</div>
+{% endblock %}

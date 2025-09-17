@@ -1,0 +1,27 @@
+{# templates/skills/_rating_badge.html #}
+{# Context: rating (number), display_decimal (optional bool) #}
+{% with r=rating %}
+  {% if display_decimal %}
+    {% comment %} rating may be float (e.g. 3.1) {% endcomment %}
+    {% if r >= 3.5 %}
+      <span class="badge bg-success">{{ r }}</span>
+    {% elif r >= 2.0 %}
+      <span class="badge bg-info text-dark">{{ r }}</span>
+    {% elif r|floatformat > 0 %}
+      <span class="badge bg-secondary">{{ r }}</span>
+    {% else %}
+      <span class="text-muted small">-</span>
+    {% endif %}
+  {% else %}
+    {% comment %} treat as integer-like rating (0..4) {% endcomment %}
+    {% if r|floatformat == "4" or r|floatformat == "4.0" %}
+      <span class="badge bg-success">{{ r }}</span>
+    {% elif r|floatformat >= "2" %}
+      <span class="badge bg-info text-dark">{{ r }}</span>
+    {% elif r|floatformat == "0" %}
+      <span class="badge bg-danger">{{ r }}</span>
+    {% else %}
+      <span class="badge bg-secondary">{{ r }}</span>
+    {% endif %}
+  {% endif %}
+{% endwith %}

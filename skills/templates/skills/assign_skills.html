@@ -1,0 +1,380 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+{% load static skill_extras %}
+
+<div class="container mt-4">
+  <h3 class="mb-3">Assign Skills / Skill Matrix</h3>
+
+  {% if messages %}
+    {% for m in messages %}
+      <div class="alert alert-{{ m.tags }}">{{ m }}</div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="row g-3 mb-3">
+    <div class="col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h6 class="card-title">Assign a Subskill</h6>
+          <form method="post" class="mt-2">
+            {% csrf_token %}
+            <div class="mb-2">
+              <label class="form-label small">Employee</label>
+              <select name="employee" class="form-select" required>
+                <option value="">Select employee</option>
+                {% for emp in employees %}
+                  <option value="{{ emp.id }}">{{ emp.user.get_full_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="row">
+              <div class="col-6 mb-2">
+                <label class="form-label small">Main Skill</label>
+                <select id="main_skill_select" name="main_skill" class="form-select" required>
+                  <option value="">Select main skill</option>
+                  {% for m in main_skills %}
+                    <option value="{{ m.id }}">{{ m.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-6 mb-2">
+                <label class="form-label small">Subskill</label>
+                <select id="subskill_select" name="subskill" class="form-select" required>
+                  <option value="">Select subskill</option>
+                  {% for s in subskills %}
+                    <option value="{{ s.id }}" data-main="{{ s.main_skill.id }}">{{ s.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+            <div class="mb-2">
+              <label class="form-label small">Rating (0-4)</label>
+              <input type="number" name="rating" min="0" max="4" class="form-control form-control-sm">
+            </div>
+
+            <div class="d-flex gap-2">
+              <button name="assign" value="1" class="btn btn-primary btn-sm">Assign Skill</button>
+              <button type="reset" class="btn btn-outline-secondary btn-sm">Reset</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h6 class="card-title">Create Skills</h6>
+
+          <div class="row">
+            <div class="col-md-6">
+              <form method="post">
+                {% csrf_token %}
+                <label class="form-label small">Add Main Skill</label>
+                <input type="text" name="name" placeholder="Main skill" class="form-control form-control-sm mb-2" required>
+                <textarea name="description" placeholder="Description" class="form-control form-control-sm mb-2" rows="2"></textarea>
+                <button name="add_main" value="1" class="btn btn-outline-secondary btn-sm">Add Main Skill</button>
+              </form>
+            </div>
+
+            <div class="col-md-6">
+              <form method="post">
+                {% csrf_token %}
+                <label class="form-label small">Add Subskill</label>
+                <select id="add_sub_main_select" name="main_skill" class="form-select form-select-sm mb-2" required>
+                  <option value="">Select main skill</option>
+                  {% for m in main_skills %}<option value="{{ m.id }}">{{ m.name }}</option>{% endfor %}
+                </select>
+                <input type="text" name="name" placeholder="Subskill name" class="form-control form-control-sm mb-2" required>
+                <textarea name="description" placeholder="Description" class="form-control form-control-sm mb-2" rows="2"></textarea>
+                <button name="add_sub" value="1" class="btn btn-outline-secondary btn-sm">Add Subskill</button>
+              </form>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# group subskills by main_skill #}
+  {% regroup subskills by main_skill as grouped_skills %}
+
+  <div class="row">
+    <div class="col-12">
+      <div class="card mb-3 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <h5 class="mb-0">Existing Skills & Subskills</h5>
+            <small class="text-muted">Click a subskill to Eval / Answer</small>
+          </div>
+
+          <div class="accordion" id="skillsAccordion">
+            {% for group in grouped_skills %}
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="heading-{{ group.grouper.id }}">
+                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ group.grouper.id }}" aria-expanded="false">
+                    <span class="fw-semibold">{{ group.grouper.name }}</span>
+                    <span class="badge bg-light text-dark ms-3">{{ group.list|length }} subskill{% if group.list|length != 1 %}s{% endif %}</span>
+                  </button>
+                </h2>
+                <div id="collapse-{{ group.grouper.id }}" class="accordion-collapse collapse" data-bs-parent="#skillsAccordion">
+                  <div class="accordion-body">
+                    <div class="row g-2">
+                      {% for s in group.list %}
+                        <div class="col-12 col-md-6 col-lg-4">
+                          <div class="d-flex align-items-center justify-content-between border rounded p-2 h-100">
+                            <div>
+                              <div class="fw-semibold">{{ s.name }}</div>
+                              <div class="small text-muted">{{ group.grouper.name }}</div>
+                            </div>
+                            <div class="d-inline-flex" style="gap:.35rem;">
+                              {% if can_evaluate %}
+                                <button type="button" class="btn btn-sm btn-outline-primary evaluate-btn" data-main-id="{{ group.grouper.id }}" data-sub-id="{{ s.id }}">Eval</button>
+                              {% endif %}
+                              {% if is_employee_user %}
+                                <a class="btn btn-sm btn-outline-success" href="{% url 'skills:answer-skill-questions-sub' group.grouper.id s.id %}">Answer</a>
+                              {% endif %}
+                            </div>
+                          </div>
+                        </div>
+                      {% endfor %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            {% empty %}
+              <div class="text-muted">No skills defined yet.</div>
+            {% endfor %}
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Skill Matrix with improved visuals ===== -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <h5 class="mb-0">Skill Matrix</h5>
+        <small class="text-muted">Subskill columns grouped by main skill; Avg shows manager average (if any)</small>
+      </div>
+
+      <div class="table-responsive" style="max-height:68vh; overflow:auto;">
+        <table class="table table-hover table-sm align-middle">
+          <thead class="table-light sticky-top" style="top:0; z-index:5;">
+            <tr>
+              <th rowspan="2" class="align-middle">Employee</th>
+              {% for group in grouped_skills %}
+                {% with cnt=group.list|length %}
+                  <th class="text-center" colspan="{{ cnt|add:'1' }}">{{ group.grouper.name }}</th>
+                {% endwith %}
+              {% endfor %}
+            </tr>
+            <tr>
+              {% for group in grouped_skills %}
+                {% if group.list %}
+                  {% for sub in group.list %}
+                    <th class="text-start small">{{ sub.name }}</th>
+                  {% endfor %}
+                {% endif %}
+                <th class="text-center small">Avg</th>
+              {% endfor %}
+            </tr>
+          </thead>
+
+          <tbody>
+            {% for row in skill_matrix %}
+              <tr>
+                <td class="fw-semibold">{{ row.employee.user.get_full_name }}</td>
+
+                {% for group in grouped_skills %}
+                  {% if group.list %}
+                    {% for sub in group.list %}
+                      {# prefer explicit EmployeeSkill rating if present in subskill_map - else show '-' #}
+                      {% with val=row.subskill_map|get_item:sub.id %}
+                        <td class="text-center">
+                          {% if val is not None %}
+                            {% include "skills/_rating_badge.html" with rating=val %}
+                          {% else %}
+                            <span class="text-muted small">-</span>
+                          {% endif %}
+                        </td>
+                      {% endwith %}
+                    {% endfor %}
+                  {% endif %}
+                  {# aggregated column for this main skill (employee-specific) #}
+                  {% with agg=row.aggregates|get_item:group.grouper.id %}
+                    <td class="text-center">
+                      {% if agg is not None %}
+                        {% include "skills/_rating_badge.html" with rating=agg display_decimal=True %}
+                      {% else %}
+                        <span class="text-muted small">-</span>
+                      {% endif %}
+                    </td>
+                  {% endwith %}
+                {% endfor %}
+              </tr>
+            {% empty %}
+              <tr><td colspan="{{ grouped_skills|length|add:'1' }}">No employees to display</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- Add question block (same as before) -->
+  <h6 class="mt-3">Add Question for Subskill</h6>
+  <form method="post" class="mb-3">
+    {% csrf_token %}
+    <div class="row g-2">
+      <div class="col-12">
+        <label class="form-label small">Main skill</label>
+        <select id="q_main" name="question_main_skill" class="form-select form-select-sm" required>
+          <option value="">Select main skill</option>
+          {% for m in main_skills %}<option value="{{ m.id }}">{{ m.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-12">
+        <label class="form-label small">Subskill (optional)</label>
+        <select id="q_sub" name="question_subskill" class="form-select form-select-sm">
+          <option value="">(main-skill level question)</option>
+          {% for s in subskills %}<option value="{{ s.id }}" data-main="{{ s.main_skill.id }}">{{ s.main_skill.name }} → {{ s.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-12">
+        <label class="form-label small">Question text</label>
+        <textarea name="question_text" class="form-control form-control-sm" rows="3" required></textarea>
+      </div>
+      <div class="col-4">
+        <label class="form-label small">Order</label>
+        <input type="number" name="question_order" class="form-control form-control-sm" min="0" value="0">
+      </div>
+      <div class="col-12 mt-2">
+        <button name="add_question" value="1" class="btn btn-outline-secondary btn-sm">Add Question</button>
+      </div>
+    </div>
+  </form>
+
+</div>
+
+{# small helper includes and scripts #}
+{# rating badge include: create file templates/skills/_rating_badge.html (see below) #}
+<script>
+(function(){
+  // simple filtering code as before:
+  const mainSelect = document.getElementById('main_skill_select');
+  const subSelect = document.getElementById('subskill_select');
+  function filterSubskills() {
+    if (!mainSelect || !subSelect) return;
+    const mainId = mainSelect.value;
+    for (let i = 0; i < subSelect.options.length; i++) {
+      const opt = subSelect.options[i];
+      const optMain = opt.getAttribute('data-main');
+      if (!opt.value) { opt.hidden = false; opt.disabled = false; continue; }
+      if (!mainId || optMain === mainId) {
+        opt.hidden = false; opt.disabled = false;
+      } else {
+        opt.hidden = true; opt.disabled = true;
+      }
+    }
+    if (subSelect.selectedOptions.length && subSelect.selectedOptions[0].hidden) {
+      subSelect.value = "";
+    }
+  }
+  if (mainSelect && subSelect) {
+    mainSelect.addEventListener('change', filterSubskills);
+    filterSubskills();
+  }
+
+  // add-question filtering similarly:
+  const qMain = document.getElementById('q_main');
+  const qSub = document.getElementById('q_sub');
+  function filterQSub(){
+    if (!qMain || !qSub) return;
+    const mainId = qMain.value;
+    for (let i=0;i<qSub.options.length;i++){
+      const opt = qSub.options[i];
+      if (!opt.value) { opt.hidden=false; opt.disabled=false; continue; }
+      const optMain = opt.getAttribute('data-main');
+      if (!mainId || optMain === mainId) { opt.hidden=false; opt.disabled=false; } else { opt.hidden=true; opt.disabled=true; }
+    }
+    if (qSub.selectedOptions.length && qSub.selectedOptions[0].hidden) qSub.value = "";
+  }
+  if (qMain && qSub) { qMain.addEventListener('change', filterQSub); filterQSub(); }
+
+  // edit-row JSON prompt unchanged
+  document.addEventListener('DOMContentLoaded', function(){
+    document.querySelectorAll('.edit-row').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        const eid = this.dataset.employee;
+        const current = prompt("Paste JSON ratings map e.g. {\"12\":3, \"13\":4} (subskill_id: rating)");
+        if (!current) return;
+        let parsed;
+        try { parsed = JSON.parse(current); } catch(e){ alert('Invalid JSON'); return; }
+        fetch("{% url 'skills:edit-skill-assignment' %}", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token }}",
+          },
+          body: JSON.stringify({employee_id: eid, ratings: parsed})
+        }).then(r => r.json()).then(data => {
+          if (data && data.success) {
+            alert("Updated: " + data.updated);
+            location.reload();
+          } else {
+            alert("Error: " + (data.error || JSON.stringify(data)));
+          }
+        }).catch(err => { console.error(err); alert("Request failed"); });
+      });
+    });
+  });
+
+  // evaluate chooser unchanged
+  const employees = [
+    {% for emp in employees %}
+      { id: {{ emp.id }}, name: "{{ emp.user.get_full_name|escapejs }}" }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ];
+
+  function chooseEmployeeThenEvaluate(mainId, subId) {
+    if (!employees.length) {
+      alert("No employees available to evaluate.");
+      return;
+    }
+    let menu = "Choose employee to evaluate (enter number):\n\n";
+    for (let i=0;i<employees.length;i++){
+      menu += (i+1) + ". " + employees[i].name + " (id:" + employees[i].id + ")\n";
+    }
+    const chosen = prompt(menu);
+    if (!chosen) return;
+    const num = parseInt(chosen, 10);
+    if (isNaN(num) || num < 1 || num > employees.length) {
+      alert("Invalid selection.");
+      return;
+    }
+    const emp = employees[num-1];
+    const url = "{% url 'skills:evaluate-skill-sub' 0 0 0 %}".replace('/0/0/0/', `/${emp.id}/${mainId}/${subId}/`);
+    window.location.href = url;
+  }
+
+  document.addEventListener('click', function(ev){
+    const tgt = ev.target;
+    if (tgt && tgt.classList && tgt.classList.contains('evaluate-btn')){
+      const mainId = tgt.getAttribute('data-main-id');
+      const subId = tgt.getAttribute('data-sub-id');
+      chooseEmployeeThenEvaluate(mainId, subId);
+    }
+  });
+
+})();
+</script>
+{% endblock %}

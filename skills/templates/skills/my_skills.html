@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h3>My Skills</h3>
+  <div class="card p-3">
+    <h6>{{ employee_profile.user.get_full_name }}</h6>
+
+    {% if skills %}
+      <ul>
+        {% for s in skills %}
+          <li>
+            <strong>{{ s.main_skill.name }}</strong> — {{ s.subskill.name }}
+            {% comment %} skill_scores is a dict keyed by main_skill id passed from view {% endcomment %}
+            {% if skill_scores.s_main_skill_id %}
+            {% endif %}
+            {% comment %} Show aggregated rating for this main skill if available {% endcomment %}
+            {% if skill_scores and skill_scores.s_main_skill_id %}
+              <!-- placeholder - view already passes aggregated ratings as skill_scores -->
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-muted">No skills assigned yet.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -23,6 +23,7 @@ urlpatterns = [
     path('unified-expenses/', unified_expense_dashboard, name='unified-expense-dashboard'),
     path('dashboard/', include(('dashboard.urls', 'dashboard'), namespace='dashboard')),
     path('skills/', include(('skills.urls', 'skills'), namespace='skills')),
+
     
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -15,6 +15,9 @@ from employee.views.profile_views import profile_home
 
 
 
+
+
+
 app_name = 'employee'
 
 urlpatterns = [
@@ -27,6 +30,9 @@ urlpatterns = [
     path('attendance-report/', attendance_report, name='attendance-report'),
     path('attendance-c-off-report/', attendance_c_off_report, name='attendance-c-off-report'),
     path('unified-expenses/', unified_expense_dashboard, name='unified-expense-dashboard'),
+    
+    
+    
 
     
 

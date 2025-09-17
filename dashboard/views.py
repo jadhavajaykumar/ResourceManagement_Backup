@@ -40,13 +40,18 @@ def home(request):
         }
 
     # Common for all users
+    if is_manager or can_ts_approve:
+        skills_urlnames = ["skills:assign-skills", "skills:my-skills"]
+    else:
+        skills_urlnames = ["skills:my-skills", "skills:assign-skills"]
     common = [
         item("My Profile",    "bi-person-circle",       ["employee:employee-profile-home"]),
         item("My Projects",   "bi-kanban",              ["employee:my-projects"]),
         item("My Timesheet",  "bi-calendar-check",      ["timesheet:my-timesheets"]),
         item("Expenses & DA", "bi-cash-coin",           ["employee:unified-expense-dashboard"]),
         
-        item("Skills",        "bi-stars",               ["skills:skills-home"]),
+        item("Skills",        "bi-stars",               skills_urlnames),
+
     ]
 
     # Manager / Approver features
@@ -74,6 +79,8 @@ def home(request):
         manager.append(item("Documents", "bi-file-earmark",
                             ["docgen:list-templates"]))                    
 
+
+        
     # Account Manager
     am = []
     if is_am or is_staff:

@@ -1,0 +1,554 @@
+[
+  {
+    "model": "skills.mainskill",
+    "pk": 1000,
+    "fields": {
+      "name": "Siemens PLC Programming"
+    }
+  },
+  {
+    "model": "skills.subskill",
+    "pk": 2001,
+    "fields": {
+      "main_skill": 1000,
+      "name": "Basics"
+    }
+  },
+  {
+    "model": "skills.subskill",
+    "pk": 2002,
+    "fields": {
+      "main_skill": 1000,
+      "name": "Ladder & Logic Programming"
+    }
+  },
+  {
+    "model": "skills.subskill",
+    "pk": 2003,
+    "fields": {
+      "main_skill": 1000,
+      "name": "Communication (Profinet/Profibus/Ethernet)"
+    }
+  },
+  {
+    "model": "skills.subskill",
+    "pk": 2004,
+    "fields": {
+      "main_skill": 1000,
+      "name": "Diagnostics & Troubleshooting"
+    }
+  },
+  {
+    "model": "skills.subskill",
+    "pk": 2005,
+    "fields": {
+      "main_skill": 1000,
+      "name": "Safety & Failsafe"
+    }
+  },
+
+  {
+    "model": "skills.skillquestion",
+    "pk": 30001,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2001,
+      "text": "What is the difference between S7-300, S7-400, S7-1200 and S7-1500 PLCs?",
+      "order": 1
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30002,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2001,
+      "text": "Describe the PLC scan cycle and what happens during each step.",
+      "order": 2
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30003,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2001,
+      "text": "What is OB1 and when is it executed?",
+      "order": 3
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30004,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2001,
+      "text": "Explain what a Data Block (DB) is and why it is used.",
+      "order": 4
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30005,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2001,
+      "text": "How do you perform an online monitor of variables in TIA Portal?",
+      "order": 5
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30006,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2001,
+      "text": "Name common CPU status modes and what they indicate (RUN/STOP/ERROR).",
+      "order": 6
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30007,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2001,
+      "text": "What is the difference between FC and FB?",
+      "order": 7
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30008,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2001,
+      "text": "When would you use an Instance DB?",
+      "order": 8
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30009,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2001,
+      "text": "What are typical uses of Timers and Counters in PLC logic?",
+      "order": 9
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30010,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2001,
+      "text": "How do you backup and restore PLC programs using TIA Portal?",
+      "order": 10
+    }
+  },
+
+  {
+    "model": "skills.skillquestion",
+    "pk": 30101,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2002,
+      "text": "Explain the ladder logic rung scan and how coils and contacts are evaluated.",
+      "order": 1
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30102,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2002,
+      "text": "How do you structure code for reusability (use of FC/FB)? Give an example.",
+      "order": 2
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30103,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2002,
+      "text": "Describe how you implement interlocking between motors in ladder.",
+      "order": 3
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30104,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2002,
+      "text": "What are RETAIN variables and when should they be used?",
+      "order": 4
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30105,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2002,
+      "text": "How do you test a new ladder routine safely on a running machine?",
+      "order": 5
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30106,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2002,
+      "text": "Explain structured programming in SCL/ST and when it's preferable over Ladder.",
+      "order": 6
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30107,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2002,
+      "text": "How do you pass parameters to an FB and why is instance DB important?",
+      "order": 7
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30108,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2002,
+      "text": "Describe a typical approach to debugging timing/sequencing issues in ladder code.",
+      "order": 8
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30109,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2002,
+      "text": "How do you implement state machines (sequence control) in PLC programs?",
+      "order": 9
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30110,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2002,
+      "text": "Explain pros/cons of using direct addressing vs symbolic tags.",
+      "order": 10
+    }
+  },
+
+  {
+    "model": "skills.skillquestion",
+    "pk": 30201,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2003,
+      "text": "What are the main differences between Profibus and Profinet?",
+      "order": 1
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30202,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2003,
+      "text": "How do you configure Profinet devices in TIA Portal?",
+      "order": 2
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30203,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2003,
+      "text": "Explain how to diagnose network errors and identify device communication failures.",
+      "order": 3
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30204,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2003,
+      "text": "Describe how to set up an HMI to communicate with a PLC via Profinet/OPC UA.",
+      "order": 4
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30205,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2003,
+      "text": "Explain the role of GSDML / device descriptions in fieldbus setup.",
+      "order": 5
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30206,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2003,
+      "text": "What is the significance of IP addressing and subnetting in industrial Ethernet?",
+      "order": 6
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30207,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2003,
+      "text": "How would you handle cyclic vs acyclic communication in Profinet?",
+      "order": 7
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30208,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2003,
+      "text": "How do you integrate third-party devices via Profinet into a Siemens PLC system?",
+      "order": 8
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30209,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2003,
+      "text": "What tools would you use to capture and analyze industrial network traffic?",
+      "order": 9
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30210,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2003,
+      "text": "Describe common causes of communication timeouts and how to mitigate them.",
+      "order": 10
+    }
+  },
+
+  {
+    "model": "skills.skillquestion",
+    "pk": 30301,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2004,
+      "text": "How do you read diagnostic buffer and error entries from a Siemens CPU?",
+      "order": 1
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30302,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2004,
+      "text": "Explain how to locate and fix a 'Module fault' or hardware fault.",
+      "order": 2
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30303,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2004,
+      "text": "What steps would you take when a PLC unexpectedly enters STOP mode?",
+      "order": 3
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30304,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2004,
+      "text": "Describe how to trace intermittent field failures (I/O fluctuation).",
+      "order": 4
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30305,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2004,
+      "text": "How do you backup PLC programs and validate backups?",
+      "order": 5
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30306,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2004,
+      "text": "Explain the use of force/write protection and when to apply it during diagnosis.",
+      "order": 6
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30307,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2004,
+      "text": "How do you handle firmware/CPU firmware mismatch issues?",
+      "order": 7
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30308,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2004,
+      "text": "What are common mistakes in ladder that lead to network-wide faults?",
+      "order": 8
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30309,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2004,
+      "text": "How do you test an I/O module without disrupting production?",
+      "order": 9
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30310,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2004,
+      "text": "Describe best practices for documenting and preserving trace logs for later analysis.",
+      "order": 10
+    }
+  },
+
+  {
+    "model": "skills.skillquestion",
+    "pk": 30401,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2005,
+      "text": "What is a failsafe PLC and when is it used?",
+      "order": 1
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30402,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2005,
+      "text": "Describe common safety-related OBs or constructs used for safe shutdown.",
+      "order": 2
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30403,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2005,
+      "text": "How do you ensure emergency stop actions are reliable in a PLC-based system?",
+      "order": 3
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30404,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2005,
+      "text": "What is the role of hardware interlocks vs program logic for safety?",
+      "order": 4
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30405,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2005,
+      "text": "Explain certification (e.g. SIL) considerations when designing safe PLC systems.",
+      "order": 5
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30406,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2005,
+      "text": "How do you test safety functions without exposing personnel to risk?",
+      "order": 6
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30407,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2005,
+      "text": "Describe common safety modules and how they integrate with S7 controllers.",
+      "order": 7
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30408,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2005,
+      "text": "How do you manage safe state transitions during power loss or emergency stop?",
+      "order": 8
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30409,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2005,
+      "text": "What logging or audit records are useful for safety function verification?",
+      "order": 9
+    }
+  },
+  {
+    "model": "skills.skillquestion",
+    "pk": 30410,
+    "fields": {
+      "main_skill": 1000,
+      "subskill": 2005,
+      "text": "Explain the difference between fail-safe I/O and standard I/O modules.",
+      "order": 10
+    }
+  }
+]
