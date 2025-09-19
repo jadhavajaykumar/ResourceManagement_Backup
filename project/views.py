@@ -1,11 +1,12 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import JsonResponse
+from django.db import transaction
 import logging
 import json
 
 from .models import Project, Task, Subtask
-from .forms import ProjectForm, TaskForm, CountryRateForm, ProjectMaterialFormSet 
+from .forms import ProjectForm, TaskForm, CountryRateForm, ProjectMaterialFormSet
 from .services.project_skill_service import save_required_skills
 from .services.country_service import get_country_rate_details
 try:
@@ -36,23 +37,43 @@ def project_dashboard(request):
             project_form = ProjectForm(request.POST, request.FILES, instance=instance)
             
             if project_form.is_valid():
-                new_project = project_form.save()
-               
-                selected_skills = json.loads(request.POST.get('selected_skills') or '[]')
-
-                if instance:
-                    instance.required_skills.all().delete()
-
-                save_required_skills(new_project, selected_skills)
-                return redirect('project:project-dashboard')
+                try:
+                    with transaction.atomic():
+                        new_project = project_form.save()
+                        # Skills are optional; only save if present and skills app exists
+                        raw = request.POST.get('selected_skills') or '[]'
+                        try:
+                            selected_skills = json.loads(raw)
+                        except json.JSONDecodeError:
+                            selected_skills = []
+                        if MainSkill and selected_skills:
+                            if instance:
+                                instance.required_skills.all().delete()
+                            save_required_skills(new_project, selected_skills)
+                    return redirect('project:project-dashboard')
+                except Exception as e:
+                    logger.exception("Failed to add project: %s", e)
+                    project_form.add_error(None, "Unexpected error while creating the project.")
             else:
-                task_form = TaskForm()
-                return render(request, 'project/project_dashboard.html', {
-                    'projects': projects,
-                    'project_form': project_form,
-                    'task_form': task_form,
-                    'main_skills': main_skills,
-                })
+                logger.info("Project form invalid: %s", project_form.errors)
+
+            task_form = TaskForm()
+            return render(request, 'project/project_dashboard.html', {
+                'projects': projects,
+                'project_form': project_form,
+                'task_form': task_form,
+                'main_skills': main_skills,
+             })
+             
+            logger.info("Project form invalid: %s", project_form.errors)
+            task_form = TaskForm()
+            return render(request, 'project/project_dashboard.html', {
+                'projects': projects,
+                'project_form': project_form,
+                'task_form': task_form,
+                'main_skills': main_skills,
+                'open_add_project_modal': True,   # <— flag
+            })
 
         elif 'add_task' in request.POST:
             task_form = TaskForm(request.POST)
@@ -71,14 +92,13 @@ def project_dashboard(request):
 
     project_form = ProjectForm()
     task_form = TaskForm()
-    material_formset = ProjectMaterialFormSet(prefix='materials')
+   
    
 
     return render(request, 'project/project_dashboard.html', {
         'projects': projects,
         'project_form': project_form,
         'task_form': task_form,
-        'material_formset': material_formset,
         'main_skills': main_skills,
     })
 

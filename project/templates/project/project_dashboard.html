@@ -53,4 +53,13 @@
     taskModal.show();
   </script>
   {% endif %}
+  {% if open_add_project_modal %}
+	<script>
+	  document.addEventListener('DOMContentLoaded', function () {
+		var m = new bootstrap.Modal(document.getElementById('addProjectModal'));
+		m.show();
+	  });
+	</script>
+	{% endif %}
+
 {% endblock %}

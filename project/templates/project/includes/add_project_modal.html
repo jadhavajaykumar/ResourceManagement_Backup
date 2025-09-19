@@ -2,15 +2,20 @@
 <div class="modal fade" id="addProjectModal">
   <div class="modal-dialog modal-lg">
 	<div class="modal-content">
-      <form method="post" enctype="multipart/form-data">
+      <form method="post" action="{% url 'project:project-dashboard' %}" enctype="multipart/form-data">
         {% csrf_token %}
         <input type="hidden" name="add_project" value="1">
+		<input type="hidden" name="project_id" value="{{ project.id }}">
         <div class="modal-header bg-success text-white">
           <h5 class="modal-title">Add New Project</h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
 
         <div class="modal-body" id="project-form-fields">
+		{% if project_form.non_field_errors %}
+		    <div class="alert alert-danger">{{ project_form.non_field_errors }}</div>
+		{% endif %}
+			
 
           <!-- Section: Basic Info -->
           <h5 class="text-primary">📝 Basic Info</h5>
@@ -32,13 +37,14 @@
 
           <!-- Section: Customer & Billing Info -->
           <h5 class="text-primary mt-4">💼 Customer & Billing Info</h5>
+		  
           {% include 'shared/includes/form_field.html' with field=project_form.country %}
           {% include 'shared/includes/form_field.html' with field=project_form.currency %}
           {% include 'shared/includes/form_field.html' with field=project_form.rate_type %}
           {% include 'shared/includes/form_field.html' with field=project_form.rate_value %}
           {% include 'shared/includes/form_field.html' with field=project_form.daily_rate %}
 
-<!-- Section: Customer Contract Details -->
+			<!-- Section: Customer Contract Details -->
           <h5 class="text-primary mt-4">📄 Customer Contract Details</h5>
           {% include 'shared/includes/form_field.html' with field=project_form.customer_start_date %}
           {% include 'shared/includes/form_field.html' with field=project_form.customer_end_date %}
@@ -48,6 +54,10 @@
           {% include 'shared/includes/form_field.html' with field=project_form.customer_da_rate_type %}
           {% include 'shared/includes/form_field.html' with field=project_form.customer_da_rate_value %}
           {% include 'shared/includes/form_field.html' with field=project_form.customer_weekend_rate %}
+		  
+		  <!-- Section: Budget (Turnkey) -->
+		  <h5 class="text-primary mt-4">💰 Budget</h5>
+		  {% include 'shared/includes/form_field.html' with field=project_form.budget %}
 
           <!-- Section: Turnkey Quoting -->
           <h5 class="text-primary mt-4">🧾 Turnkey Quoting</h5>
