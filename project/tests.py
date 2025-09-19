@@ -433,6 +433,9 @@ class ProjectMaterialTests(TestCase):
             'project_type': self.project_type.id,
             'location_type': self.location.id,
             'budget': '1000',
+            'quoted_hours': '120',
+            'quoted_days': '15',
+            'quoted_price': '45000',
             'selected_skills': '[]',
             'materials-TOTAL_FORMS': '1',
             'materials-INITIAL_FORMS': '0',
@@ -461,6 +464,9 @@ class ProjectMaterialTests(TestCase):
             'project_type': self.project_type.id,
             'location_type': self.location.id,
             'budget': '1000',
+            'quoted_hours': '120',
+            'quoted_days': '15',
+            'quoted_price': '45000',
             'selected_skills': '[]',
             'materials-TOTAL_FORMS': '1',
             'materials-INITIAL_FORMS': '0',
@@ -510,5 +516,6 @@ class ProjectMaterialTests(TestCase):
         }
         response = self.client.post(self.url, data)
         self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, self.url)
         project = Project.objects.get(name='ServiceProj')
         self.assertEqual(project.materials.count(), 0)        

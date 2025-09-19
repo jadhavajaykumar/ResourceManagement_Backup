@@ -44,11 +44,14 @@ class ProjectMaterialForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Allow quantity and price to be optional so an empty inline form can be ignored.
-        for optional_field in ['quantity', 'price']:
+        # Allow all fields to be optional so an empty inline form can be ignored.
+        optional_fields = ['name', 'make', 'quantity', 'price']
+        for optional_field in optional_fields:
             field = self.fields[optional_field]
             field.required = False
-            field.initial = None
+            if optional_field in {'quantity', 'price'}:
+                field.initial = None
+            
         
         for field in self.fields.values():
             existing_classes = field.widget.attrs.get('class', '')
