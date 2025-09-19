@@ -1,0 +1,13 @@
+cd /home/probotix
+mv resource_management resource_management.bak-$(date +%F-%H%M)   # backup
+git clone https://github.com/jadhavajaykumar/ResourceManagement.git resource_management
+# restore local data if you use sqlite/media
+cp -a resource_management.bak-*/db.sqlite3 resource_management/ 2>/dev/null || true
+cp -a resource_management.bak-*/media       resource_management/ 2>/dev/null || true
+
+cd "$APP_DIR"
+"$VENV_DIR/bin/pip" freeze > requirements-linux-py312.txt
+git add requirements-linux-py312.txt
+git commit -m "lock: requirements-linux-py312 for WSL server"
+git push
+
