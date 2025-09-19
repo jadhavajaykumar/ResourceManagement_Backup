@@ -1,5 +1,5 @@
 from django import forms
-from django.forms import inlineformset_factory
+from django.forms import BaseInlineFormSet, inlineformset_factory
 from expenses.models import CountryDARate
 import pycountry
 from skills.models import TaskAssignment
@@ -44,21 +44,60 @@ class ProjectMaterialForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # Allow quantity and price to be optional so an empty inline form can be ignored.
+        for optional_field in ['quantity', 'price']:
+            field = self.fields[optional_field]
+            field.required = False
+            field.initial = None
+        
         for field in self.fields.values():
             existing_classes = field.widget.attrs.get('class', '')
             classes = existing_classes.split()
             if 'form-control' not in classes:
                 classes.append('form-control')
             field.widget.attrs['class'] = ' '.join(classes)
+    def clean(self):
+        cleaned_data = super().clean()
 
+        material_fields = ['name', 'make', 'quantity', 'price']
+        if not any(cleaned_data.get(field) for field in material_fields):
+            # When every field is blank, mark this form for deletion so the
+            # inline formset treats it as an empty row and ignores it.
+            cleaned_data['DELETE'] = True
 
-ProjectMaterialFormSet = inlineformset_factory(
-    Project,
-    ProjectMaterial,
-    form=ProjectMaterialForm,
-    extra=1,
-    can_delete=True,
-)
+        return cleaned_data
+        
+class ProjectMaterialInlineFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+
+        project_type = None
+        project_type_id = self.data.get('project_type') if self.data else None
+        if project_type_id:
+            project_type = ProjectType.objects.filter(pk=project_type_id).first()
+
+        if not project_type and getattr(self.instance, 'project_type', None):
+            project_type = self.instance.project_type
+
+        if project_type and project_type.name.lower() == 'turnkey':
+            has_material = False
+            for form in self.forms:
+                if not hasattr(form, 'cleaned_data'):
+                    continue
+                if form.cleaned_data.get('DELETE'):
+                    continue
+                if any(
+                    form.cleaned_data.get(field)
+                    for field in ['name', 'make', 'quantity', 'price']
+                ):
+                    has_material = True
+                    break
+
+            if not has_material:
+                raise forms.ValidationError(
+                    'At least one material is required for Turnkey projects.'
+                )
+
 
 
 class ProjectForm(forms.ModelForm):
@@ -121,10 +160,18 @@ class ProjectForm(forms.ModelForm):
         location_type = cleaned_data.get('location_type')
         location_name = location_type.name.lower() if location_type else ''
         is_onsite = cleaned_data.get('is_onsite')
+        def ensure_fields(field_names):
+            for field_name in field_names:
+                value = cleaned_data.get(field_name)
+                if value in (None, ''):
+                    error_message = self.fields[field_name].error_messages.get(
+                        'required', 'This field is required.'
+                    )
+                    self.add_error(field_name, error_message)
         if project_type_name == 'service':
-            self.fields['rate_type'].required = True
-            self.fields['rate_value'].required = True
-            for f in [
+            ensure_fields([
+                'rate_type',
+                'rate_value',
                 'customer_rate_type',
                 'customer_rate_value',
                 'customer_currency',
@@ -133,22 +180,21 @@ class ProjectForm(forms.ModelForm):
                 'customer_weekend_rate',
                 'customer_start_date',
                 'customer_end_date',
-            ]:
-                self.fields[f].required = True
+            ])
+               
         elif project_type_name == 'turnkey':
-            self.fields['budget'].required = True
-            for f in ['quoted_hours', 'quoted_days', 'quoted_price']:
-                self.fields[f].required = True
+            ensure_fields(['budget', 'quoted_hours', 'quoted_days', 'quoted_price'])
 
         if location_name in ['local', 'domestic']:
-            self.fields['da_rate_per_unit'].required = True
+            ensure_fields(['da_rate_per_unit'])
         elif location_name == 'international' and is_onsite:
-            self.fields['da_rate_per_unit'].required = True
-
-            self.fields['da_type'].required = True
-            self.fields['extended_hours_threshold'].required = True
-            self.fields['extended_hours_da_rate'].required = True
-            self.fields['off_day_da_rate'].required = True
+            ensure_fields([
+                'da_rate_per_unit',
+                'da_type',
+                'extended_hours_threshold',
+                'extended_hours_da_rate',
+                'off_day_da_rate',
+            ])
                     
                     
         customer_start = cleaned_data.get('customer_start_date')
@@ -158,13 +204,14 @@ class ProjectForm(forms.ModelForm):
 
         return cleaned_data   
 
+
 # Formset for project materials
 ProjectMaterialFormSet = inlineformset_factory(
     Project,
     ProjectMaterial,
+    form=ProjectMaterialForm,
+    formset=ProjectMaterialInlineFormSet,
     fields=['name', 'make', 'quantity', 'price'],
     extra=1,
     can_delete=True,
-)        
-
-
+)

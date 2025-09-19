@@ -8,8 +8,8 @@
   </div>
   <div class="card-body">
     <p><strong>Description:</strong> {{ project.description|default:"No description provided." }}</p>
-    <p><strong>Location:</strong> {{ project.location }} | <strong>Type:</strong> {{ project.project_type }}</p>
-    <p><strong>Status:</strong> {{ project.status }}</p>
+	<p><strong>Location:</strong> {{ project.location_type.name|default:"-" }} | <strong>Type:</strong> {{ project.project_type.name|default:"-" }}</p>
+	<p><strong>Status:</strong> {{ project.status_type.name|default:"-" }}</p>
     <p><strong>Start:</strong> {{ project.start_date|date:"Y-m-d" }} | <strong>End:</strong> {{ project.end_date|default:"N/A"|date:"Y-m-d" }}</p>
 
     <!-- Tasks Table -->

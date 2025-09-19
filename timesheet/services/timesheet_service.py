@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from django.core.exceptions import ValidationError
 from employee.models import AuditLog
-from timesheet.models import Attendance, TimeSlot
+from timesheet.models import Attendance, TimeSlot, Holiday
 from project.services.da_service import calculate_da
 from timesheet.models import CompensatoryOff, CompOffBalance
 import logging

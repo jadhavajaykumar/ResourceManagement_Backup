@@ -5,6 +5,7 @@ from timesheet.models import Timesheet
 from project.models import Project
 from project.services.da_service import calculate_da
 
+
 def get_project_profitability(project_id):
     project = Project.objects.get(id=project_id)
 
@@ -49,18 +50,35 @@ def get_project_profitability(project_id):
         'profit_percentage': round(profit_percent, 2),
     }
 
+
 def get_employee_da_claims(project_id):
-    timesheets = Timesheet.objects.filter(project_id=project_id, status='Approved')
+    # fetch timesheets with related slots to reduce queries
+    timesheets = Timesheet.objects.filter(project_id=project_id, status='Approved').prefetch_related('time_slots__project', 'employee__user')
     recalculated_claims = []
+
     for ts in timesheets:
-        da_amount, currency = calculate_da(ts)
-        recalculated_claims.append({
-            'employee': ts.employee.user.get_full_name(),
-            'date': ts.date,
-            'calculated_da': da_amount,
-            'currency': currency,
-        })
+        # group slots by (project_id, slot_date) to produce one DA per day/project
+        slot_groups = {}
+        for slot in ts.time_slots.all():
+            key = (slot.project_id, slot.slot_date)
+            slot_groups.setdefault(key, []).append(slot)
+
+        for (proj_id, slot_date), slots in slot_groups.items():
+            # use a representative slot for calculate_da which is slot-based
+            representative = slots[0]
+            try:
+                da_amount, currency = calculate_da(representative)
+            except Exception:
+                # fallback: 0
+                da_amount, currency = 0, getattr(representative.project, 'currency', 'INR')
+            recalculated_claims.append({
+                'employee': ts.employee.user.get_full_name(),
+                'date': slot_date,
+                'calculated_da': da_amount,
+                'currency': currency,
+            })
     return recalculated_claims
+
 
 def get_timesheet_earning_report(project_id):
     project = Project.objects.get(id=project_id)

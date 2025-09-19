@@ -11,10 +11,30 @@ from datetime import datetime, timedelta
 from expenses.models import GlobalExpenseSettings, EmployeeExpenseGrace
 from employee.models import EmployeeProfile
 
+def _coerce_worked_onsite(value):
+    if value in (True, "True", "true", "1", 1):
+        return True
+    if value in (False, "False", "false", "0", 0):
+        return False
+    return None
+
+
 class TimeSlotForm(forms.ModelForm):
+    worked_onsite = forms.TypedChoiceField(
+        label="Worked onsite?",
+        choices=(
+            ("", "Use project default"),
+            ("True", "Onsite"),
+            ("False", "Office"),
+        ),
+        required=False,
+        coerce=_coerce_worked_onsite,
+        empty_value=None,
+    )
+    
     class Meta:
         model = TimeSlot
-        fields = ['project', 'task', 'description', 'time_from', 'time_to']
+        fields = ['project', 'task', 'description', 'time_from', 'time_to', 'worked_onsite']
         widgets = {
             'description': forms.Textarea(attrs={'rows': 2}),
             'time_from': forms.TimeInput(attrs={'type': 'time'}),
@@ -24,6 +44,15 @@ class TimeSlotForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         employee = kwargs.pop('employee', None)
         super().__init__(*args, **kwargs)
+        
+        if self.instance and self.instance.pk:
+            value = self.instance.worked_onsite
+            if value is True:
+                self.initial['worked_onsite'] = 'True'
+            elif value is False:
+                self.initial['worked_onsite'] = 'False'
+
+        self.fields['worked_onsite'].widget.attrs.update({'class': 'form-select'})
 
         if employee and TaskAssignment:
             assigned_project_ids = TaskAssignment.objects.filter(

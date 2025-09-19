@@ -62,7 +62,8 @@
 			<th>Description</th>
 			<th>From</th>
 			<th>To</th>
-			<th>Delete?</th>
+            <th>Worked Onsite?</th>
+            <th>Delete?</th>
 		  </tr>
 		</thead>
 		<tbody>
@@ -102,8 +103,13 @@
 			  {% for error in slot_form.time_to.errors %}
 				<div class="text-danger small">{{ error }}</div>
 			  {% endfor %}
-			</td>
-			<td>{{ slot_form.DELETE }}</td>
+			 <td>
+                          {{ slot_form.worked_onsite|add_class:"form-select" }}
+                          {% for error in slot_form.worked_onsite.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                          {% endfor %}
+              </td>
+             <td>{{ slot_form.DELETE }}</td>
 		  </tr>
 		  {% endfor %}
 		</tbody>

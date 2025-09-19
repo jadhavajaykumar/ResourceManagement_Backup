@@ -12,14 +12,22 @@ from expenses.models import GlobalDASettings, CountryDASetting, DailyAllowance  
 
 # --- BRIDGE WEEKEND LOGIC: Fri <-> Mon inference ---
 
+def _slot_is_onsite(slot) -> bool:
+    if not slot:
+        return False
+    value = getattr(slot, 'worked_onsite', None)
+    if value is None:
+        project = getattr(slot, 'project', None)
+        return getattr(project, 'is_onsite', False)
+    return bool(value)
 
 
 def _eligible_projects_from_timesheet(ts):
-    """Return a set of eligible (Domestic/International) projects used in the timesheet."""
+    """Return eligible projects and onsite flags used in the timesheet."""
     if not ts:
-        return set()
+        return {}
     slots = ts.time_slots.select_related('project', 'project__location_type')
-    elig = set()
+    elig = {}
     for s in slots:
         p = s.project
         if not p:
@@ -27,10 +35,14 @@ def _eligible_projects_from_timesheet(ts):
         loc = getattr(getattr(p, 'location_type', None), 'name', '')
         loc_upper = str(loc).upper()
         if loc_upper == 'DOMESTIC':
-            elig.add(p)
-        elif loc_upper == 'INTERNATIONAL' and getattr(p, 'is_onsite', False):
-            elig.add(p)
-    return elig
+            elig[p] = None
+        elif loc_upper == 'INTERNATIONAL':
+            onsite = _slot_is_onsite(s)
+            if onsite:
+                elig[p] = True
+            elif p not in elig:
+                elig[p] = False
+    return {project: flag for project, flag in elig.items() if flag is None or flag is True}
 
 def ensure_weekend_from_bridge(timesheet):
     """
@@ -80,24 +92,25 @@ def ensure_weekend_from_bridge(timesheet):
     #       Both days -> that side's project (first eligible)
     sat_project = None
     sun_project = None
+    
+    sat_flag = None
+    sun_flag = None
 
     if fri_projects and mon_projects:
-        sat_project = next(iter(fri_projects))
-        sun_project = next(iter(mon_projects))
+        sat_project, sat_flag = next(iter(fri_projects.items()))
+        sun_project, sun_flag = next(iter(mon_projects.items()))
     elif fri_projects:
-        p = next(iter(fri_projects))
-        sat_project = p
-        sun_project = p
+        sat_project, sat_flag = next(iter(fri_projects.items()))
+        sun_project, sun_flag = sat_project, sat_flag
     else:  # mon_projects only
-        p = next(iter(mon_projects))
-        sat_project = p
-        sun_project = p
+        sun_project, sun_flag = next(iter(mon_projects.items()))
+        sat_project, sat_flag = sun_project, sun_flag
 
     # Create/ensure the weekend DA (idempotent)
     if sat_project:
-        ensure_weekend_da(emp, sat_project, sat)
+        ensure_weekend_da(emp, sat_project, sat, worked_onsite=sat_flag)
     if sun_project:
-        ensure_weekend_da(emp, sun_project, sun)
+         ensure_weekend_da(emp, sun_project, sun, worked_onsite=sun_flag)
 
 
 # ---------------------- Existing helpers (kept) ----------------------
@@ -126,15 +139,31 @@ def ensure_weekend_for_timesheet(timesheet):
     ws2, we2 = _week_bounds(d_max)
     week_windows = {(week_start, week_end), (ws2, we2)}
 
-    projects = {s.project for s in slots if s.project}
+    project_flags = {}
+    for slot in slots:
+        project = slot.project
+        if not project:
+            continue
+        loc = getattr(getattr(project, 'location_type', None), 'name', '')
+        loc_upper = str(loc).upper()
+        if loc_upper == 'DOMESTIC':
+            project_flags[project] = None
+        elif loc_upper == 'INTERNATIONAL':
+            onsite = _slot_is_onsite(slot)
+            if onsite:
+                project_flags[project] = True
+            elif project not in project_flags:
+                project_flags[project] = False
+
+    eligible_projects = {p: flag for p, flag in project_flags.items() if flag is None or flag is True}
 
     for (ws, we) in week_windows:
         # Check Sat/Sun only
         sat = ws + timedelta(days=5)
         sun = ws + timedelta(days=6)
-        for p in projects:
-            ensure_weekend_da(employee, p, sat)
-            ensure_weekend_da(employee, p, sun)
+        for project, flag in eligible_projects.items():
+            ensure_weekend_da(employee, project, sat, worked_onsite=flag)
+            ensure_weekend_da(employee, project, sun, worked_onsite=flag)
 
 def calculate_total_hours(time_from, time_to) -> float:
     """Calculate total hours between two time values."""
@@ -187,10 +216,14 @@ def calculate_da(slot) -> Tuple[Decimal, str]:
         return Decimal("300.00"), currency
 
     if location_type == "Domestic":
+        if not getattr(project, "is_onsite", False):
+            return Decimal("0.0"), currency
         return Decimal("600.00"), currency
-
+        
+    is_slot_onsite = _slot_is_onsite(slot)
+    
     if location_type == "International":
-        if not getattr(project, 'is_onsite', False):
+        if not is_slot_onsite:
             return Decimal("0.0"), currency
         if weekday in [5, 6] and total_hours > 0:
             return (getattr(project, 'off_day_da_rate', None) or Decimal("0.0")), currency
@@ -210,17 +243,19 @@ WEEKEND_DAYS = (5, 6)  # Saturday=5, Sunday=6
 def _is_weekend(d: date) -> bool:
     return d.weekday() in WEEKEND_DAYS
 
-def _eligible_for_weekend_da(project) -> bool:
+def _eligible_for_weekend_da(project, *, worked_onsite=None) -> bool:
     """Weekend entitlement applies only to Domestic or onsite International."""
     loc = getattr(getattr(project, 'location_type', None), 'name', '')
     loc_upper = str(loc).upper()
     if loc_upper == 'DOMESTIC':
-        return True
-    if loc_upper == 'INTERNATIONAL':
         return getattr(project, 'is_onsite', False)
+    if loc_upper == 'INTERNATIONAL':
+        if worked_onsite is None:
+            worked_onsite = getattr(project, 'is_onsite', False)
+        return bool(worked_onsite)
     return False
 
-def _weekend_entitlement_amount(project) -> Tuple[Decimal, str]:
+def _weekend_entitlement_amount(project, *, worked_onsite=None) -> Tuple[Decimal, str]:
     """
     Decide the weekend entitlement amount for a project WITHOUT any timesheet.
     Rules (aligned to your current policy):
@@ -233,12 +268,15 @@ def _weekend_entitlement_amount(project) -> Tuple[Decimal, str]:
     loc = getattr(getattr(project, 'location_type', None), 'name', '')
 
     if str(loc) == "Domestic":
+        if not getattr(project, 'is_onsite', False):
+            return Decimal("0.0"), currency
         return Decimal("600.00"), currency
 
-    if str(loc) == "International" and getattr(project, 'is_onsite', False):
-        off_day = getattr(project, 'off_day_da_rate', None)
-        if off_day:
-            return off_day, currency
+    if str(loc) == "International":
+        if worked_onsite is None:
+            worked_onsite = getattr(project, 'is_onsite', False)
+        if not worked_onsite:
+            return Decimal("0.0"), currency
 
         da_type = getattr(project, 'da_type', None)
         if da_type == "Daily":
@@ -255,7 +293,7 @@ def _weekend_entitlement_amount(project) -> Tuple[Decimal, str]:
 
     return Decimal("0.0"), currency
 
-def ensure_weekend_da(employee, project, d: date) -> Optional[DailyAllowance]:
+def ensure_weekend_da(employee, project, d: date, *, worked_onsite=None) -> Optional[DailyAllowance]:
     """
     Ensure a DA record exists for a weekend date on Domestic/International projects,
     even when the employee has NO timesheet for that date.
@@ -265,7 +303,7 @@ def ensure_weekend_da(employee, project, d: date) -> Optional[DailyAllowance]:
     """
     if not _is_weekend(d):
         return None
-    if not _eligible_for_weekend_da(project):
+    if not _eligible_for_weekend_da(project, worked_onsite=worked_onsite):
         return None
 
     # If a DA already exists (created earlier by entitlement or timesheet), reuse it
@@ -273,7 +311,7 @@ def ensure_weekend_da(employee, project, d: date) -> Optional[DailyAllowance]:
     if da:
         return da
 
-    amount, currency = _weekend_entitlement_amount(project)
+    amount, currency = _weekend_entitlement_amount(project, worked_onsite=worked_onsite)
     if amount <= 0:
         return None
 
@@ -295,15 +333,15 @@ def ensure_weekend_da(employee, project, d: date) -> Optional[DailyAllowance]:
     )
     return da
 
-def backfill_weekend_da_for_range(employee, project, start_date: date, end_date: date):
+def backfill_weekend_da_for_range(employee, project, start_date: date, end_date: date, *, worked_onsite=None):
     """
     Optional batch utility: safe to run multiple times (idempotent by unique_together).
     """
     created = []
     cur = start_date
     while cur <= end_date:
-        if _is_weekend(cur) and _eligible_for_weekend_da(project):
-            da = ensure_weekend_da(employee, project, cur)
+        if _is_weekend(cur) and _eligible_for_weekend_da(project, worked_onsite=worked_onsite):
+            da = ensure_weekend_da(employee, project, cur, worked_onsite=worked_onsite)
             if da:
                 created.append(da)
         cur += timedelta(days=1)

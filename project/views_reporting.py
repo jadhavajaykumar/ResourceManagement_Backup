@@ -25,13 +25,13 @@ def project_timesheet_earning_report_view(request, project_id):
 
 # Export endpoints are now handled by service wrappers
 def export_project_profitability_excel_view(request, project_id):
-    return export_project_profitability_excel(project_id)
+    return export_project_profitability_excel(request, project_id)
 
 def export_da_claims_excel_view(request, project_id):
-    return export_da_claims_excel(project_id)
+    return export_da_claims_excel(request, project_id)
 
 def export_timesheet_earnings_excel_view(request, project_id):
-    return export_timesheet_earnings_excel(project_id)
+    return export_timesheet_earnings_excel(request, project_id)
 
 def export_project_profitability_pdf_view(request, project_id):
-    return export_project_profitability_pdf(project_id)
+     return export_project_profitability_pdf(request, project_id)

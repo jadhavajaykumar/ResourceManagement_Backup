@@ -46,6 +46,11 @@ class TimeSlot(models.Model):
     description = models.TextField()
     hours = models.DecimalField(max_digits=5, decimal_places=2)
     slot_date = models.DateField(null=True, blank=True)
+    worked_onsite = models.BooleanField(
+        null=True,
+        blank=True,
+        help_text="Indicates whether this slot was worked onsite. Leave blank to use the project's default."
+    )
     class Meta:
         ordering = ['time_from']
 

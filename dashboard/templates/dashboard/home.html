@@ -21,6 +21,57 @@
     font-size:1.25rem;
   }
   .section-title { font-size: .95rem; letter-spacing:.02em; color: var(--bs-secondary-color); margin: 1.5rem 0 .75rem; }
+
+  /*
+    Dark-mode readability fixes (scoped so tiles stay the same).
+    Many Bootstrap-based themes set data-bs-theme="dark" on <body> or add a .dark-mode class.
+    We handle both. These rules affect *text outside feature cards* so the tiles remain visually unchanged.
+  */
+  body[data-bs-theme="dark"], .dark-mode {
+    --dm-muted: rgba(255,255,255,0.65);
+    --dm-secondary: rgba(255,255,255,0.82);
+    --dm-small: rgba(255,255,255,0.72);
+  }
+
+  /* Small / muted text that could be hard to see in dark mode */
+  body[data-bs-theme="dark"] .text-muted,
+  .dark-mode .text-muted {
+    color: var(--dm-muted) !important;
+  }
+
+  /* Section titles and other small labels outside feature cards */
+  body[data-bs-theme="dark"] .section-title,
+  .dark-mode .section-title {
+    color: var(--dm-secondary) !important;
+  }
+
+  /* General small text elements outside the tiles */
+  body[data-bs-theme="dark"] .small,
+  .dark-mode .small {
+    color: var(--dm-small) !important;
+  }
+
+  /* Ensure header small text is readable */
+  body[data-bs-theme="dark"] .dash-header .text-muted,
+  .dark-mode .dash-header .text-muted {
+    color: var(--dm-muted) !important;
+  }
+
+  /*
+    IMPORTANT: keep .feature-card contents untouched, they already have their own styles.
+    This selector prevents accidental override inside tiles.
+  */
+  body[data-bs-theme="dark"] .feature-card .text-muted,
+  .dark-mode .feature-card .text-muted {
+    color: inherit !important;
+  }
+
+  /* Optional: emphasize links outside tiles in dark mode */
+  body[data-bs-theme="dark"] a.card-link,
+  .dark-mode a.card-link {
+    color: inherit; /* keep tile links consistent */
+  }
+
 </style>
 {% endblock %}
 
