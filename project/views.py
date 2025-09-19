@@ -34,12 +34,10 @@ def project_dashboard(request):
             project_id = request.POST.get('project_id')
             instance = Project.objects.get(id=project_id) if project_id else None
             project_form = ProjectForm(request.POST, request.FILES, instance=instance)
-            material_formset = ProjectMaterialFormSet(request.POST, instance=instance, prefix='materials')
-
-            if project_form.is_valid() and material_formset.is_valid():
+            
+            if project_form.is_valid():
                 new_project = project_form.save()
-                material_formset.instance = new_project
-                material_formset.save()
+               
                 selected_skills = json.loads(request.POST.get('selected_skills') or '[]')
 
                 if instance:
@@ -53,7 +51,6 @@ def project_dashboard(request):
                     'projects': projects,
                     'project_form': project_form,
                     'task_form': task_form,
-                    'material_formset': material_formset,
                     'main_skills': main_skills,
                 })
 
@@ -69,7 +66,6 @@ def project_dashboard(request):
                     'projects': projects,
                     'project_form': project_form,
                     'task_form': task_form,
-                    'material_formset': material_formset,
                     'main_skills': main_skills,
                 })
 

@@ -55,22 +55,7 @@
           {% include 'shared/includes/form_field.html' with field=project_form.quoted_days %}
           {% include 'shared/includes/form_field.html' with field=project_form.quoted_price %}
 
-          <!-- Section: Materials -->
-          <h5 class="text-primary mt-4">📦 Materials</h5>
-          <div id="materials-formset">
-            {{ material_formset.management_form }}
-            {% for form in material_formset %}
-            <div class="row g-2 align-items-end material-form mb-2">
-              <div class="col">{% include 'shared/includes/form_field.html' with field=form.name %}</div>
-              <div class="col">{% include 'shared/includes/form_field.html' with field=form.make %}</div>
-              <div class="col">{% include 'shared/includes/form_field.html' with field=form.quantity %}</div>
-              <div class="col">{% include 'shared/includes/form_field.html' with field=form.price %}</div>
-              {% if form.instance.pk %}
-              <div class="col-auto">{% include 'shared/includes/form_field.html' with field=form.DELETE %}</div>
-              {% endif %}
-            </div>
-            {% endfor %}
-          </div>
+          
           <!-- Section: DA Settings -->
           <h5 class="text-primary mt-4">💰 DA Settings</h5>
           {% include 'shared/includes/form_field.html' with field=project_form.da_type %}

@@ -410,86 +410,25 @@ class ExportViewTests(TestCase):
         mock_export.assert_called_once_with(self.request, self.project_id)
         self.assertIsInstance(response, HttpResponse)        
 
-class ProjectMaterialTests(TestCase):
+class ProjectCreationWithoutMaterialsTests(TestCase):
     def setUp(self):
         self.url = reverse('project:project-dashboard')
         User = get_user_model()
         self.admin = User.objects.create_user(
             username='admin2', password='pass1234', is_staff=True
         )
-        self.project_type = ProjectType.objects.create(name='Turnkey')
+        
         self.service_type = ProjectType.objects.create(name='Service')
         self.status = ProjectStatus.objects.create(name='Active')
         self.location = LocationType.objects.create(name='Other')
 
-    def test_materials_saved_for_turnkey_project(self):
-        self.client.login(username='admin2', password='pass1234')
-        data = {
-            'add_project': '1',
-            'name': 'Proj',
-            'customer_name': 'Cust',
-            'start_date': '2025-01-01',
-            'status_type': self.status.id,
-            'project_type': self.project_type.id,
-            'location_type': self.location.id,
-            'budget': '1000',
-            'quoted_hours': '120',
-            'quoted_days': '15',
-            'quoted_price': '45000',
-            'selected_skills': '[]',
-            'materials-TOTAL_FORMS': '1',
-            'materials-INITIAL_FORMS': '0',
-            'materials-MIN_NUM_FORMS': '0',
-            'materials-MAX_NUM_FORMS': '1000',
-            'materials-0-id': '',
-            'materials-0-name': 'Cement',
-            'materials-0-make': 'BrandX',
-            'materials-0-quantity': '5',
-            'materials-0-price': '20.00',
-        }
-        response = self.client.post(self.url, data)
-        self.assertEqual(response.status_code, 302)
-        project = Project.objects.get(name='Proj')
-        material = project.materials.get()
-        self.assertEqual(material.name, 'Cement')
-
-    def test_turnkey_requires_materials(self):
-        self.client.login(username='admin2', password='pass1234')
-        data = {
-            'add_project': '1',
-            'name': 'Proj2',
-            'customer_name': 'Cust',
-            'start_date': '2025-01-01',
-            'status_type': self.status.id,
-            'project_type': self.project_type.id,
-            'location_type': self.location.id,
-            'budget': '1000',
-            'quoted_hours': '120',
-            'quoted_days': '15',
-            'quoted_price': '45000',
-            'selected_skills': '[]',
-            'materials-TOTAL_FORMS': '1',
-            'materials-INITIAL_FORMS': '0',
-            'materials-MIN_NUM_FORMS': '0',
-            'materials-MAX_NUM_FORMS': '1000',
-            'materials-0-id': '',
-            'materials-0-name': '',
-            'materials-0-make': '',
-            'materials-0-quantity': '',
-            'materials-0-price': '',
-        }
-        response = self.client.post(self.url, data)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(Project.objects.filter(name='Proj2').count(), 0)  
-
-    def test_blank_material_row_is_ignored_for_service_project(self):
-        self.client.login(username='admin2', password='pass1234')
-        data = {
+    def _base_payload(self):
+        return {
             'add_project': '1',
             'name': 'ServiceProj',
             'customer_name': 'Cust',
             'start_date': '2025-01-01',
-            'end_date': '',
+            'end_date': '2025-12-31',
             'status_type': self.status.id,
             'project_type': self.service_type.id,
             'location_type': self.location.id,
@@ -504,18 +443,14 @@ class ProjectMaterialTests(TestCase):
             'customer_start_date': '2025-01-01',
             'customer_end_date': '2025-12-31',
             'selected_skills': '[]',
-            'materials-TOTAL_FORMS': '1',
-            'materials-INITIAL_FORMS': '0',
-            'materials-MIN_NUM_FORMS': '0',
-            'materials-MAX_NUM_FORMS': '1000',
-            'materials-0-id': '',
-            'materials-0-name': '',
-            'materials-0-make': '',
-            'materials-0-quantity': '',
-            'materials-0-price': '',
+            
         }
-        response = self.client.post(self.url, data)
+    def test_project_creation_succeeds_without_material_fields(self):
+        self.client.login(username='admin2', password='pass1234')
+        response = self.client.post(self.url, self._base_payload())
+        
         self.assertEqual(response.status_code, 302)
         self.assertRedirects(response, self.url)
+        
         project = Project.objects.get(name='ServiceProj')
         self.assertEqual(project.materials.count(), 0)        
