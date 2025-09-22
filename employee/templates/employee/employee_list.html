@@ -1,30 +1,265 @@
 {% extends "base.html" %}
+{% load humanize %}
+
 {% block title %}Employee Directory{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
     <h1>Employee Directory</h1>
-    <table class="table table-striped">
-        <thead>
+    <div>
+      <a href="{% url 'employee:add-employee' %}" class="btn btn-success me-2">
+        <i class="fa fa-plus"></i> Add Employee
+      </a>
+      <a href="{% url 'employee:export-template' %}" class="btn btn-outline-secondary me-2">
+        <i class="fa fa-file-export"></i> Export Template
+      </a>
+      <a href="{% url 'employee:import-employees' %}" class="btn btn-outline-primary me-2">
+        <i class="fa fa-file-import"></i> Import Employees
+      </a>
+    </div>
+  </div>
+
+  <div class="card shadow-sm mb-3">
+    <div class="card-body">
+      <form id="filter-form" method="get" class="row g-2 align-items-end">
+        <div class="col-md-4">
+          <label class="form-label small mb-1">Global Search</label>
+          <input type="search" name="q" value="{{ filters.q }}" id="filter-q" class="form-control" placeholder="Search name, email, dept, emp id, address">
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label small mb-1">Name</label>
+          <input type="text" name="name" value="{{ filters.name }}" class="form-control" placeholder="First/Last/Email">
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label small mb-1">Emp ID</label>
+          <input type="text" name="employee_id" value="{{ filters.employee_id }}" class="form-control" placeholder="EMP-...">
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label small mb-1">Role</label>
+          <input type="text" name="role" value="{{ filters.role }}" class="form-control" placeholder="Role">
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label small mb-1">Department</label>
+          <input type="text" name="department" value="{{ filters.department }}" class="form-control" placeholder="Dept">
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label small mb-1">Employment Type</label>
+          <input type="text" name="employment_type" value="{{ filters.employment_type }}" class="form-control" placeholder="Permanent/Contract">
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label small mb-1">Contact</label>
+          <input type="text" name="contact" value="{{ filters.contact }}" class="form-control" placeholder="Phone">
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label small mb-1">Manager</label>
+          <input type="text" name="manager" value="{{ filters.manager }}" class="form-control" placeholder="Mgr name / email">
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label small mb-1">Address</label>
+          <input type="text" name="address" value="{{ filters.address }}" class="form-control" placeholder="City / Area">
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label small mb-1">Page Size</label>
+          <select name="page_size" class="form-select">
+            {% for s in page_sizes %}
+              <option value="{{ s }}" {% if filters.page_size|stringformat:"s" == s|stringformat:"s" %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-primary w-100">Apply Filters</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body p-2">
+      <div class="table-responsive">
+        <table id="people-table" class="table table-hover table-bordered table-sm mb-0">
+          <thead class="table-light">
             <tr>
-                <th>Name</th>
-                <th>Employee ID</th>
-                <th>Role</th>
+              <th>#</th>
+			  <th>Emp ID</th>
+              <th>Name / Email</th>           
+              <th>Role</th>
+              <th>Department</th>
+              <th>Employment Type</th>
+              <th>Career Start</th>
+              <th>Join Date</th>
+              <th>Contact</th>
+              <th>Reporting Manager</th>
+              <th>Bank / EPF</th>
+              <th>Address</th>
+              <th>Confirmation</th>
+              <th>Actions</th>
             </tr>
-        </thead>
-        <tbody>
-        {% for emp in employees %}
+          </thead>
+          <tbody>
+            {% for emp in employees %}
             <tr>
-                <td>{{ emp.user.get_full_name }}</td>
-                <td>{{ emp.employee_id }}</td>
-                <td>{{ emp.role }}</td>
+              {# compute absolute index: start_index + forloop.counter - 1 #}
+              <td>{{ page_obj.start_index|add:forloop.counter|add:"-1" }}</td>
+			  <td>{{ emp.employee_id }}</td>	
+              <td>
+                {{ emp.user.get_full_name }}
+                <div class="text-muted small">{{ emp.user.email }}</div>
+              </td>
+              <td>{{ emp.role }}</td>
+              <td>{{ emp.department|default:"—" }}</td>
+              <td>{{ emp.employment_type }}</td>
+              <td>{% if emp.career_start_date %}{{ emp.career_start_date|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+              <td>{% if emp.probotix_joining_date %}{{ emp.probotix_joining_date|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+              <td>
+                {% if emp.contact_number %}{{ emp.contact_number }}{% else %}—{% endif %}
+                {% if emp.emergency_contact_name %}
+                  <div class="text-muted small">
+                    Emergency: {{ emp.emergency_contact_name }} ({{ emp.emergency_contact_relation }}) {% if emp.emergency_contact_number %}- {{ emp.emergency_contact_number }}{% endif %}
+                  </div>
+                {% endif %}
+              </td>
+              <td>
+                {% if emp.reporting_manager %}
+                  {{ emp.reporting_manager.get_full_name }}<br>
+                  <small class="text-muted">{{ emp.reporting_manager.email }}</small>
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+              <td>
+                <small class="d-block">Bank: {{ emp.bank_account_number|default:"—" }}</small>
+                <small class="d-block">IFSC: {{ emp.bank_ifsc_code|default:"—" }}</small>
+                <small class="d-block">EPF: {{ emp.epf_number|default:"—" }}</small>
+              </td>
+              <td style="max-width:240px; white-space:normal;">{{ emp.address|linebreaksbr }}</td>
+              <td>
+                {% if emp.confirmation_date %}
+                  {{ emp.confirmation_date|date:"Y-m-d" }}{% if emp.confirmation_due_today %} <span class="badge bg-warning text-dark">Due Today</span>{% endif %}
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+              <td>
+                {% if can_edit %}
+                  <a href="{% url 'employee:edit-employee' emp.id %}" class="btn btn-sm btn-outline-primary mb-1">Edit</a>
+                {% endif %}
+                <a href="{% url 'employee:employee-profile-home' %}?user={{ emp.user.id }}" class="btn btn-sm btn-outline-secondary mb-1">Profile</a>
+              </td>
             </tr>
-        {% empty %}
+            {% empty %}
             <tr>
-                <td colspan="3">No employees found.</td>
+              <td colspan="14" class="text-center">No employees found matching filters.</td>
             </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% if is_paginated %}
+      <nav aria-label="Employee pagination" class="mt-3">
+        <ul class="pagination justify-content-center">
+          {% if page_obj.has_previous %}
+            <li class="page-item">
+              <a class="page-link" href="?{% for k,v in request_get.items %}{% if k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}page=1">&laquo; First</a>
+            </li>
+            <li class="page-item">
+              <a class="page-link" href="?{% for k,v in request_get.items %}{% if k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}">‹ Prev</a>
+            </li>
+          {% else %}
+            <li class="page-item disabled"><span class="page-link">&laquo; First</span></li>
+            <li class="page-item disabled"><span class="page-link">‹ Prev</span></li>
+          {% endif %}
+
+          {# page numbers (compact) #}
+          {% for num in paginator.page_range %}
+			  {% if paginator.num_pages > 9 %}
+				{% if num == 1 or num == paginator.num_pages %}
+				  <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+					<a class="page-link" href="?{% for k,v in request_get.items %}{% if k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}page={{ num }}">{{ num }}</a>
+				  </li>
+				{% elif num >= page_obj.number|add:-2 and num <= page_obj.number|add:2 %}
+				  <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+					<a class="page-link" href="?{% for k,v in request_get.items %}{% if k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}page={{ num }}">{{ num }}</a>
+				  </li>
+				{% elif num == 2 and page_obj.number > 4 %}
+				  <li class="page-item disabled"><span class="page-link">…</span></li>
+				{% elif num == paginator.num_pages|add:-1 and page_obj.number < paginator.num_pages|add:-3 %}
+				  <li class="page-item disabled"><span class="page-link">…</span></li>
+				{% endif %}
+			  {% else %}
+				<li class="page-item {% if page_obj.number == num %}active{% endif %}">
+				  <a class="page-link" href="?{% for k,v in request_get.items %}{% if k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}page={{ num }}">{{ num }}</a>
+				</li>
+			  {% endif %}
+			{% endfor %}
+
+
+
+          {% if page_obj.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?{% for k,v in request_get.items %}{% if k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}">Next ›</a>
+            </li>
+            <li class="page-item">
+              <a class="page-link" href="?{% for k,v in request_get.items %}{% if k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}page={{ paginator.num_pages }}">Last »</a>
+            </li>
+          {% else %}
+            <li class="page-item disabled"><span class="page-link">Next ›</span></li>
+            <li class="page-item disabled"><span class="page-link">Last »</span></li>
+          {% endif %}
+        </ul>
+      </nav>
+      {% endif %}
+    </div>
+  </div>
 </div>
+
+{% block scripts %}
+<script>
+(function() {
+  // Debounce helper
+  function debounce(fn, delay) {
+    let t;
+    return function() {
+      const args = arguments;
+      clearTimeout(t);
+      t = setTimeout(()=> fn.apply(this, args), delay);
+    };
+  }
+
+  const form = document.getElementById('filter-form');
+  const inputs = form.querySelectorAll('input[type="text"], input[type="search"], select');
+
+  // Auto-submit on change with debounce
+  const submitForm = debounce(function() {
+    // reset to page 1 on filter change
+    form.submit();
+  }, 500);
+
+  inputs.forEach(function(i) {
+    i.addEventListener('input', submitForm);
+    i.addEventListener('change', submitForm);
+  });
+
+  // Optional: pressing Enter submits immediately
+  form.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      form.submit();
+    }
+  });
+})();
+</script>
+{% endblock %}
+
 {% endblock %}

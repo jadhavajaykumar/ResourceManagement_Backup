@@ -22,6 +22,48 @@ from employee.models import EmployeeProfile
 
 logger = logging.getLogger(__name__)
 
+
+# list overview views for quick verification
+from django.contrib.auth.decorators import login_required
+
+@login_required
+def skill_overview(request):
+    """
+    Simple page listing SkillCategory, SkillMatrix and some EmployeeSkill samples.
+    Useful to verify that models & migrations are active.
+    """
+    categories = SkillCategory.objects.all().order_by('order', 'name')
+    matrices = SkillMatrix.objects.all().order_by('-created_at')[:20]
+    sample_skills = EmployeeSkill.objects.select_related('employee__user', 'main_skill', 'subskill')[:100]
+    return render(request, 'skills/overview.html', {
+        'categories': categories,
+        'matrices': matrices,
+        'sample_skills': sample_skills,
+    })
+
+
+def _employee_skill_value(emp_skill):
+    """
+    Return the canonical rating value for display/aggregation:
+    prefer `proficiency` if not None, else fall back to legacy `rating`.
+    """
+    if not emp_skill:
+        return None
+    if getattr(emp_skill, 'proficiency', None) is not None:
+        try:
+            return int(emp_skill.proficiency)
+        except Exception:
+            # if stored as decimal or string, coerce safely
+            try:
+                return int(float(emp_skill.proficiency))
+            except Exception:
+                return int(emp_skill.rating or 0)
+    try:
+        return int(emp_skill.rating or 0)
+    except Exception:
+        return 0
+
+
 # fallback for access control helper if accounts.access_control not present
 try:
     from accounts.access_control import is_manager
@@ -211,8 +253,10 @@ def assign_skills(request):
             for skill in skills:
                 if skill.main_skill and skill.subskill:
                     key = f"{skill.main_skill.name}|{skill.subskill.name}"
-                    skill_dict[key] = skill.rating
-                    subskill_map[skill.subskill.id] = skill.rating
+                    val = _employee_skill_value(skill)
+                    skill_dict[key] = val
+                    subskill_map[skill.subskill.id] = val
+
 
             # per main-skill aggregates (from EmployeeAnswer)
             per_main_aggregates = {}
@@ -302,20 +346,70 @@ def load_subskills(request):
 @login_required
 @permission_required('timesheet.can_approve')
 def export_skill_matrix(request):
+    """
+    Export employee skills as CSV.
+
+    By default this returns columns:
+      Employee ID, Employee Name, Main Skill, Subskill, Rating
+
+    If caller provides ?include_new=1 (or true/yes) then additional columns are appended:
+      proficiency, years_experience, certified
+
+    Examples:
+      /skills/export-skill-matrix/                -> original CSV (backwards compatible)
+      /skills/export-skill-matrix/?include_new=1  -> CSV with extra columns
+    """
+    include_new_raw = (request.GET.get('include_new') or request.GET.get('includeNew') or request.GET.get('include-new'))
+    include_new = False
+    if include_new_raw:
+        include_new = str(include_new_raw).lower() in ("1", "true", "yes", "y")
+
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="skill_matrix.csv"'
     writer = csv.writer(response)
-    writer.writerow(['Employee ID', 'Employee Name', 'Main Skill', 'Subskill', 'Rating'])
-    all_skills = EmployeeSkill.objects.select_related('employee__user', 'main_skill', 'subskill').order_by('employee__id')
+
+    # Base headers (keep original order)
+    headers = ['Employee ID', 'Employee Name', 'Main Skill', 'Subskill', 'Rating']
+
+    # Extra headers for new columns (appended when requested)
+    extra_headers = ['Proficiency', 'Years Experience', 'Certified']
+    if include_new:
+        headers.extend(extra_headers)
+
+    writer.writerow(headers)
+
+    # Query all skills
+    all_skills = EmployeeSkill.objects.select_related('employee__user', 'main_skill', 'subskill').order_by('employee__id', 'main_skill__name', 'subskill__name')
     for skill in all_skills:
-        writer.writerow([
-            skill.employee.id,
-            skill.employee.user.get_full_name() if getattr(skill.employee, 'user', None) else str(skill.employee),
-            skill.main_skill.name if skill.main_skill else '',
-            skill.subskill.name if skill.subskill else '',
-            skill.rating,
-        ])
+        employee_id = skill.employee.id
+        employee_name = skill.employee.user.get_full_name() if getattr(skill.employee, 'user', None) else str(skill.employee)
+        main_skill_name = skill.main_skill.name if skill.main_skill else ''
+        subskill_name = skill.subskill.name if skill.subskill else ''
+        rating = skill.rating if skill.rating is not None else ''
+
+        row = [employee_id, employee_name, main_skill_name, subskill_name, rating]
+
+        if include_new:
+            # prefer explicit proficiency (new field), fall back to rating if proficiency is empty
+            prof = getattr(skill, 'proficiency', None)
+            if prof is None:
+                prof_out = rating if rating != '' else ''
+            else:
+                # cast decimals to string nicely
+                try:
+                    prof_out = str(int(prof))
+                except Exception:
+                    prof_out = str(prof)
+            years = getattr(skill, 'years_experience', '') if getattr(skill, 'years_experience', None) is not None else ''
+            certified = getattr(skill, 'certified', False)
+            certified_out = 'Yes' if certified else 'No'
+
+            row.extend([prof_out, years, certified_out])
+
+        writer.writerow(row)
+
     return response
+
 
 
 @login_required
@@ -333,7 +427,7 @@ def get_employee_skill_data(request):
         'main_skill': skill.main_skill.name if skill.main_skill else '',
         'subskill': skill.subskill.name if skill.subskill else '',
         'subskill_id': skill.subskill.id if skill.subskill else None,
-        'rating': skill.rating
+        'rating': _employee_skill_value(skill)
     } for skill in skills]
     return JsonResponse(data, safe=False)
 
@@ -398,16 +492,25 @@ def edit_skill_assignment(request):
                 except SubSkill.DoesNotExist:
                     continue
 
+                # create or update: seed proficiency from rating when creating, and keep proficiency in sync if null
                 emp_skill, created = EmployeeSkill.objects.get_or_create(
                     employee=profile,
                     main_skill=subskill.main_skill,
                     subskill=subskill,
-                    defaults={'rating': rating}
+                    defaults={'rating': rating, 'proficiency': rating}
                 )
                 if not created:
+                    # if proficiency is None, populate it from rating; otherwise, update both rating and leave proficiency intact
+                    changed = False
                     if emp_skill.rating != rating:
                         emp_skill.rating = rating
-                        emp_skill.save(update_fields=['rating'])
+                        changed = True
+                    if getattr(emp_skill, 'proficiency', None) is None:
+                        emp_skill.proficiency = rating
+                        changed = True
+                    if changed:
+                        # save both fields if changed
+                        emp_skill.save(update_fields=['rating', 'proficiency', 'last_updated'] if hasattr(emp_skill, 'last_updated') else ['rating', 'proficiency'])
                         updated += 1
                 else:
                     updated += 1
@@ -500,7 +603,8 @@ def evaluate_skill_view(request, employee_id, main_skill_id, subskill_id=None):
             # update or create EmployeeSkill (use first subskill if needed)
             emp_skills = EmployeeSkill.objects.filter(employee=profile, main_skill=main_skill)
             if emp_skills.exists():
-                emp_skills.update(rating=aggregated_int)
+                # update both legacy rating and new proficiency to reflect aggregation
+                emp_skills.update(rating=aggregated_int, proficiency=aggregated_int)
             else:
                 # choose a subskill to attach the aggregated rating; prefer the subskill we evaluated, else first available
                 use_sub = subskill or SubSkill.objects.filter(main_skill=main_skill).first()
@@ -509,7 +613,8 @@ def evaluate_skill_view(request, employee_id, main_skill_id, subskill_id=None):
                         employee=profile,
                         main_skill=main_skill,
                         subskill=use_sub,
-                        rating=aggregated_int
+                        rating=aggregated_int,
+                        proficiency=aggregated_int
                     )
 
         messages.success(request, f"Saved ratings/answers for {updated} questions. Aggregated: {aggregated_float if aggregated_float is not None else 'N/A'}")

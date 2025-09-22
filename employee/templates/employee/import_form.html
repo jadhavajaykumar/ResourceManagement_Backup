@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Import Employees</h2>
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="form-group">
+      <label for="file">Upload Excel File</label>
+      <input type="file" name="file" class="form-control" required>
+    </div>
+    <button type="submit" class="btn btn-primary mt-2">Import</button>
+    <a href="{% url 'employee:export-template' %}" class="btn btn-secondary mt-2">Download Template</a>
+  </form>
+</div>
+{% endblock %}

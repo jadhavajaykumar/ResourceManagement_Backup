@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container">
+  <h2>Skills Overview</h2>
+
+  <h4>Skill Categories</h4>
+  <ul>
+    {% for c in categories %}
+      <li>{{ c.name }} — {{ c.description|default:"(no desc)" }}</li>
+    {% empty %}
+      <li>No categories found.</li>
+    {% endfor %}
+  </ul>
+
+  <h4>Skill Matrices (latest)</h4>
+  <ul>
+    {% for m in matrices %}
+      <li>{{ m.name }} — created {{ m.created_at }}</li>
+    {% empty %}
+      <li>No matrices found.</li>
+    {% endfor %}
+  </ul>
+
+  <h4>Sample Employee Skills</h4>
+  <table class="table table-sm">
+    <thead><tr><th>Employee</th><th>Main Skill</th><th>Subskill</th><th>Rating</th><th>Proficiency</th><th>Years</th><th>Certified</th></tr></thead>
+    <tbody>
+      {% for s in sample_skills %}
+        <tr>
+          <td>{{ s.employee.user.get_full_name }}</td>
+          <td>{{ s.main_skill.name }}</td>
+          <td>{{ s.subskill.name }}</td>
+          <td>{{ s.rating }}</td>
+          <td>{{ s.proficiency }}</td>
+          <td>{{ s.years_experience }}</td>
+          <td>{{ s.certified }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="7">No employee skills present.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

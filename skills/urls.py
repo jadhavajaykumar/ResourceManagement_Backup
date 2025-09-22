@@ -9,6 +9,7 @@ from .views import (
     evaluate_skill_view,
     save_evaluation,
     answer_skill_questions,
+    skill_overview,
 )
 
 app_name = 'skills'
@@ -29,4 +30,5 @@ urlpatterns = [
     path('evaluate/<int:employee_id>/<int:main_skill_id>/', evaluate_skill_view, name='evaluate-skill'),
     path('evaluate/<int:employee_id>/<int:main_skill_id>/<int:subskill_id>/', evaluate_skill_view, name='evaluate-skill-sub'),
     path('evaluate/<int:employee_id>/<int:main_skill_id>/save/', save_evaluation, name='save-evaluation'),
+    path('overview/', skill_overview, name='overview'),
 ]

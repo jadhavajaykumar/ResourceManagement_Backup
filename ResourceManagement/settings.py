@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     'timesheet.apps.TimesheetConfig',
     'manager',
     #'skills.apps.SkillsConfig',
+    'django.contrib.humanize',
     'skills',
     'import_export',
     'widget_tweaks',

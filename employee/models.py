@@ -33,7 +33,7 @@ class EmployeeProfile(models.Model):
     emergency_contact_name = models.CharField(max_length=100, blank=True)
     emergency_contact_relation = models.CharField(max_length=50, blank=True)
     emergency_contact_number = models.CharField(max_length=15, blank=True)
-    employee_id = models.CharField(max_length=20, unique=True, default=generate_employee_id)
+    employee_id = models.CharField(max_length=20, unique=True)
     department = models.CharField(max_length=50, blank=True)
     reporting_manager = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='managed_employees')
     employment_type = models.CharField(max_length=20, choices=EMPLOYMENT_TYPES, default='Permanent')

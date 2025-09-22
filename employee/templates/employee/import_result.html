@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Import Result</h2>
+  <p><b>Created:</b> {{ created }}</p>
+  <p><b>Updated:</b> {{ updated }}</p>
+  {% if errors %}
+  <h4>Errors:</h4>
+  <ul>
+    {% for e in errors %}
+      <li>{{ e }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  <a href="{% url 'employee:employee-list' %}" class="btn btn-primary mt-3">Back to Employee List</a>
+</div>
+{% endblock %}

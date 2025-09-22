@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Bulk Create Users</h2>
+  <p>Upload an Excel file with headers: <code>username,email,first_name,last_name,temp_password,is_staff,is_superuser,groups</code></p>
+
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="mb-3">
+      <label class="form-label">Excel File</label>
+      <input type="file" name="file" class="form-control" accept=".xlsx,.xls" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Upload & Create Users</button>
+    <a href="{% url 'employee:export-user-template' %}" class="btn btn-outline-secondary ms-2">Download Template</a>
+  </form>
+</div>
+{% endblock %}
