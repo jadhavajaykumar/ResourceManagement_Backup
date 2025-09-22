@@ -29,4 +29,4 @@ secrets.py      # Any custom files holding secrets
 
 # OS specific
 
-Thumbs.db       # Windows
+Thumbs.db       # Windows.env
