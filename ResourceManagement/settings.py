@@ -83,6 +83,16 @@ DATABASES = {
     }
 }
 
+import os
+try:
+    import dj_database_url
+    if os.getenv("DATABASE_URL"):
+        DATABASES["default"] = dj_database_url.parse(
+            os.environ["DATABASE_URL"], conn_max_age=600, ssl_require=True
+        )
+except Exception:
+    pass
+
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
