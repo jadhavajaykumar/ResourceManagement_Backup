@@ -1,6 +1,7 @@
 # timesheet/urls.py
 from django.urls import path
 from employee.views.attendance_views import my_c_offs
+
 from .views import (
     apply_c_off,
     load_tasks_for_employee,
@@ -13,6 +14,8 @@ from .views import (
     edit_timesheet,
     delete_timesheet,
     submit_timesheet,
+    
+    
 )
 from .views.approval_views import (
     filtered_timesheet_approvals,
@@ -22,7 +25,11 @@ from .views.approval_views import (
     timesheet_history_view,
 )
 
+from .views.base_views import (
+     ajax_delete_slot,
 
+)
+     
 app_name = 'timesheet'
 
 urlpatterns = [
@@ -46,6 +53,12 @@ urlpatterns = [
     path('approval/action/<int:timesheet_id>/<str:action>/', handle_timesheet_action, name='handle-timesheet-action'),
     path('approval/filtered/', filtered_timesheet_approvals, name='filtered-timesheet-approvals'),
     path('approval/history/', timesheet_history_view, name='timesheet-history'),
+    path('ajax/slot-delete/<int:slot_id>/', ajax_delete_slot, name='ajax-delete-slot'),
 
 
 ]
+
+
+
+
+

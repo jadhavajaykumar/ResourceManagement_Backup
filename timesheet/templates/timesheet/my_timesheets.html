@@ -95,6 +95,7 @@
                                 <th>Project</th>
                                 <th>Task</th>
                                 <th>Description</th>
+								<th class="text-center">Worked Onsite</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -223,28 +224,47 @@ $(document).ready(function() {
                     const tableBody = $('#time-slots-table tbody').empty();
 
                     response.time_slots.forEach((slot, index) => {
-                        const row = `
-                        <tr>
-                            <td><input type="time" name="slot_from_${index+1}" value="${slot.from_time}" class="form-control" readonly></td>
-                            <td><input type="time" name="slot_to_${index+1}" value="${slot.to_time}" class="form-control" readonly></td>
-                            <td>${slot.hours.toFixed(2)}</td>
-                            <td>
-                                <select name="slot_project_${index+1}" class="form-select project-select" data-slot="${index+1}" required>
-                                    <option value="">Select Project</option>
-                                    {% for project in assigned_projects %}
-                                        <option value="{{ project.id }}">{{ project.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </td>
-                            <td>
-                                <select name="slot_task_${index+1}" id="slot_task_${index+1}" class="form-select task-select">
-                                    <option value="">Select Task</option>
-                                </select>
-                            </td>
-                            <td><textarea name="slot_description_${index+1}" class="form-control" rows="2"></textarea></td>
-                        </tr>`;
-                        tableBody.append(row);
-                    });
+						const slotIndex = index + 1;
+
+						// Determine default selection if generate_timeslots returned worked_onsite (true/false/null)
+						// slot.worked_onsite may be true/false/''/undefined
+						const workedDefault = (slot.hasOwnProperty('worked_onsite') && slot.worked_onsite === true) ? 'True'
+											: (slot.hasOwnProperty('worked_onsite') && slot.worked_onsite === false) ? 'False'
+											: '';
+
+						const row = `
+						<tr>
+							<td><input type="time" name="slot_from_${slotIndex}" value="${slot.from_time}" class="form-control" readonly></td>
+							<td><input type="time" name="slot_to_${slotIndex}" value="${slot.to_time}" class="form-control" readonly></td>
+							<td>${Number(slot.hours).toFixed(2)}</td>
+							<td>
+								<select name="slot_project_${slotIndex}" class="form-select project-select" data-slot="${slotIndex}" required>
+									<option value="">Select Project</option>
+									{% for project in assigned_projects %}
+										<option value="{{ project.id }}">{{ project.name }}</option>
+									{% endfor %}
+								</select>
+							</td>
+							<td>
+								<select name="slot_task_${slotIndex}" id="slot_task_${slotIndex}" class="form-select task-select">
+									<option value="">Select Task</option>
+								</select>
+							</td>
+							<td><textarea name="slot_description_${slotIndex}" class="form-control" rows="2"></textarea></td>
+
+							<!-- NEW: Worked Onsite select -->
+							<td class="text-center">
+								<select name="slot_worked_onsite_${slotIndex}" class="form-select">
+									<option value="" ${workedDefault === '' ? 'selected' : ''}>Use project default</option>
+									<option value="True" ${workedDefault === 'True' ? 'selected' : ''}>Onsite</option>
+									<option value="False" ${workedDefault === 'False' ? 'selected' : ''}>Office</option>
+								</select>
+							</td>
+						</tr>
+						`;
+						tableBody.append(row);
+					});
+
 
                     $('input[name="slot_count"]').val(response.slot_count);
                     $('.total-hours-display').html(`<strong>Total Hours: ${response.total_hours.toFixed(2)}</strong>`);

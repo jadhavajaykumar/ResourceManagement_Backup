@@ -3,6 +3,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
+
+
+from django.db.models import Sum
+from timesheet.services.timesheet_service import process_timesheet_save, update_attendance
 from timesheet.utils.slot_utils import generate_time_slots
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -25,15 +30,12 @@ from django.db import transaction
 from timesheet.utils.time_utils import get_current_slot
 from ..models import CompOffApplication
 from django.db.models import Q
-
 from accounts.access_control import is_manager
-
-
+from django.views.decorators.http import require_POST
+from django.utils.dateparse import parse_date
 from timesheet.utils.calendar_utils import get_timesheet_calendar_data
 from timesheet.utils.calculate_attendance import calculate_attendance
 from timesheet.utils.get_calendar_entries import get_calendar_entries
-
-from ..services.timesheet_service import process_timesheet_save
 import json
 import math
 from django.forms import modelformset_factory
@@ -51,6 +53,14 @@ from timesheet.models import (
     Attendance,
 )
 
+
+# put near top of views/base_views.py (or a shared util)
+def coerce_worked_onsite_value(val):
+    if val in (True, "True", "true", "1", 1, "Onsite", "onsite"):
+        return True
+    if val in (False, "False", "false", "0", 0, "Office", "office"):
+        return False
+    return None
 
 
 @login_required
@@ -304,6 +314,8 @@ def my_timesheets(request):
                     from_time = request.POST.get(f'slot_from_{i}')
                     to_time = request.POST.get(f'slot_to_{i}')
                     desc = request.POST.get(f'slot_description_{i}')
+                    raw_worked = request.POST.get(f'slot_worked_onsite_{i}', '').strip()  # new input expected from template
+                    worked_val = coerce_worked_onsite_value(raw_worked)
 
                     if not project_id or not from_time or not to_time:
                         continue
@@ -312,11 +324,12 @@ def my_timesheets(request):
                         timesheet=timesheet,
                         employee=employee,
                         project_id=project_id,
-                        task_id=task_id,
+                        task_id=task_id or None,
                         time_from=from_time,
                         time_to=to_time,
                         description=desc,
-                        slot_date=timesheet.date
+                        slot_date=timesheet.date,
+                        worked_onsite=worked_val
                     )
                     slot.hours = slot.get_duration_hours()
                     slot.save()
@@ -523,17 +536,22 @@ def submit_timesheet(request):
 
                     slot_date = from_dt.date()
 
+                    raw_worked = request.POST.get(f'slot_worked_onsite_{i}', '').strip()
+                    worked_val = coerce_worked_onsite_value(raw_worked)
+
                     TimeSlot.objects.create(
                         timesheet=timesheet,
                         time_from=time_from,
                         time_to=time_to,
                         hours=hours,
-                        slot_date=slot_date,            # ✅ Ensure this is set
+                        slot_date=slot_date,
                         project_id=project_id,
                         task_id=task_id or None,
                         description=description,
-                        employee=employee               # ✅ ensure employee set
+                        employee=employee,
+                        worked_onsite=worked_val
                     )
+
 
                 timesheet.total_hours = total_hours
                 timesheet.save()
@@ -598,4 +616,98 @@ def delete_employee_timesheet_data(request, employee_id):
         'start_date': start_date,
         'end_date': end_date
     })
+    
+    
+
+
+# new AJAX endpoint to delete a single TimeSlot
+@require_POST
+@login_required
+def ajax_delete_slot(request, slot_id):
+    """
+    AJAX endpoint to delete a single TimeSlot.
+    - Only the slot owner (timesheet.employee.user) or HR/admin can delete.
+    - Disallows deletion from Approved timesheets.
+    - If last slot is deleted -> deletes the parent Timesheet and clears attendance.
+    - Returns JSON: { status: 'ok'|'error', date: 'YYYY-MM-DD', day_hours: float, timesheet_deleted: bool }
+    """
+    try:
+        slot = get_object_or_404(TimeSlot.objects.select_related('timesheet__employee'), pk=slot_id)
+    except Exception:
+        return JsonResponse({"status": "error", "message": "Slot not found"}, status=404)
+
+    timesheet = slot.timesheet
+    # permission check: owner or HR/admin or user with timesheet.can_approve
+    user = request.user
+    allowed = (
+        timesheet.employee.user_id == user.id or
+        user.is_superuser or
+        user.groups.filter(name='HR').exists() or
+        user.has_perm('timesheet.can_approve')
+    )
+    if not allowed:
+        return JsonResponse({"status": "error", "message": "Permission denied"}, status=403)
+
+    # cannot delete if approved
+    if getattr(timesheet, "status", None) == "Approved":
+        return JsonResponse({"status": "error", "message": "Cannot delete slot from an approved timesheet."}, status=400)
+
+    # capture date & employee for later calendar update
+    ts_date = timesheet.date
+    employee = timesheet.employee
+
+    # delete the slot
+    try:
+        slot.delete()
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": f"Could not delete slot: {e}"}, status=500)
+
+    # if timesheet has no more slots -> delete timesheet
+    remaining_slots = TimeSlot.objects.filter(timesheet=timesheet).count()
+    timesheet_deleted = False
+    if remaining_slots == 0:
+        # delete timesheet and clean up attendance / compensatory off if required
+        try:
+            timesheet.delete()
+            timesheet_deleted = True
+        except Exception as e:
+            return JsonResponse({"status": "error", "message": f"Could not delete timesheet: {e}"}, status=500)
+    else:
+        # recalculate totals & related side-effects for the timesheet
+        try:
+            process_timesheet_save(timesheet)
+        except Exception:
+            # best-effort fallback: sum remaining slot.hours into timesheet.total_hours
+            total = TimeSlot.objects.filter(timesheet=timesheet).aggregate(total=Sum('hours'))['total'] or 0
+            timesheet.total_hours = float(total)
+            timesheet.save(update_fields=['total_hours'])
+
+    # compute day total hours across remaining timesheets for that employee/date
+    day_total = Timesheet.objects.filter(employee=employee, date=ts_date).aggregate(sum=Sum('total_hours'))['sum'] or 0.0
+    day_hours = float(day_total)
+
+    # update or delete attendance depending on day_hours
+    try:
+        ts_for_att = Timesheet.objects.filter(employee=employee, date=ts_date).first()
+        if day_hours <= 0:
+            Attendance.objects.filter(employee=employee, date=ts_date).delete()
+        else:
+            # if we have a timesheet instance, call update_attendance with that instance and day_hours
+            if ts_for_att:
+                try:
+                    update_attendance(ts_for_att, day_hours)
+                except Exception:
+                    # swallow errors; attendance can be recalculated later
+                    pass
+    except Exception:
+        # ignore attendance errors (we'll still return success)
+        pass
+
+    return JsonResponse({
+        "status": "ok",
+        "date": ts_date.isoformat() if ts_date else None,
+        "day_hours": day_hours,
+        "timesheet_deleted": timesheet_deleted,
+    })
+
     

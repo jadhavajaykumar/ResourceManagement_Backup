@@ -10,7 +10,7 @@
     <i class="bi bi-arrow-left me-2"></i> Back to Dashboard
   </a>
 
-  <form method="post" class="card shadow-sm p-4">
+  <form method="post" class="card shadow-sm p-4" id="edit-timesheet-form">
     {% csrf_token %}
 
     {% if form.non_field_errors %}
@@ -42,79 +42,97 @@
     </div>
 
     <hr>
-	{% if formset.non_form_errors %}
-	  <div class="alert alert-danger">
-		{% for error in formset.non_form_errors %}
-		  <p>{{ error }}</p>
-		{% endfor %}
-	  </div>
-	{% endif %}
-
+    {% if formset.non_form_errors %}
+      <div class="alert alert-danger">
+        {% for error in formset.non_form_errors %}
+          <p>{{ error }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
 
     <h5 class="text-primary mb-3">Time Slots</h5>
     {{ formset.management_form }}
     <div class="table-responsive mb-4">
       <table class="table table-bordered align-middle">
         <thead class="table-light">
-		  <tr>
-			<th>Project</th>
-			<th>Task</th>
-			<th>Description</th>
-			<th>From</th>
-			<th>To</th>
-            <th>Worked Onsite?</th>
-            <th>Delete?</th>
-		  </tr>
-		</thead>
-		<tbody>
-		  {% for slot_form in formset %}
-		  <tr>
-			{{ slot_form.id }} 
-			<td>
-			  {{ slot_form.project|add_class:"form-select" }}
-			  {% for error in slot_form.project.errors %}
+          <tr>
+            <th>Project</th>
+            <th>Task</th>
+            <th>Description</th>
+            <th>From</th>
+            <th>To</th>
+            <th class="text-center">Worked Onsite?</th>
+            <th class="text-center">Delete</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for slot_form in formset %}
+          <tr>
+            {# render hidden id field if present #}
+            {{ slot_form.id }}
+            <td>
+              {{ slot_form.project|add_class:"form-select" }}
+              {% for error in slot_form.project.errors %}
+                <div class="text-danger small">{{ error }}</div>
+              {% endfor %}
+            </td>
+            <td>
+              {{ slot_form.task|add_class:"form-select" }}
+              {% for error in slot_form.task.errors %}
+                <div class="text-danger small">{{ error }}</div>
+              {% endfor %}
+            </td>
+            <td>
+              {{ slot_form.description|add_class:"form-control" }}
+              {% for error in slot_form.description.errors %}
+                <div class="text-danger small">{{ error }}</div>
+              {% endfor %}
+            </td>
+            <td>
+              {{ slot_form.time_from|add_class:"form-control" }}
+              {% for error in slot_form.time_from.errors %}
+                <div class="text-danger small">{{ error }}</div>
+              {% endfor %}
+            </td>
+            <td>
+              {{ slot_form.time_to|add_class:"form-control" }}
+              {% for error in slot_form.time_to.errors %}
+                <div class="text-danger small">{{ error }}</div>
+              {% endfor %}
+            </td>
+
+            <!-- Worked Onsite: render as checkbox for faster UI -->
+            
+			<td class="text-center">
+			  {{ slot_form.worked_onsite|add_class:"form-select" }}
+			  {% for error in slot_form.worked_onsite.errors %}
 				<div class="text-danger small">{{ error }}</div>
 			  {% endfor %}
 			</td>
-			{{ slot_form.id }} 
-			<td>
-			  {{ slot_form.task|add_class:"form-select" }}
-			  {% for error in slot_form.task.errors %}
-				<div class="text-danger small">{{ error }}</div>
-			  {% endfor %}
-			</td>
-			{{ slot_form.id }} 
-			<td>
-			  {{ slot_form.description|add_class:"form-control" }}
-			  {% for error in slot_form.description.errors %}
-				<div class="text-danger small">{{ error }}</div>
-			  {% endfor %}
-			</td>
-			{{ slot_form.id }} 
-			<td>
-			  {{ slot_form.time_from|add_class:"form-control" }}
-			  {% for error in slot_form.time_from.errors %}
-				<div class="text-danger small">{{ error }}</div>
-			  {% endfor %}
-			</td>
-			{{ slot_form.id }} 
-			<td>
-			  {{ slot_form.time_to|add_class:"form-control" }}
-			  {% for error in slot_form.time_to.errors %}
-				<div class="text-danger small">{{ error }}</div>
-			  {% endfor %}
-			 <td>
-                          {{ slot_form.worked_onsite|add_class:"form-select" }}
-                          {% for error in slot_form.worked_onsite.errors %}
-                                <div class="text-danger small">{{ error }}</div>
-                          {% endfor %}
-              </td>
-             <td>{{ slot_form.DELETE }}</td>
-		  </tr>
-		  {% endfor %}
-		</tbody>
 
 
+            <!-- Delete column: for persisted slots show AJAX Remove button; for new rows show DELETE checkbox -->
+            <td class="text-center">
+              {% if slot_form.instance and slot_form.instance.id %}
+                <button type="button"
+                        class="btn btn-sm btn-outline-danger ajax-delete-slot"
+                        data-slot-id="{{ slot_form.instance.id }}"
+                        data-slot-date="{{ slot_form.instance.slot_date|date:'Y-m-d' }}">
+                  Remove
+                </button>
+                <div class="text-muted small mt-1 ajax-delete-msg-{{ slot_form.instance.id }}"></div>
+
+                {# Keep hidden DELETE checkbox too so server-side formset processing stays consistent
+                   but hide it from view to avoid duplicate controls #}
+                <div style="display:none;">{{ slot_form.DELETE }}</div>
+
+              {% else %}
+                {{ slot_form.DELETE }}
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
       </table>
     </div>
 
@@ -126,4 +144,116 @@
     </div>
   </form>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // CSRF helper
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const c = cookies[i].trim();
+        if (c.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(c.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+  const csrftoken = getCookie('csrftoken');
+
+  // Attach handlers to persisted-slot Remove buttons
+  function handleDelete(button) {
+    const slotId = button.dataset.slotId;
+    const slotDate = button.dataset.slotDate || '';
+
+    if (!slotId) return;
+
+    if (!confirm('Delete this time slot? This action cannot be undone.')) return;
+
+    // Build endpoint URL - relies on named URL timesheet:ajax-delete-slot
+    const urlTemplate = "{% url 'timesheet:ajax-delete-slot' 0 %}";
+    const url = urlTemplate.replace('/0/', '/' + slotId + '/');
+
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': csrftoken,
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      body: new URLSearchParams({}) // no body required
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'ok') {
+        // remove row from DOM
+        const row = button.closest('tr');
+        if (row) row.remove();
+
+        // update calendar cell if present (expects id="calendar-day-YYYY-MM-DD")
+        if (data.date) {
+          const cell = document.getElementById('calendar-day-' + data.date);
+          if (cell) {
+            // find existing hours badge inside and update or remove
+            const badge = cell.querySelector('.badge');
+            if (badge) {
+              if (!data.day_hours || Number(data.day_hours) === 0) {
+                badge.remove();
+              } else {
+                badge.textContent = data.day_hours + ' hrs';
+              }
+            } else if (data.day_hours) {
+              const newBadge = document.createElement('div');
+              newBadge.className = 'badge bg-dark text-white mt-1';
+              newBadge.textContent = data.day_hours + ' hrs';
+              const container = cell.querySelector('div.d-flex') || cell;
+              container.appendChild(newBadge);
+            }
+          } else {
+            // fallback: reload to ensure calendar sync
+            location.reload();
+          }
+        }
+
+        // If full timesheet got deleted, redirect to timesheet list
+        if (data.timesheet_deleted) {
+          alert('All slots were removed and the timesheet was deleted.');
+          window.location.href = "{% url 'timesheet:my-timesheets' %}";
+          return;
+        }
+
+      } else {
+        alert(data.message || 'Could not delete the slot.');
+      }
+    })
+    .catch(err => {
+      console.error('Delete slot failed', err);
+      alert('Server error while deleting slot.');
+    });
+  }
+
+  // bind existing buttons
+  function bindDeleteButtons() {
+    document.querySelectorAll('.ajax-delete-slot').forEach(function(btn) {
+      // avoid double-binding
+      if (!btn.dataset.bound) {
+        btn.dataset.bound = '1';
+        btn.addEventListener('click', function(e) {
+          handleDelete(e.currentTarget);
+        });
+      }
+    });
+  }
+
+  bindDeleteButtons();
+
+  // If you dynamically add rows client-side, call bindDeleteButtons() after insertion.
+
+});
+</script>
 {% endblock %}

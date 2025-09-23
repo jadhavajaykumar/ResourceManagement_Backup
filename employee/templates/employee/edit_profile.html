@@ -1,28 +1,184 @@
+{# employee/templates/employee/edit_profile.html #}
 {% extends "base.html" %}
 {% load static %}
 
+{% block title %}Edit My Profile{% endblock %}
+
+{% block extra_styles %}
+<style>
+.profile-edit-card { max-width: 1000px; margin: 0 auto; }
+.section-title { font-size:.95rem; font-weight:600; margin-bottom:.5rem; }
+.kv-label { font-size:.85rem; color:#555; }
+.kv-value { font-size:.95rem; color:#222; }
+.readonly-box { background: #f8f9fa; padding: .6rem; border-radius: .35rem; border:1px solid #ececec; }
+@media (max-width:575px){ .col-sm-6, .col-sm-4 { flex: 0 0 100%; max-width:100%; } }
+</style>
+{% endblock %}
+
 {% block content %}
-<h2>Edit My Profile</h2>
+<div class="container mt-4">
+  <div class="card profile-edit-card shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <div>
+        <h4 class="mb-0">Edit My Profile</h4>
+        <div class="text-muted small">You can edit personal fields. HR / Admin can edit all fields.</div>
+      </div>
+      <div>
+        <a href="{% url 'employee:employee-profile-home' %}" class="btn btn-sm btn-outline-secondary">Back to Profile</a>
+      </div>
+    </div>
 
-<form method="post">
-    {% csrf_token %}
-    {% for field in form %}
-        <div class="form-group" style="margin-bottom: 15px;">
-            <label for="{{ field.id_for_label }}">{{ field.label }}:</label><br>
-            {{ field }}
-            {% if field.errors %}
-                <div style="color: red;">{{ field.errors }}</div>
-            {% endif %}
-        </div>
-    {% endfor %}
+    <div class="card-body">
+      {% if is_hr_admin %}
+        {# Full form for HR / Admin (unchanged behavior) #}
+        <form method="post" novalidate>
+          {% csrf_token %}
+          <div class="row g-3">
+            {% for field in form %}
+              <div class="col-md-6">
+                <label class="form-label">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors }}</div>{% endif %}
+              </div>
+            {% endfor %}
+          </div>
 
-    <button type="submit" class="btn">Save Changes</button>
-</form>
+          <div class="card-footer bg-white mt-3 text-end">
+            <a href="{% url 'employee:employee-profile-home' %}" class="btn btn-outline-secondary me-2">Cancel</a>
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+          </div>
+        </form>
 
-	  <form method="post" action="{% url 'dashboard:home' %}">
-        {% csrf_token %}
-            <button type="submit" class="btn btn-secondary btn-lg shadow-sm">
-                <i class="bi bi-house me-2"></i>Dashboard
-            </button>
-      </form>
+      {% else %}
+        {# Non-HR: show read-only display of all fields, but render editable inputs for personal subset #}
+        <form method="post" novalidate>
+          {% csrf_token %}
+          <div class="row">
+            <div class="col-12 mb-3">
+              <div class="section-title">Name & Contact</div>
+            </div>
+
+            <div class="col-sm-6">
+              <label class="form-label">First name</label>
+              {{ user_form.first_name }}
+              {% if user_form.first_name.errors %}<div class="text-danger small">{{ user_form.first_name.errors }}</div>{% endif %}
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label">Last name</label>
+              {{ user_form.last_name }}
+              {% if user_form.last_name.errors %}<div class="text-danger small">{{ user_form.last_name.errors }}</div>{% endif %}
+            </div>
+
+            <div class="col-12 mt-3">
+              <div class="section-title">Personal Details (editable)</div>
+            </div>
+
+            <div class="col-sm-4">
+              <label class="form-label">Date of Birth</label>
+              {{ profile_form.date_of_birth }}
+              {% if profile_form.date_of_birth.errors %}<div class="text-danger small">{{ profile_form.date_of_birth.errors }}</div>{% endif %}
+            </div>
+            <div class="col-sm-4">
+              <label class="form-label">Contact Number</label>
+              {{ profile_form.contact_number }}
+              {% if profile_form.contact_number.errors %}<div class="text-danger small">{{ profile_form.contact_number.errors }}</div>{% endif %}
+            </div>
+            <div class="col-sm-4">
+              <label class="form-label">Address</label>
+              {{ profile_form.address }}
+              {% if profile_form.address.errors %}<div class="text-danger small">{{ profile_form.address.errors }}</div>{% endif %}
+            </div>
+
+            <div class="col-12 mt-3">
+              <div class="section-title">Emergency Contact (editable)</div>
+            </div>
+            <div class="col-sm-4">
+              <label class="form-label">Name</label>
+              {{ profile_form.emergency_contact_name }}
+              {% if profile_form.emergency_contact_name.errors %}<div class="text-danger small">{{ profile_form.emergency_contact_name.errors }}</div>{% endif %}
+            </div>
+            <div class="col-sm-4">
+              <label class="form-label">Relation</label>
+              {{ profile_form.emergency_contact_relation }}
+              {% if profile_form.emergency_contact_relation.errors %}<div class="text-danger small">{{ profile_form.emergency_contact_relation.errors }}</div>{% endif %}
+            </div>
+            <div class="col-sm-4">
+              <label class="form-label">Phone</label>
+              {{ profile_form.emergency_contact_number }}
+              {% if profile_form.emergency_contact_number.errors %}<div class="text-danger small">{{ profile_form.emergency_contact_number.errors }}</div>{% endif %}
+            </div>
+
+            <div class="col-12 mt-4">
+              <div class="section-title">Employment Details (read-only)</div>
+            </div>
+
+            <div class="col-sm-4">
+              <div class="kv-label">Employee ID</div>
+              <div class="kv-value readonly-box">{{ display.employee_id|default:"—" }}</div>
+            </div>
+            <div class="col-sm-4">
+              <div class="kv-label">Role</div>
+              <div class="kv-value readonly-box">{{ display.role|default:"—" }}</div>
+            </div>
+            <div class="col-sm-4">
+              <div class="kv-label">Department</div>
+              <div class="kv-value readonly-box">{{ display.department|default:"—" }}</div>
+            </div>
+
+            <div class="col-sm-4 mt-2">
+              <div class="kv-label">Reporting Manager</div>
+              <div class="kv-value readonly-box">
+                {% if display.reporting_manager %}{{ display.reporting_manager }}<br><small class="text-muted">{{ display.reporting_manager_email }}</small>{% else %}—{% endif %}
+              </div>
+            </div>
+            <div class="col-sm-4 mt-2">
+              <div class="kv-label">Employment Type</div>
+              <div class="kv-value readonly-box">{{ display.employment_type|default:"—" }}</div>
+            </div>
+            <div class="col-sm-4 mt-2">
+              <div class="kv-label">Career Start / Join / Confirmation</div>
+              <div class="kv-value readonly-box">
+                <div>Career start: {{ display.career_start_date|default:"—" }}</div>
+                <div>Joined: {{ display.probotix_joining_date|default:"—" }}</div>
+                <div>Confirmation: {{ display.confirmation_date|default:"—" }}</div>
+              </div>
+            </div>
+
+            <div class="col-12 mt-4">
+              <div class="section-title">Bank & Legal (read-only)</div>
+            </div>
+
+            <div class="col-sm-4">
+              <div class="kv-label">PAN / Aadhar / SSN</div>
+              <div class="kv-value readonly-box">{{ display.pan_aadhar_ssn|default:"—" }}</div>
+            </div>
+            <div class="col-sm-4">
+              <div class="kv-label">Bank Account</div>
+              <div class="kv-value readonly-box">{{ display.bank_account_number|default:"—" }}</div>
+            </div>
+            <div class="col-sm-4">
+              <div class="kv-label">IFSC / SWIFT</div>
+              <div class="kv-value readonly-box">{{ display.bank_ifsc_code|default:"—" }}</div>
+            </div>
+            <div class="col-sm-4 mt-2">
+              <div class="kv-label">EPF Number</div>
+              <div class="kv-value readonly-box">{{ display.epf_number|default:"—" }}</div>
+            </div>
+            <div class="col-sm-4 mt-2">
+              <div class="kv-label">Grace Period (days)</div>
+              <div class="kv-value readonly-box">{{ display.grace_period_days|default:"—" }}</div>
+            </div>
+
+          </div>
+
+          <div class="card-footer bg-white mt-3 text-end">
+            <a href="{% url 'employee:employee-profile-home' %}" class="btn btn-outline-secondary me-2">Cancel</a>
+            <button type="submit" class="btn btn-primary">Save Personal Changes</button>
+          </div>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
 {% endblock %}

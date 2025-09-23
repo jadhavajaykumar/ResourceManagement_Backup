@@ -30,15 +30,20 @@ class TimeSlotForm(forms.ModelForm):
         required=False,
         coerce=_coerce_worked_onsite,
         empty_value=None,
+        widget=forms.Select(attrs={'class': 'form-select'})  
     )
     
     class Meta:
         model = TimeSlot
         fields = ['project', 'task', 'description', 'time_from', 'time_to', 'worked_onsite']
         widgets = {
-            'description': forms.Textarea(attrs={'rows': 2}),
-            'time_from': forms.TimeInput(attrs={'type': 'time'}),
-            'time_to': forms.TimeInput(attrs={'type': 'time'}),
+                        
+            'worked_onsite': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'time_from': forms.TimeInput(format='%H:%M', attrs={'type': 'time', 'class': 'form-control'}),
+            'time_to': forms.TimeInput(format='%H:%M', attrs={'type': 'time', 'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 1}),
+            'project': forms.Select(attrs={'class': 'form-select'}),
+            'task': forms.Select(attrs={'class': 'form-select'}),
         }
 
     def __init__(self, *args, **kwargs):
