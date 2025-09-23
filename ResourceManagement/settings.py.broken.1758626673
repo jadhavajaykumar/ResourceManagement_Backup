@@ -1,0 +1,21 @@
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+import socket
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load .env (server/local overrides)
+load_dotenv(BASE_DIR / ".env")
+
+SECRET_KEY = 'your-secret-key'  # Replace with a secure key in production
+DEBUG = True
+
+# Allow localhost + machine host/fqdn + env overrides
+_default_hosts = ["localhost", "127.0.0.1", socket.gethostname(), socket.getfqdn()]
+_extra_hosts = [h.strip() for h in os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",") if h.strip()]
+
+# Allow localhost + machine host/fqdn + env overrides
+_default_hosts = ["localhost", "127.0.0.1", socket.gethostname(), socket.getfqdn()]
+_extra_hosts = [h.strip() for h in os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",") if h.strip()]
+ALLOWED_HOSTS = list({h.lower() for h in (_default_hosts + _extra_hosts)})
